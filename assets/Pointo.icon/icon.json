@@ -2,31 +2,27 @@
   "color-space-for-untagged-svg-colors" : "display-p3",
   "fill" : {
     "linear-gradient" : [
-      "display-p3:1.00000,0.87000,0.32000,1.00000",
-      "display-p3:1.00000,0.66000,0.10000,1.00000"
+      "display-p3:0.16000,0.40000,1.00000,1.00000",
+      "display-p3:0.02000,0.17000,0.82000,1.00000"
     ],
-    "orientation" : { "start" : { "x" : 0.3, "y" : 0 }, "stop" : { "x" : 0.7, "y" : 1 } }
+    "orientation" : { "start" : { "x" : 0.35, "y" : 0 }, "stop" : { "x" : 0.65, "y" : 1 } }
   },
   "groups" : [
     {
-      "name" : "Pointo",
-      "layers" : [
-        { "image-name" : "3-eyes.svg", "name" : "Eyes", "glass" : false },
-        { "image-name" : "2-cursor.svg", "name" : "Cursor", "glass" : true }
-      ],
-      "lighting" : "combined",
-      "specular" : true,
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "translucency" : { "enabled" : false, "value" : 0.0 }
+      "name" : "Face",
+      "layers" : [ { "image-name" : "2-face.svg", "name" : "Face", "glass" : false,
+                     "position" : { "scale" : 0.9, "translation-in-points" : [0, 10] } } ],
+      "shadow" : { "kind" : "none", "opacity" : 0 },
+      "translucency" : { "enabled" : false, "value" : 0 }
     },
     {
-      "name" : "Outline",
-      "layers" : [
-        { "image-name" : "1-outline.svg", "name" : "Outline", "glass" : true }
-      ],
+      "name" : "Ghost",
+      "layers" : [ { "image-name" : "1-body.svg", "name" : "Body", "glass" : true,
+                     "position" : { "scale" : 0.9, "translation-in-points" : [0, 10] } } ],
+      "lighting" : "combined",
       "specular" : true,
-      "shadow" : { "kind" : "layer-color", "opacity" : 0.35 },
-      "translucency" : { "enabled" : true, "value" : 0.45 }
+      "shadow" : { "kind" : "layer-color", "opacity" : 0.45 },
+      "translucency" : { "enabled" : true, "value" : 0.15 }
     }
   ],
   "supported-platforms" : { "squares" : "shared" }
