@@ -23,11 +23,11 @@ Shortcuts are `RegisterHotKey` plus low-level hooks and a key-state poller (inje
 ## agentContext and the command-line tool
 
 - `agentContext` looks up what clicks and marks land on through UI Automation (`win/uia.rs`, behind `ax::hit_test`; the rest of `ax.rs`, its prober and `apply`, is shared). It reads names, localized control types and automation ids, never a control's value, so nothing typed into a field (passwords included) is read. `cargo test win::uia -- --ignored --nocapture` names whatever is under the pointer. `ax_other.rs` stays the stub for systems with neither lookup.
-- Settings › Agents puts `pointo` on PATH with a `pointo.cmd` shim in `%LOCALAPPDATA%\Microsoft\WindowsApps`, which is on every user's PATH (`win/command_line.rs`, the same API as `command_line.rs`): a symbolic link needs Developer Mode and a hard link can't cross drives. The shim runs this `pointo.exe` with every argument; another program called `pointo` there is left alone.
+- Settings › Agents (设置 › AI 代理) puts `pointo` on PATH with a `pointo.cmd` shim in `%LOCALAPPDATA%\Microsoft\WindowsApps`, which is on every user's PATH (`win/command_line.rs`, the same API as `command_line.rs`): a symbolic link needs Developer Mode and a hard link can't cross drives. The shim runs this `pointo.exe` with every argument; another program called `pointo` there is left alone.
 
 ## Not on Windows
 
-The cabled iPhone, video export, Sparkle (**Check for Updates…** opens the releases page) and reading the browser tab URL (the `sdk.js` page bridge still works).
+The cabled iPhone, video export, Sparkle (**检查更新…**, Check for Updates…, opens the releases page) and reading the browser tab URL (the `sdk.js` page bridge still works).
 
 ## Building and testing
 
