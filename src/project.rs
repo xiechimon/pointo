@@ -4,8 +4,7 @@
 //!
 //! A delivery copies what an agent reads (the contact sheet, keyframes, manifest and the
 //! summary rewritten to point at the copy) and leaves the heavy media (`recording.mp4`,
-//! `audio.wav`) in the original bundle, whose path the copied summary ends with so
-//! `pointo zoom` and `pointo export` still reach it. `.pointo/` is added to the repository's
+//! `audio.wav`) in the original bundle, whose path the copied summary ends with. `.pointo/` is added to the repository's
 //! `.git/info/exclude` (never `.gitignore`), so a capture never lands in a commit.
 
 use std::fs;
@@ -116,7 +115,7 @@ pub fn deliver(bundle_dir: &Path, project: &Path) -> Result<PathBuf> {
         summary.push('\n');
     }
     summary.push_str(&format!(
-        "Recording and audio stay in the original bundle: {} (pointo zoom/export read them there)\n",
+        "Full recording and audio (recording.mp4, audio.wav) stay in the original bundle: {}\n",
         source.display()
     ));
     fs::write(copy.join("summary.md"), summary)?;

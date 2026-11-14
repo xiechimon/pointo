@@ -1,8 +1,7 @@
 //! The `agentContext` experiment's text: each keyframe's speech broken up by what happened while
 //! it was said (marks, clicks, drags, shortcuts, windows opening and closing, app events), so the
 //! agent reads "this part" next to the mark drawn as it was said. Marks sharing a keyframe are
-//! numbered ①②③ in drawing order (the images show only the ink; `pointo zoom --mark` and
-//! `pointo inspect --marks` look marks up by these numbers).
+//! numbered ①②③ in drawing order (the images show only the ink).
 //! Nothing here gives raw coordinates: the images show where, so a place is only written when
 //! something names it (an Accessibility label, the dev page's element).
 
