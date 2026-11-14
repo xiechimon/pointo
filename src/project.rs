@@ -303,7 +303,9 @@ mod tests {
             "{summary}"
         );
         assert!(summary.contains(&format!("For project: app ({})", repo.display())));
-        assert!(summary.contains(&bundle.display().to_string()), "{summary}");
+        // The original bundle as `load_bundle` resolves it (Windows: long names, not 8.3 ones).
+        let (original, _) = crate::handoff::load_bundle(&bundle).unwrap();
+        assert!(summary.contains(&original.display().to_string()), "{summary}");
         assert!(!summary.contains("old summary"));
 
         // `latest` names the copy; the README tells an agent what the folder is.
