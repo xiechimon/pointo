@@ -70,15 +70,15 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Pointo captures your screen to build annotated agent bundles.</string>
+  <string>Pointo 录制你的屏幕，生成给 AI 看的带标注录制包。</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Pointo records your voice to align transcripts with keyframes.</string>
+  <string>Pointo 录下你的讲解，把转写文字和关键帧对齐。</string>
   <key>NSCameraUsageDescription</key>
-  <string>Pointo mirrors and records a cabled iPhone's screen.</string>
+  <string>Pointo 显示并录制用数据线连接的 iPhone 屏幕。</string>
   <key>NSSpeechRecognitionUsageDescription</key>
-  <string>Pointo transcribes your narration on this Mac.</string>
+  <string>Pointo 在这台 Mac 上转写你的讲解。</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Pointo reads the address of the browser tab you captured, to send a capture of a dev site to its project's session.</string>
+  <string>Pointo 读取你录制的浏览器标签页地址，用来把开发中网页的录制投递到对应的项目。</string>
   <key>SUEnableAutomaticChecks</key>
   <false/>
   <key>SUAutomaticallyUpdate</key>
