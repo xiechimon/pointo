@@ -5,8 +5,7 @@
 //!
 //! Panes: General (launch at login, sending dev-site captures, the two shortcuts), Recording
 //! (language, video export), Storage (how long recordings are kept), Permissions (the
-//! onboarding checklist, to fix things later), Agents (`pointo` on PATH, the skill's install
-//! command) and About.
+//! onboarding checklist, to fix things later) and About.
 //!
 //! Shortcuts live under `"shortcuts"` (`{"record": {"keyCode", "modifiers", "label"}}`, Carbon
 //! modifier bits; absent means the default, and `"paste": null` turns paste off). While the window records one, Pointo's hotkeys are
@@ -608,12 +607,8 @@ pub enum Pane {
     Recording,
     Storage,
     Permissions,
-    Agents,
     About,
 }
-
-/// What `bunx skills add` installs: `skills/pointo/SKILL.md` from this repository.
-pub const SKILL_COMMAND: &str = "bunx skills add xiechimon/pointo";
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -634,91 +629,17 @@ pub struct View {
     pub captures_dir: CapturesDirView,
     pub permissions: Vec<PermissionView>,
     pub updates: bool,
-    pub command_line: CommandLineView,
-    pub skill_command: &'static str,
 }
 
-/// The "Command-line tool" row.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CommandLineView {
-    /// Where `pointo` is linked, once it is.
-    pub path: Option<String>,
-    /// "install", "uninstall", or none.
-    pub button: Option<&'static str>,
-    pub enabled: bool,
-    pub caption: String,
-    pub error: bool,
-}
-
-impl CommandLineView {
-    fn new(state: &crate::command_line::State, error: Option<&str>) -> Self {
-        use crate::command_line::{State, tilde, usually_on_path};
-        let folder = |link: &std::path::Path| link.parent().map_or_else(String::new, tilde);
-        let mut view = Self {
-            path: None,
-            button: Some("install"),
-            enabled: true,
-            caption: String::new(),
-            error: false,
-        };
-        match state {
-            State::Installed { link, homebrew } => {
-                view.path = Some(tilde(link));
-                view.caption = "AI 代理和终端可以运行 pointo 来读取录制、放大某个时刻、导出视频。"
-                    .to_owned();
-                if *homebrew {
-                    view.button = None;
-                    view.caption = "已通过 Homebrew 安装。AI 代理和终端可以运行 pointo 来读取录制、放大某个时刻、导出视频。"
-                        .to_owned();
-                } else {
-                    view.button = Some("uninstall");
-                    if !usually_on_path(link) {
-                        view.caption = format!(
-                            "如果终端找不到 pointo，请把 {} 加到 PATH。",
-                            folder(link)
-                        );
-                    }
-                }
-            }
-            State::Missing { link } => {
-                view.caption = format!(
-                    "把 pointo 链接到 {}，AI 代理和终端就能运行它。",
-                    folder(link)
-                );
-            }
-            State::Stale { link } => {
-                view.caption = format!(
-                    "{} 指向另一份 Pointo。点“安装”会改为链接到这一份。",
-                    tilde(link)
-                );
-            }
-            State::Taken { link } => {
-                view.button = None;
-                view.error = true;
-                view.caption = format!(
-                    "{} 是另一个程序，Pointo 不会动它。",
-                    tilde(link)
-                );
-            }
-            State::Nowhere => {
-                view.enabled = false;
-                view.error = true;
-                view.caption =
-                    "PATH 里没有 Pointo 可以写入的文件夹。".to_owned();
-            }
-            State::Unavailable => {
-                view.enabled = false;
-                view.caption =
-                    "命令行工具只在已安装的 Pointo.app 里可用。".to_owned();
-            }
-        }
-        if let Some(error) = error {
-            view.error = true;
-            view.caption = error.to_owned();
-        }
-        view
+/// `~/Library/…` rather than `/Users/kit/Library/…`.
+pub fn tilde(path: &Path) -> String {
+    let home = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    if let Some(home) = std::env::var_os(home).map(PathBuf::from)
+        && let Ok(rest) = path.strip_prefix(&home)
+    {
+        return Path::new("~").join(rest).display().to_string();
     }
+    path.display().to_string()
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -850,7 +771,7 @@ impl ProjectView {
                 .project
                 .as_deref()
                 .and_then(crate::handoff::configured_project)
-                .map(|folder| crate::command_line::tilde(&folder)),
+                .map(|folder| tilde(&folder)),
         }
     }
 }
@@ -873,7 +794,7 @@ impl CapturesDirView {
             .and_then(crate::handoff::configured_captures_dir);
         Self {
             custom: chosen.is_some(),
-            path: crate::command_line::tilde(
+            path: tilde(
                 &chosen.unwrap_or_else(crate::handoff::builtin_captures_dir),
             ),
         }
@@ -1005,8 +926,6 @@ pub enum Action {
     /// "Show Welcome Tour" on About.
     Tour,
     /// Link `pointo` into a folder on PATH, or remove that link.
-    InstallCli,
-    UninstallCli,
     Close,
 }
 
@@ -1036,8 +955,6 @@ pub trait Host {
     fn pause_shortcuts(&mut self, paused: bool);
     fn config_path(&self) -> PathBuf;
     fn set_login_item(&mut self, on: bool) -> anyhow::Result<()>;
-    /// Pointo's binary and the folders `pointo` may be linked into.
-    fn command_line(&self) -> crate::command_line::Places;
 }
 
 /// The window's own state: what it's recording, what failed, what was asked for.
@@ -1045,8 +962,6 @@ pub trait Host {
 pub struct Panel {
     recording: Option<ShortcutKind>,
     error: Option<(ShortcutKind, String)>,
-    /// Why the last Install or Uninstall failed.
-    cli_error: Option<String>,
     requested: BTreeSet<Permission>,
     grants: Option<Grants>,
     captures_size: Option<u64>,
@@ -1131,28 +1046,11 @@ impl Panel {
             Action::ShowCaptures => Effect::ShowCaptures,
             Action::CheckForUpdates => Effect::CheckForUpdates,
             Action::Tour => Effect::Tour,
-            Action::InstallCli => {
-                let result = crate::command_line::install(&host.command_line());
-                self.note_cli("install", result.map(drop));
-                Effect::None
-            }
-            Action::UninstallCli => {
-                let result = crate::command_line::uninstall(&host.command_line());
-                self.note_cli("uninstall", result);
-                Effect::None
-            }
             Action::Close => {
                 self.stop_recording(host);
                 Effect::Close
             }
         }
-    }
-
-    fn note_cli(&mut self, verb: &str, result: anyhow::Result<()>) {
-        self.cli_error = result.err().map(|error| {
-            crate::capture::scrawl_log(format!("Command-line tool: {verb}: {error:#}"));
-            format!("{}失败：{error}", if verb == "install" { "安装" } else { "卸载" })
-        });
     }
 
     fn stop_recording(&mut self, host: &mut dyn Host) {
@@ -1386,11 +1284,6 @@ impl Panel {
                 })
                 .collect(),
             updates: updates_available(),
-            command_line: CommandLineView::new(
-                &crate::command_line::state(&host.command_line()),
-                self.cli_error.as_deref(),
-            ),
-            skill_command: SKILL_COMMAND,
         }
     }
 }
@@ -1447,10 +1340,6 @@ impl Host for AppHost<'_> {
 
     fn set_login_item(&mut self, on: bool) -> anyhow::Result<()> {
         set_login_item(on)
-    }
-
-    fn command_line(&self) -> crate::command_line::Places {
-        crate::command_line::Places::system()
     }
 }
 
@@ -1742,7 +1631,6 @@ mod tests {
         path: PathBuf,
         paused: Vec<bool>,
         refuse: Option<String>,
-        cli: crate::command_line::Places,
     }
 
     impl Host for Fake {
@@ -1766,9 +1654,6 @@ mod tests {
         }
         fn set_login_item(&mut self, _on: bool) -> anyhow::Result<()> {
             Ok(())
-        }
-        fn command_line(&self) -> crate::command_line::Places {
-            self.cli.clone()
         }
     }
 
@@ -1807,11 +1692,6 @@ mod tests {
             path: dir.0.join("config.json"),
             paused: Vec::new(),
             refuse: None,
-            cli: crate::command_line::Places {
-                target: None,
-                install: vec![dir.0.join("bin")],
-                also: Vec::new(),
-            },
         }
     }
 
@@ -2358,7 +2238,7 @@ mod tests {
         assert_eq!(read_json(&host.path)["project"], app.display().to_string());
         assert_eq!(
             panel.view(&host).project.path,
-            Some(crate::command_line::tilde(&app))
+            Some(tilde(&app))
         );
         // A relative or missing folder is turned down and the pinned one kept.
         set(&mut panel, &mut host, "app".into());
@@ -2403,7 +2283,7 @@ mod tests {
         assert!(view.custom);
         assert_eq!(
             view.path,
-            crate::command_line::tilde(&dir.0.join("My Captures"))
+            tilde(&dir.0.join("My Captures"))
         );
 
         assert_eq!(set(&mut panel, &mut host, "".into()), Effect::Measure);
@@ -2412,7 +2292,7 @@ mod tests {
         assert!(!view.custom);
         assert_eq!(
             view.path,
-            crate::command_line::tilde(&crate::handoff::builtin_captures_dir())
+            tilde(&crate::handoff::builtin_captures_dir())
         );
     }
 
@@ -2647,77 +2527,6 @@ mod tests {
         assert_eq!(
             parse(r#"{"action":"check-for-updates"}"#),
             Action::CheckForUpdates
-        );
-        assert_eq!(parse(r#"{"action":"install-cli"}"#), Action::InstallCli);
-        assert_eq!(parse(r#"{"action":"uninstall-cli"}"#), Action::UninstallCli);
-    }
-
-    /// Links are a unix thing; Windows has no Pointo.app to link (`State::Unavailable`).
-    #[cfg(unix)]
-    #[test]
-    fn the_command_line_row_installs_uninstalls_and_says_why_not() {
-        let dir = TempDir::new("cli");
-        let mut host = fake(&dir);
-        let mut panel = Panel::default();
-        // A development build has nothing to link.
-        let row = panel.view(&host).command_line;
-        assert_eq!((row.button, row.enabled), (Some("install"), false));
-        assert_eq!(
-            row.caption,
-            "命令行工具只在已安装的 Pointo.app 里可用。"
-        );
-        assert_eq!(
-            panel.view(&host).skill_command,
-            "bunx skills add xiechimon/pointo"
-        );
-
-        let macos = dir.0.join("Pointo.app/Contents/MacOS");
-        std::fs::create_dir_all(&macos).unwrap();
-        std::fs::write(macos.join("pointo"), "").unwrap();
-        host.cli.target = Some(std::fs::canonicalize(macos.join("pointo")).unwrap());
-        let row = panel.view(&host).command_line;
-        assert_eq!(
-            (row.button, row.enabled, row.path),
-            (Some("install"), true, None)
-        );
-        assert!(
-            row.caption.starts_with("把 pointo 链接到 "),
-            "{}",
-            row.caption
-        );
-
-        panel.on(Action::InstallCli, &mut host);
-        let link = dir.0.join("bin/pointo");
-        assert_eq!(
-            std::fs::read_link(&link).unwrap(),
-            host.cli.target.clone().unwrap()
-        );
-        let row = panel.view(&host).command_line;
-        assert_eq!(row.button, Some("uninstall"));
-        assert_eq!(row.path.as_deref(), Some(link.to_str().unwrap()));
-        // Not Homebrew's or /usr/local's bin, so it may not be on PATH.
-        assert!(row.caption.contains("加到 PATH"), "{}", row.caption);
-        assert!(!row.error);
-
-        panel.on(Action::UninstallCli, &mut host);
-        assert!(link.symlink_metadata().is_err());
-        assert_eq!(panel.view(&host).command_line.button, Some("install"));
-
-        // Someone else's pointo stays, and the row says so.
-        std::fs::write(&link, "other").unwrap();
-        let row = panel.view(&host).command_line;
-        assert_eq!((row.button, row.error), (None, true));
-        assert!(
-            row.caption
-                .ends_with("是另一个程序，Pointo 不会动它。")
-        );
-        panel.on(Action::InstallCli, &mut host);
-        assert_eq!(std::fs::read_to_string(&link).unwrap(), "other");
-        let row = panel.view(&host).command_line;
-        assert!(
-            row.error && row.caption.starts_with("安装失败："),
-            "{}",
-            row.caption
         );
     }
 }

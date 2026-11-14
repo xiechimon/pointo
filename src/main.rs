@@ -9,8 +9,6 @@ mod autocrop_lab;
 )]
 mod ax;
 mod capture;
-#[cfg_attr(target_os = "windows", path = "win/command_line.rs")]
-mod command_line;
 mod command_transcriber;
 mod delivery;
 mod export;
@@ -518,12 +516,7 @@ enum Command {
         #[arg(long)]
         usb: bool,
     },
-    /// Print the agent skill that teaches coding agents to read captures and use this CLI (`bunx skills add xiechimon/pointo` installs it).
-    Skill,
 }
-
-/// `skills/pointo/SKILL.md`, the same text `bunx skills add xiechimon/pointo` installs.
-const SKILL: &str = include_str!("../skills/pointo/SKILL.md");
 
 pub fn now_epoch_ms() -> u64 {
     SystemTime::now()
@@ -1485,7 +1478,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let command = match cli.command {
         Some(command) => command,
-        // `pointo` typed in a terminal (on PATH through Settings › Agents or Homebrew) would
+        // A bare `pointo` typed in a terminal would
         // start a second menu-bar app. macOS opens the app with stdin on /dev/null.
         // On Windows `pointo.exe` is a console program and Explorer gives it a console too, so a
         // bare launch always starts the app.
@@ -2314,10 +2307,6 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Serve { port, usb } => phone::run_ingest_server(port, usb),
-        Command::Skill => {
-            print!("{SKILL}");
-            Ok(())
-        }
     }
 }
 

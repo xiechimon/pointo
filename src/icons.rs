@@ -24,10 +24,9 @@ pub const INFO: &str = "icons/info.svg";
 pub const CHEVRONS: &str = "icons/chevrons.svg";
 pub const RESET: &str = "icons/reset.svg";
 pub const ARROW_UP_RIGHT: &str = "icons/arrow-up-right.svg";
-pub const TERMINAL: &str = "icons/terminal.svg";
 pub const X: &str = "icons/x.svg";
 
-const ICONS: [(&str, &[u8]); 22] = [
+const ICONS: [(&str, &[u8]); 21] = [
     (SPINNER, include_bytes!("../assets/icons/spinner.svg")),
     (AREA, include_bytes!("../assets/icons/area.svg")),
     (WINDOW, include_bytes!("../assets/icons/window.svg")),
@@ -50,7 +49,6 @@ const ICONS: [(&str, &[u8]); 22] = [
     (INFO, include_bytes!("../assets/icons/info.svg")),
     (CHEVRONS, include_bytes!("../assets/icons/chevrons.svg")),
     (RESET, include_bytes!("../assets/icons/reset.svg")),
-    (TERMINAL, include_bytes!("../assets/icons/terminal.svg")),
     (X, include_bytes!("../assets/icons/x.svg")),
     (
         ARROW_UP_RIGHT,
