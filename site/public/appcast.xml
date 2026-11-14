@@ -9,7 +9,7 @@
             <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/xiechimon/pointo/releases/download/v0.1.2/Pointo-0.1.2-arm64.zip" length="13880619" type="application/octet-stream" sparkle:edSignature="GHzxB8rA1fM1XGhJtgNYhXGHPZA6dd/z/NyV95QNKXj21UmlTajqGQ16d60KLKN3yVzEjNhet6UOIxIT2VsKAA=="/>
+            <enclosure url="https://xiechimon.github.io/pointo/releases/Pointo-0.1.2-arm64.zip" length="13880619" type="application/octet-stream" sparkle:edSignature="GHzxB8rA1fM1XGhJtgNYhXGHPZA6dd/z/NyV95QNKXj21UmlTajqGQ16d60KLKN3yVzEjNhet6UOIxIT2VsKAA=="/>
         </item>
     </channel>
 </rss>

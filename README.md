@@ -7,7 +7,8 @@
 <p align="center"><b>指给 AI 看，而不是讲给它听。</b></p>
 
 <p align="center">
-  <a href="https://github.com/xiechimon/pointo/releases/latest/download/Pointo-latest-arm64.dmg">下载 macOS 版</a> ·
+  <a href="https://xiechimon.github.io/pointo/releases/Pointo-latest-arm64.dmg">下载 macOS 版</a> ·
+  <a href="https://xiechimon.github.io/pointo/releases/Pointo-latest-windows-x64.zip">下载 Windows 版</a> ·
   <a href="https://xiechimon.github.io/pointo/">项目主页</a> ·
   <a href="https://github.com/xiechimon/pointo/releases/latest">全部版本（含 Windows 预览版）</a>
 </p>
@@ -26,7 +27,7 @@ Pointo 基于 [kitlangton/scrawl](https://github.com/kitlangton/scrawl)（MIT）
 
 **macOS**（Apple 芯片，macOS 15 及以上；macOS 26 上有 Liquid Glass 图标和更多系统效果）
 
-1. 下载 [Pointo-latest-arm64.dmg](https://github.com/xiechimon/pointo/releases/latest/download/Pointo-latest-arm64.dmg)，把 Pointo 拖进「应用程序」。
+1. 下载 [Pointo-latest-arm64.dmg](https://xiechimon.github.io/pointo/releases/Pointo-latest-arm64.dmg)（国内网络也能下载；GitHub Releases 里有同样的文件），把 Pointo 拖进「应用程序」。
 2. 这个版本没有经过 Apple 公证，第一次双击会被 macOS 拦下。打开 **系统设置 › 隐私与安全性**，在页面下方点 **仍要打开**，再确认一次（macOS 15 起右键「打开」已经不能放行）。也可以在终端运行一行命令直接放行：
 
    ```bash
@@ -38,7 +39,7 @@ Pointo 基于 [kitlangton/scrawl](https://github.com/kitlangton/scrawl)（MIT）
 
 之后的更新由 App 自己完成（设置 › 关于 › 检查更新）。
 
-**Windows**（预览版，Windows 10 2004 及以上，x64）：到 [Releases](https://github.com/xiechimon/pointo/releases/latest) 下载 zip，解压后运行 `pointo.exe`。没有签名，Windows 提示「已保护你的电脑」时点 **更多信息 → 仍要运行**。
+**Windows**（预览版，Windows 10 2004 及以上，x64）：下载 [Pointo-latest-windows-x64.zip](https://xiechimon.github.io/pointo/releases/Pointo-latest-windows-x64.zip)（或到 [Releases](https://github.com/xiechimon/pointo/releases/latest)），解压后运行 `pointo.exe`。没有签名，Windows 提示「已保护你的电脑」时点 **更多信息 → 仍要运行**。
 
 ## 怎么用
 

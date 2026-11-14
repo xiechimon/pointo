@@ -1,9 +1,18 @@
 name: pages
 
+# The site also serves the latest release's downloads (releases/), because GitHub's release
+# download host (release-assets.githubusercontent.com) is unreachable from many networks in
+# mainland China while *.github.io is not. So it redeploys when a release is published and when
+# the Windows build has attached its zip.
 on:
   push:
     branches: [main]
     paths: ["site/**", ".github/workflows/pages.yml"]
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Release (Windows)"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -27,6 +36,17 @@ jobs:
       - name: Build
         working-directory: site
         run: bun run build
+      - name: Latest release downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site/dist/releases
+          gh release download --repo "$GITHUB_REPOSITORY" --dir site/dist/releases \
+            --pattern '*-arm64.dmg' --pattern '*-arm64.zip' --pattern '*-windows-x64.zip' || true
+          cd site/dist/releases
+          win=$(ls *-windows-x64.zip 2>/dev/null | grep -v latest | head -1 || true)
+          if [ -n "$win" ]; then cp "$win" Pointo-latest-windows-x64.zip; fi
+          ls -la
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -5,7 +5,9 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-prepare}"
 VERSION="${SCRAWL_VERSION:-$(sed -n 's/^version = "\(.*\)"/\1/p' "${REPO_DIR}/Cargo.toml" | head -1)}"
 BUILD_NUMBER="${SCRAWL_BUILD_NUMBER:-1}"
-# The update feed lives on the project site (GitHub Pages); the files on GitHub Releases.
+# The update feed and the downloads are served from the project site (GitHub Pages): its deploy
+# copies the latest GitHub release's files into releases/ (see .github/workflows/pages.yml),
+# because release-assets.githubusercontent.com is unreachable from many networks in China.
 BASE_URL="${POINTO_SITE_URL:-https://xiechimon.github.io/pointo}"
 REPO_SLUG="${POINTO_REPO:-xiechimon/pointo}"
 SPARKLE_PUBLIC_KEY="f1/njbYaKbKsSsU/uNfo6cIB/bHYqHuU3nFjZkx4Bus="
@@ -143,7 +145,7 @@ SPARKLE_KEY_FILE="${POINTO_SPARKLE_KEY_FILE:-${HOME}/.local/share/pointo-release
 if [[ -f "${SPARKLE_KEY_FILE}" ]]; then
   "${SPARKLE_DIR}/bin/generate_appcast" \
     --ed-key-file "${SPARKLE_KEY_FILE}" \
-    --download-url-prefix "https://github.com/${REPO_SLUG}/releases/download/v${VERSION}/" \
+    --download-url-prefix "${BASE_URL}/releases/" \
     "${UPDATES_DIR}"
 else
   echo "warning: no Sparkle key at ${SPARKLE_KEY_FILE}; appcast not updated" >&2
