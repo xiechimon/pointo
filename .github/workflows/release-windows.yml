@@ -121,6 +121,9 @@ jobs:
             Where-Object { $_.reason -eq "compiler-artifact" -and $_.target.name -eq "pointo" -and $_.profile.test } |
             Select-Object -ExpandProperty executable -First 1
           "test binary: $test"
+          # Current Cargo puts test binaries under build\<pkg>\<hash>\out, away from the DLLs that
+          # build.rs stages beside pointo.exe; `cargo test` adds that folder to PATH, SDE doesn't.
+          $env:PATH = "$(Resolve-Path target\x86_64-pc-windows-msvc\release);$env:PATH"
           $sde = Get-ChildItem $env:SDE_PATH -Recurse -Filter sde.exe | Select-Object -First 1
           & $sde.FullName -lnl -- $test local_asr::tests::downloads_and_runs_qwen --exact --ignored --nocapture
           if ($LASTEXITCODE -ne 0) { throw "failed under SDE -lnl (exit $LASTEXITCODE)" }
