@@ -27,7 +27,7 @@ fn main() {
     }
 }
 
-/// transcribe.cpp's DLLs (`dynamic-backends`: `transcribe.dll`, `ggml*.dll`) beside `scrawl.exe`
+/// transcribe.cpp's DLLs (`dynamic-backends`: `transcribe.dll`, `ggml*.dll`) beside `pointo.exe`
 /// and the test binaries, which load them at start. Its own build script copies them there too,
 /// but only when it runs, and a build restored from CI's cache skips it.
 #[cfg(windows)]
@@ -37,7 +37,7 @@ fn stage_transcribe_dlls() {
         return;
     };
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
-    // OUT_DIR is <target>/<profile>/build/scrawl-<hash>/out.
+    // OUT_DIR is <target>/<profile>/build/pointo-<hash>/out.
     let Some(profile) = out_dir.ancestors().nth(3) else {
         return;
     };
@@ -64,7 +64,7 @@ fn stage_transcribe_dlls() {
 fn embed_windows_resources() {
     let manifest_dir = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let output_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
-    let icon = manifest_dir.join("assets/Scrawl.ico");
+    let icon = manifest_dir.join("assets/Pointo.ico");
     println!("cargo:rerun-if-changed={}", icon.display());
     let version = std::env::var("CARGO_PKG_VERSION").unwrap();
     let numeric = version
@@ -88,12 +88,12 @@ BEGIN
   BEGIN
     BLOCK "040904B0"
     BEGIN
-      VALUE "FileDescription", "Scrawl"
-      VALUE "ProductName", "Scrawl"
+      VALUE "FileDescription", "Pointo"
+      VALUE "ProductName", "Pointo"
       VALUE "FileVersion", "{version}"
       VALUE "ProductVersion", "{version}"
-      VALUE "OriginalFilename", "scrawl.exe"
-      VALUE "InternalName", "scrawl"
+      VALUE "OriginalFilename", "pointo.exe"
+      VALUE "InternalName", "pointo"
     END
   END
   BLOCK "VarFileInfo"
@@ -104,7 +104,7 @@ END
 "#,
         icon = icon.display().to_string().replace('\\', "/")
     );
-    let resource = output_dir.join("scrawl.rc");
+    let resource = output_dir.join("pointo.rc");
     std::fs::write(&resource, script).expect("write the Windows resource script");
     embed_resource::compile(&resource, embed_resource::NONE)
         .manifest_optional()
@@ -159,8 +159,8 @@ fn compile_metal_shader(src_rel: &str, name: &str) {
     );
 }
 
-/// Builds `scrawl-helper` (Swift: SpeechAnalyzer, iPhone capture, movie decoding) beside the
-/// `scrawl` binary, where `helper::path` and `scripts/install-app.sh` look for it.
+/// Builds `pointo-helper` (Swift: SpeechAnalyzer, iPhone capture, movie decoding) beside the
+/// `pointo` binary, where `helper::path` and `scripts/install-app.sh` look for it.
 fn compile_helper() {
     let manifest_dir = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let helper_dir = manifest_dir.join("helper");
@@ -176,7 +176,7 @@ fn compile_helper() {
     }
     let plist = helper_dir.join("Info.plist");
     println!("cargo:rerun-if-changed={}", plist.display());
-    // OUT_DIR is target/<profile>/build/scrawl-<hash>/out.
+    // OUT_DIR is target/<profile>/build/pointo-<hash>/out.
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     let profile_dir = out_dir
         .ancestors()
@@ -188,7 +188,7 @@ fn compile_helper() {
         Err(_) => "arm64",
     }
     .to_owned();
-    let built = out_dir.join("scrawl-helper");
+    let built = out_dir.join("pointo-helper");
     let status = Command::new("xcrun")
         .args(["swiftc", "-O", "-swift-version", "5", "-target"])
         .arg(format!("{arch}-apple-macos15.0"))
@@ -206,12 +206,12 @@ fn compile_helper() {
         ])
         .arg(&plist)
         .status()
-        .expect("xcrun swiftc is required to build scrawl-helper");
+        .expect("xcrun swiftc is required to build pointo-helper");
     assert!(
         status.success(),
-        "scrawl-helper failed to compile (needs the macOS 26 SDK; the result runs on macOS 15)"
+        "pointo-helper failed to compile (needs the macOS 26 SDK; the result runs on macOS 15)"
     );
-    let dest = profile_dir.join("scrawl-helper");
+    let dest = profile_dir.join("pointo-helper");
     let _ = std::fs::remove_file(&dest);
-    std::fs::copy(&built, dest).expect("Could not place scrawl-helper");
+    std::fs::copy(&built, dest).expect("Could not place pointo-helper");
 }

@@ -1,5 +1,5 @@
 //! The capsule's motion plumbing: one animation clock that can run slow, springs and durations
-//! that can be tuned live from `~/.config/scrawl/tune.json` (debug builds), and a per-frame trace
+//! that can be tuned live from `~/.config/pointo/tune.json` (debug builds), and a per-frame trace
 //! in motion-lint's format (`SCRAWL_MOTION_TRACE=<file>`). Each costs nothing when it's off.
 
 use std::cell::{Cell, RefCell};
@@ -97,7 +97,7 @@ impl Tune {
 
 type Field = fn(&mut Tune) -> &mut f32;
 
-/// `tune.json` keys, in the order `scrawl tune list` prints them.
+/// `tune.json` keys, in the order `pointo tune list` prints them.
 pub(super) const KEYS: &[(&str, &str, Field)] = &[
     ("island.duration", "Phase morph width spring (s)", |t| {
         &mut t.island.response
@@ -289,7 +289,7 @@ pub(super) fn tune_path() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("SCRAWL_TUNE") {
         return Some(PathBuf::from(path));
     }
-    dirs::home_dir().map(|home| home.join(".config/scrawl/tune.json"))
+    dirs::home_dir().map(|home| home.join(".config/pointo/tune.json"))
 }
 
 struct TuneState {
@@ -359,7 +359,7 @@ pub(crate) fn poll_tune() {
     });
 }
 
-/// `scrawl tune …`: edits `tune.json`, which debug builds (the lab, the installed app) re-read
+/// `pointo tune …`: edits `tune.json`, which debug builds (the lab, the installed app) re-read
 /// within a quarter second.
 pub(crate) enum TuneAction {
     List,
@@ -413,7 +413,7 @@ pub(crate) fn tune_command(action: TuneAction) -> anyhow::Result<()> {
         TuneAction::Set(key, value) => {
             anyhow::ensure!(
                 Tune::DEFAULT.get(&key).is_some(),
-                "unknown key {key}; `scrawl tune list` shows them"
+                "unknown key {key}; `pointo tune list` shows them"
             );
             let mut map = read();
             map.insert(key.clone(), serde_json::json!(value));

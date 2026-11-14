@@ -98,7 +98,7 @@ impl Spring {
 }
 
 // The capsule's springs and durations live in `motion::Tune` (defaults in `Tune::DEFAULT`, live
-// overrides from `~/.config/scrawl/tune.json` in debug builds; `scrawl tune`).
+// overrides from `~/.config/pointo/tune.json` in debug builds; `pointo tune`).
 //
 // Switch chips on a tap-started recording (`crate::shortcut::Reveal`). One shape: the recording
 // pill grows into the chip row and folds back. The width leads the morph palette (.42/.16 open,
@@ -439,7 +439,7 @@ enum MenuAction {
 static EXPORT_STATUS: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 static EXPORTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Exports the newest bundle to `~/Movies/Scrawl/<name>.mp4` off the main thread, reporting
+/// Exports the newest bundle to `~/Movies/Pointo/<name>.mp4` off the main thread, reporting
 /// through `EXPORT_STATUS`, then reveals the file in Finder.
 fn start_video_export() {
     use std::sync::atomic::Ordering;
@@ -453,7 +453,7 @@ fn start_video_export() {
     };
     say(Some("Exporting…".into()));
     let spawned = std::thread::Builder::new()
-        .name("scrawl-export".into())
+        .name("pointo-export".into())
         .spawn(move || {
             let result = crate::handoff::load_bundle(std::path::Path::new("latest")).and_then(
                 |(dir, bundle)| {
@@ -634,12 +634,12 @@ enum CaptureSource {
     Screen {
         session: ScreenCaptureSession,
         audio: Option<AudioRecorder>,
-        /// Screen mode only: which windows were where, for `scrawl autocrop`.
+        /// Screen mode only: which windows were where, for `pointo autocrop`.
         windows: Option<crate::windows::WindowLogger>,
     },
     /// The helper's mirror window records the phone's native video and the narration.
     Phone(PhoneSession),
-    /// `scrawl lab pill`: nothing is captured.
+    /// `pointo lab pill`: nothing is captured.
     Lab,
 }
 
@@ -758,7 +758,7 @@ pub struct ScrawlCoordinator {
     shortcut: crate::shortcut::Shortcut,
     /// The modifiers held when the shortcut went down; releasing any of them starts the recording.
     hold_mods: u64,
-    /// `scrawl lab pill`: recordings are pretend (`CaptureSource::Lab`), the picker takes no
+    /// `pointo lab pill`: recordings are pretend (`CaptureSource::Lab`), the picker takes no
     /// input and opens no overlay, and nothing looks for windows or phones.
     lab: bool,
 }
@@ -1256,7 +1256,7 @@ impl ScrawlCoordinator {
     }
 
     /// Activity that means the user got to work: clicks, drags, scrolls and strokes. Clicks on
-    /// Scrawl's own windows (the capsule and its chips) are never recorded, so they don't count.
+    /// Pointo's own windows (the capsule and its chips) are never recorded, so they don't count.
     fn reveal_activity(&self) -> usize {
         use std::sync::PoisonError;
         let t = &self.telemetry;
@@ -1554,7 +1554,7 @@ impl ScrawlCoordinator {
 
     /// Picker keyboard map, shared by the picker window and the HUD pill. Returns whether the
     /// key was handled.
-    /// ⌘Q and ⌘, in Scrawl's own windows: a menu bar (accessory) app has no main menu to
+    /// ⌘Q and ⌘, in Pointo's own windows: a menu bar (accessory) app has no main menu to
     /// carry them (Ctrl+Q and Ctrl+, on Windows).
     pub fn handle_app_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
         let mods = keystroke.modifiers;
@@ -2136,7 +2136,7 @@ impl ScrawlCoordinator {
         let (sender, receiver) = flume::bounded(1);
         let send_dir = dir.clone();
         let spawned = std::thread::Builder::new()
-            .name("scrawl-send".into())
+            .name("pointo-send".into())
             .spawn(move || {
                 if let Err(err) =
                     crate::handoff::load_bundle(&send_dir).and_then(|(_, mut bundle)| {
@@ -2524,7 +2524,7 @@ impl ScrawlCoordinator {
         let root = std::env::var_os("SCRAWL_BENCH_START")
             .map(PathBuf::from)
             .unwrap_or_else(crate::handoff::default_captures_dir);
-        let bundle_dir = root.join(format!("{id}.scrawl"));
+        let bundle_dir = root.join(format!("{id}.pointo"));
         let _ = std::fs::create_dir_all(&bundle_dir);
         let video_path = bundle_dir.join("recording.mp4");
 
@@ -2620,7 +2620,7 @@ impl ScrawlCoordinator {
         cx.notify();
     }
 
-    /// `scrawl lab pill`: a pretend recording with no capture, microphone, files or overlay, so
+    /// `pointo lab pill`: a pretend recording with no capture, microphone, files or overlay, so
     /// the capsule goes through exactly the states a real one does.
     fn start_lab_recording(&mut self, target: TargetInfo, cx: &mut Context<Self>) {
         if let IslandPhase::Selecting { mode } = self.island_phase {
@@ -2663,7 +2663,7 @@ impl ScrawlCoordinator {
         self.hovered_window = None;
         self.animated_window_rect = None;
         let bundle_dir = crate::handoff::default_captures_dir()
-            .join(format!("{}.scrawl", crate::make_bundle_id()));
+            .join(format!("{}.pointo", crate::make_bundle_id()));
         let _ = std::fs::create_dir_all(&bundle_dir);
         let movie_path = bundle_dir.join("recording.mov");
         let existing_preview = self.iphone_preview.take();
@@ -4094,7 +4094,7 @@ impl Render for TargetPickerWindow {
         // window swap or border jump on recording start. `TargetPickerWindow` only provides the
         // hit-test surface, cursor style, camera cursor follower, and tabular dimension badge.
         let mut root = div()
-            .id("scrawl-target-picker")
+            .id("pointo-target-picker")
             .track_focus(&self.focus)
             .size_full()
             .relative()
@@ -4391,7 +4391,7 @@ impl Render for BundleReviewWindow {
             let c_demo = self.coordinator.clone();
             let c_keydown = self.coordinator.clone();
             return div()
-                .id("scrawl-review-empty")
+                .id("pointo-review-empty")
                 .track_focus(&self.focus)
                 .on_key_down(move |event: &KeyDownEvent, window, cx| {
                     let handled = c_keydown
@@ -4420,7 +4420,7 @@ impl Render for BundleReviewWindow {
                     div()
                         .text_size(px(16.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child("Scrawl"),
+                        .child("Pointo"),
                 )
                 .child(
                     div()
@@ -4473,7 +4473,7 @@ impl Render for BundleReviewWindow {
         let send_dir = dir.clone();
 
         div()
-            .id("scrawl-review-root")
+            .id("pointo-review-root")
             .track_focus(&self.focus)
             .on_key_down(move |event: &KeyDownEvent, window, cx| {
                 let key = event.keystroke.key.as_str();
@@ -5086,7 +5086,7 @@ fn open_picker_windows(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
     ensure_hud_pill_open(coord_entity, cx);
 }
 
-/// Puts Scrawl's floating windows back in order once they've all opened: the pill above the
+/// Puts Pointo's floating windows back in order once they've all opened: the pill above the
 /// picker above the ink overlay (which places itself a turn later).
 fn restack_soon(cx: &mut App) {
     cx.spawn(async move |cx| {
@@ -5243,11 +5243,11 @@ fn open_review_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
                 // The taskbar and Alt+Tab show it on Windows; macOS draws no title here.
-                title: cfg!(target_os = "windows").then(|| "Scrawl".into()),
+                title: cfg!(target_os = "windows").then(|| "Pointo".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(16.0), px(16.0))),
             }),
-            app_id: Some("dev.kitlangton.scrawl".into()),
+            app_id: Some("dev.xiechimon.pointo".into()),
             focus: true,
             show: true,
             kind: WindowKind::Normal,
@@ -5331,7 +5331,7 @@ pub fn run_start_benchmark() {
     });
 }
 
-/// Runs the GPUI desktop app, optionally opening an initial `.scrawl` bundle in the Review window
+/// Runs the GPUI desktop app, optionally opening an initial `.pointo` bundle in the Review window
 /// or starting recording immediately.
 pub fn run_app(
     initial_bundle: Option<(PathBuf, ScrawlBundle)>,
@@ -5343,7 +5343,7 @@ pub fn run_app(
     app.run(move |cx: &mut App| {
         scrawl_log(format!("run_app started pid={}", std::process::id()));
         platform::keep_alive(cx);
-        // ⌘W, Esc, the close button or Scrawl itself: every way a window closes ends up here.
+        // ⌘W, Esc, the close button or Pointo itself: every way a window closes ends up here.
         cx.on_window_closed(|cx| cx.defer(platform::hand_back_keys))
             .detach();
         let (ui_sender, ui_receiver) = flume::unbounded();
@@ -5824,10 +5824,10 @@ mod tests {
     fn clock_template_is_width_stable() {
         assert_eq!(clock_template("12:34"), "00:00");
         assert_eq!(completed_label(0, None), "Copied");
-        assert_eq!(completed_label(0, Some("Sent to SCRAWL")), "Sent to SCRAWL");
-        assert_eq!(completed_label(1, Some("Sent to SCRAWL")), "From iPhone");
+        assert_eq!(completed_label(0, Some("Sent to POINTO")), "Sent to POINTO");
+        assert_eq!(completed_label(1, Some("Sent to POINTO")), "From iPhone");
         assert_eq!(completed_label(3, None), "3 from iPhone");
-        assert_eq!(island_title("SCRAWL"), "SCRAWL");
+        assert_eq!(island_title("POINTO"), "POINTO");
         assert_eq!(
             island_title("Make Mac captures route to the site session"),
             "Make Mac captures route…"
@@ -5837,16 +5837,16 @@ mod tests {
             "Make Mac captur…"
         );
         let queued = crate::delivery::Delivery::Queued {
-            title: "SCRAWL".into(),
+            title: "POINTO".into(),
             error: "offline".into(),
         };
         assert_eq!(
-            completed_delivery_note(&queued, "SCRAWL"),
-            "Copied · couldn't reach SCRAWL"
+            completed_delivery_note(&queued, "POINTO"),
+            "Copied · couldn't reach POINTO"
         );
         let sent = crate::delivery::Delivery::Sent {
-            title: "SCRAWL".into(),
+            title: "POINTO".into(),
         };
-        assert_eq!(completed_delivery_note(&sent, "SCRAWL"), "Sent to SCRAWL");
+        assert_eq!(completed_delivery_note(&sent, "POINTO"), "Sent to POINTO");
     }
 }

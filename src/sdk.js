@@ -1,9 +1,9 @@
-// Scrawl dev SDK, served by the Scrawl app at http://127.0.0.1:47777/sdk.js.
+// Pointo dev SDK, served by the Pointo app at http://127.0.0.1:47777/sdk.js.
 // <script src="http://127.0.0.1:47777/sdk.js" data-session="ses_…"></script>
 // or data-directory="/abs/project" to use that project's newest OpenCode session.
-// Registers this tab with Scrawl while it's open, so a Mac capture of it is sent to that
+// Registers this tab with Pointo while it's open, so a Mac capture of it is sent to that
 // session. It does nothing outside localhost unless data-token (the ingest token) is set.
-// When Scrawl asks for it (loopback pages only), it also tells Scrawl what's under clicks and
+// When Pointo asks for it (loopback pages only), it also tells Pointo what's under clicks and
 // ⇧ marks (element, component, source file:line), video seeks, console errors and failed
 // requests. It never sends request bodies, headers, cookies, query strings or typed values.
 (() => {

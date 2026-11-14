@@ -1,4 +1,4 @@
-//! Transcription: Apple's SpeechAnalyzer through `scrawl-helper` (measured word and segment
+//! Transcription: Apple's SpeechAnalyzer through `pointo-helper` (measured word and segment
 //! timings), Hex when `"transcriber": "hex"` is set and Hex is connected (`crate::hex`; word
 //! times estimated), or a program of the user's when `"transcriber": "command"`
 //! (`crate::command_transcriber`). Any Hex or command trouble falls back to Apple for that
@@ -117,7 +117,7 @@ pub fn menu_state(
     }
 }
 
-/// Pins the engine for this process (`scrawl reprocess --transcriber`).
+/// Pins the engine for this process (`pointo reprocess --transcriber`).
 pub fn set_override(engine: Engine) {
     OVERRIDE.store(
         match engine {
@@ -298,7 +298,7 @@ mod tests {
     fn the_preferred_engine_is_used_when_it_answers() {
         for (engine, source) in [
             (Engine::Hex, "hex:parakeet_v3"),
-            (Engine::Command, "command:whisper-scrawl"),
+            (Engine::Command, "command:whisper-pointo"),
         ] {
             let result = run(
                 engine,

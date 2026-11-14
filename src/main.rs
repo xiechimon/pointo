@@ -76,7 +76,7 @@ use crate::sketch::{marks_of, summary_markdown};
 
 #[derive(Parser)]
 #[command(
-    name = "scrawl",
+    name = "pointo",
     version,
     about = "Shortcut-triggered screen, voice, and drawing capture for agents"
 )]
@@ -90,7 +90,7 @@ fn parse_engine(name: &str) -> Result<crate::transcribe::Engine, String> {
         .ok_or_else(|| "expected `apple`, `hex` or `command`".to_owned())
 }
 
-/// `scrawl hex status`: connection, models and what the next recording would use.
+/// `pointo hex status`: connection, models and what the next recording would use.
 fn hex_status() {
     let preferred = transcribe::Engine::configured();
     println!("Preferred transcriber: {}", preferred.name());
@@ -180,7 +180,7 @@ fn mic_list() {
 
 #[derive(Subcommand)]
 enum HexCommand {
-    /// Whether Hex is connected, its version, ready models and the transcriber Scrawl will use.
+    /// Whether Hex is connected, its version, ready models and the transcriber Pointo will use.
     Status,
 }
 
@@ -221,7 +221,7 @@ enum TuneCommand {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Launch the GPUI menu-bar and review application (the default when macOS opens Scrawl.app).
+    /// Launch the GPUI menu-bar and review application (the default when macOS opens Pointo.app).
     App {
         /// Start a capture session immediately on launch.
         #[arg(long)]
@@ -232,7 +232,7 @@ enum Command {
     },
     /// Generate a realistic annotated demo bundle (contact sheet + keyframes + transcript).
     Demo {
-        /// Output `.scrawl` bundle directory (defaults to Application Support).
+        /// Output `.pointo` bundle directory (defaults to Application Support).
         #[arg(long)]
         out: Option<PathBuf>,
         /// Copy the generated bundle to the macOS clipboard.
@@ -253,7 +253,7 @@ enum Command {
         /// Optional note to attach to the bundle.
         #[arg(long)]
         note: Option<String>,
-        /// Output `.scrawl` bundle directory.
+        /// Output `.pointo` bundle directory.
         #[arg(long)]
         out: Option<PathBuf>,
     },
@@ -267,7 +267,7 @@ enum Command {
         /// Optional note to attach to the bundle.
         #[arg(long)]
         note: Option<String>,
-        /// Output `.scrawl` bundle directory.
+        /// Output `.pointo` bundle directory.
         #[arg(long)]
         out: Option<PathBuf>,
         /// Copy the summary to the clipboard.
@@ -289,18 +289,18 @@ enum Command {
         watch: Option<u64>,
     },
     /// Transcribe a bundle's audio again with Apple Speech, in place: its transcript, each
-    /// keyframe's words, `scrawl.json` and `summary.md`. Scrawl does this by itself for captures
+    /// keyframe's words, `pointo.json` and `summary.md`. Pointo does this by itself for captures
     /// made while the speech model was still downloading.
     Retranscribe {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         bundle: PathBuf,
     },
     /// Rebuild a bundle from its own video, audio, and input log with the current transcriber
     /// and keyframe rules.
     Reprocess {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         bundle: PathBuf,
-        /// Output `.scrawl` bundle directory (a new bundle; the original is untouched).
+        /// Output `.pointo` bundle directory (a new bundle; the original is untouched).
         #[arg(long)]
         out: PathBuf,
         /// Run N iterations of the finish pipeline (with candidate frames pre-loaded for Screen
@@ -319,13 +319,13 @@ enum Command {
         #[arg(long = "experiment", value_name = "NAME")]
         experiments: Vec<String>,
     },
-    /// Build the bundles whose build died with the app (no `scrawl.json`) in place, once each:
+    /// Build the bundles whose build died with the app (no `pointo.json`) in place, once each:
     /// from their input log (`unfinished.json`) if they have one, else from `recording.mp4` and
     /// `audio.wav` alone. The app runs it at launch.
     Recover {
         /// One bundle to build now, even if it was tried before.
         bundle: Option<PathBuf>,
-        /// Captures folder (defaults to Scrawl's).
+        /// Captures folder (defaults to Pointo's).
         #[arg(long, conflicts_with = "bundle")]
         captures: Option<PathBuf>,
     },
@@ -336,7 +336,7 @@ enum Command {
         #[command(subcommand)]
         command: LabCommand,
     },
-    /// Tune the capsule's springs live: edits `~/.config/scrawl/tune.json`, which debug builds
+    /// Tune the capsule's springs live: edits `~/.config/pointo/tune.json`, which debug builds
     /// (the lab and the installed app) re-read within a quarter second.
     #[command(hide = true)]
     Tune {
@@ -348,30 +348,30 @@ enum Command {
         #[command(subcommand)]
         command: MicCommand,
     },
-    /// Check the Hex transcriber: is it running, which models are ready, which one Scrawl uses.
+    /// Check the Hex transcriber: is it running, which models are ready, which one Pointo uses.
     Hex {
         #[command(subcommand)]
         command: HexCommand,
     },
-    /// Print the agent-ready summary or JSON manifest for a `.scrawl` bundle (or `latest`).
+    /// Print the agent-ready summary or JSON manifest for a `.pointo` bundle (or `latest`).
     Inspect {
-        /// Path to `.scrawl` bundle directory, `scrawl.json`, or `latest`.
+        /// Path to `.pointo` bundle directory, `pointo.json`, or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
-        /// Emit raw `scrawl.json` instead of `summary.md` (with `--marks`, the marks as JSON).
+        /// Emit raw `pointo.json` instead of `summary.md` (with `--marks`, the marks as JSON).
         #[arg(long)]
         json: bool,
         /// List the marks: keyframe, number as the summary shows it (✎②), time, shape, what it
-        /// was drawn on, and id, for `scrawl zoom --mark`.
+        /// was drawn on, and id, for `pointo zoom --mark`.
         #[arg(long)]
         marks: bool,
         /// Turn an experiment on for this summary (e.g. `agentContext`). Repeatable.
         #[arg(long = "experiment", value_name = "NAME")]
         experiments: Vec<String>,
     },
-    /// Extract a dense burst of frames from a `.scrawl` bundle's time range (`M:SS` or seconds).
+    /// Extract a dense burst of frames from a `.pointo` bundle's time range (`M:SS` or seconds).
     Frames {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         bundle: PathBuf,
         /// Start time (`0:02` or `2.0`).
         #[arg(long)]
@@ -386,14 +386,14 @@ enum Command {
     /// Zoom into one moment: a dense contact sheet of frames around a time, a spoken phrase or a
     /// mark, with the bundle's ink and touches drawn in and each frame's time, plus what was said.
     Zoom {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
         /// The moment: a time (`0:12`, `12.5`) or a phrase from the narration ("width changes").
         #[arg(long, required_unless_present = "mark", conflicts_with = "mark")]
         at: Option<String>,
         /// A mark, centred with its ink drawn: its number in the summary (`2` for ✎②) or its id
-        /// (`m2`). `scrawl inspect --marks` lists them.
+        /// (`m2`). `pointo inspect --marks` lists them.
         #[arg(long)]
         mark: Option<String>,
         /// The keyframe whose ✎① ✎② `--mark` counts (`--frame 2` for #2), when several have one.
@@ -414,10 +414,10 @@ enum Command {
     /// with the ink and click ripples burned in, AAC audio in sync, and optionally Screen
     /// Studio-style auto-zoom (`--zoom`). Encoding runs in the helper with AVFoundation.
     Export {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
-        /// Output file (defaults to ~/Movies/Scrawl/<bundle>.mp4).
+        /// Output file (defaults to ~/Movies/Pointo/<bundle>.mp4).
         #[arg(long)]
         out: Option<PathBuf>,
         /// `full`, `auto` (the activity region), or `x,y,w,h` as fractions of the capture (all
@@ -459,7 +459,7 @@ enum Command {
     },
     /// Keep a bundle forever, out of cleanup (`--off` lets it go again).
     Pin {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
         #[arg(long)]
@@ -469,7 +469,7 @@ enum Command {
     /// activity and crop, and the cropped contact sheet. `--serve` reruns the crop live as
     /// settings change; without it the page shows the presets.
     Autocrop {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
         /// Open the playground in the default browser.
@@ -533,9 +533,9 @@ enum Command {
         #[arg(long, default_value_t = 1)]
         repeat: u32,
     },
-    /// Copy a `.scrawl` bundle to the clipboard or send it to an OpenCode V2 session.
+    /// Copy a `.pointo` bundle to the clipboard or send it to an OpenCode V2 session.
     Send {
-        /// Path to `.scrawl` bundle directory or `latest`.
+        /// Path to `.pointo` bundle directory or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
         /// Target OpenCode session ID (`ses_...`). If omitted, an iPhone recording goes to the
@@ -563,26 +563,26 @@ enum Command {
         /// Read the front tab of this browser instead (bundle ID, e.g. `com.brave.Browser`).
         #[arg(long)]
         browser: Option<String>,
-        /// A `.scrawl` bundle (or `latest`) to explain.
+        /// A `.pointo` bundle (or `latest`) to explain.
         #[arg(long, value_name = "BUNDLE")]
         explain: Option<PathBuf>,
     },
-    /// Open a `.scrawl` bundle in the native GPUI review window.
+    /// Open a `.pointo` bundle in the native GPUI review window.
     Preview {
-        /// Path to `.scrawl` bundle directory or `latest`. Generates a demo bundle if none exists.
+        /// Path to `.pointo` bundle directory or `latest`. Generates a demo bundle if none exists.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
         /// Capture a window screenshot to this path and exit (for deterministic UI verification).
         #[arg(long)]
         capture_screenshot: Option<PathBuf>,
     },
-    /// Print a `<scheme>://scrawl?url=…&token=…` setup link (and QR code) for ScrawlKit on iPhone.
+    /// Print a `<scheme>://pointo?url=…&token=…` setup link (and QR code) for ScrawlKit on iPhone.
     #[command(alias = "tether-link")]
     Link {
         /// URL scheme of the iOS app (for example `updown`).
         #[arg(long)]
         scheme: String,
-        /// Scrawl ingest base URL(s); defaults to this Mac's Tailscale and LAN IPs on `--port`.
+        /// Pointo ingest base URL(s); defaults to this Mac's Tailscale and LAN IPs on `--port`.
         #[arg(long = "url")]
         urls: Vec<String>,
         /// Optional OpenCode session ID (`ses_...`) to route captures from this app to.
@@ -604,12 +604,12 @@ enum Command {
         #[arg(long)]
         no_opencode: bool,
     },
-    /// Print the agent skill that teaches coding agents to read captures and use this CLI (`bunx skills add kitlangton/scrawl` installs it).
+    /// Print the agent skill that teaches coding agents to read captures and use this CLI (`bunx skills add xiechimon/pointo` installs it).
     Skill,
 }
 
-/// `skills/scrawl/SKILL.md`, the same text `bunx skills add kitlangton/scrawl` installs.
-const SKILL: &str = include_str!("../skills/scrawl/SKILL.md");
+/// `skills/pointo/SKILL.md`, the same text `bunx skills add xiechimon/pointo` installs.
+const SKILL: &str = include_str!("../skills/pointo/SKILL.md");
 
 pub fn now_epoch_ms() -> u64 {
     SystemTime::now()
@@ -625,8 +625,8 @@ pub fn make_bundle_id() -> String {
     let ms = now_epoch_ms();
     let pid = std::process::id();
     match COUNT.fetch_add(1, Ordering::Relaxed) {
-        0 => format!("scrawl-{ms}-{pid:x}"),
-        n => format!("scrawl-{ms}-{pid:x}-{n}"),
+        0 => format!("pointo-{ms}-{pid:x}"),
+        n => format!("pointo-{ms}-{pid:x}-{n}"),
     }
 }
 
@@ -859,7 +859,7 @@ fn movie_frames_at_with(
     Ok(frames)
 }
 
-/// Core pipeline that turns raw frames, strokes, events, and audio/transcript into a complete `.scrawl` bundle on disk.
+/// Core pipeline that turns raw frames, strokes, events, and audio/transcript into a complete `.pointo` bundle on disk.
 #[allow(clippy::too_many_arguments)]
 ///
 /// The recording's candidate frames are small; the keyframes are decoded again from its video at
@@ -1001,7 +1001,7 @@ pub fn finalize_capture_bundle(
 }
 
 /// Builds a Screen capture's bundle in `out`, which holds its video and `audio.wav`, from them
-/// and what the recording logged: `scrawl reprocess` and `scrawl recover`.
+/// and what the recording logged: `pointo reprocess` and `pointo recover`.
 pub fn rebuild_screen_bundle(out: &Path, old: recover::Unfinished) -> Result<String> {
     rebuild_screen_bundle_with(out, old, None, &recover::Media::SYSTEM)
 }
@@ -1249,7 +1249,7 @@ pub fn build_bundle_from_parts(
     let id = bundle_dir
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("scrawl-bundle")
+        .unwrap_or("pointo-bundle")
         .to_string();
     let video_rel = video_path.and_then(|p| {
         p.exists()
@@ -1315,7 +1315,7 @@ pub fn build_bundle_from_parts(
                 }
             }
             let manifest_bytes = serde_json::to_vec_pretty(&bundle)?;
-            std::fs::write(bundle_dir.join("scrawl.json"), manifest_bytes)?;
+            std::fs::write(bundle_dir.join("pointo.json"), manifest_bytes)?;
             std::fs::write(bundle_dir.join("summary.md"), summary.as_bytes())?;
         }
         BundleOutput::Rendered {
@@ -1390,7 +1390,7 @@ pub fn build_bundle_from_parts(
 /// Generates a rich, deterministic multi-frame demo bundle showcasing clicks, circles, arrows, pins, and aligned speech.
 pub fn generate_demo_bundle(out: Option<PathBuf>) -> Result<(PathBuf, ScrawlBundle, String)> {
     let bundle_dir = out.unwrap_or_else(|| {
-        handoff::default_captures_dir().join(format!("{}.scrawl", make_bundle_id()))
+        handoff::default_captures_dir().join(format!("{}.pointo", make_bundle_id()))
     });
     let (fw, fh) = (1280_u32, 800_u32);
     let target = TargetInfo {
@@ -1571,9 +1571,9 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let command = match cli.command {
         Some(command) => command,
-        // `scrawl` typed in a terminal (on PATH through Settings › Agents or Homebrew) would
+        // `pointo` typed in a terminal (on PATH through Settings › Agents or Homebrew) would
         // start a second menu-bar app. macOS opens the app with stdin on /dev/null.
-        // On Windows `scrawl.exe` is a console program and Explorer gives it a console too, so a
+        // On Windows `pointo.exe` is a console program and Explorer gives it a console too, so a
         // bare launch always starts the app.
         None if cfg!(target_os = "macos")
             && std::io::IsTerminal::is_terminal(&std::io::stdin()) =>
@@ -1612,7 +1612,7 @@ fn main() -> Result<()> {
             out,
         } => {
             let bundle_dir = out.unwrap_or_else(|| {
-                handoff::default_captures_dir().join(format!("{}.scrawl", make_bundle_id()))
+                handoff::default_captures_dir().join(format!("{}.pointo", make_bundle_id()))
             });
             std::fs::create_dir_all(&bundle_dir)?;
             let dev_id = window.or_else(|| {
@@ -1654,7 +1654,7 @@ fn main() -> Result<()> {
         } => {
             let target = discover_target(window.as_deref());
             let bundle_dir = out.unwrap_or_else(|| {
-                handoff::default_captures_dir().join(format!("{}.scrawl", make_bundle_id()))
+                handoff::default_captures_dir().join(format!("{}.pointo", make_bundle_id()))
             });
             std::fs::create_dir_all(&bundle_dir)?;
             let video_path = bundle_dir.join("recording.mp4");
@@ -1706,7 +1706,7 @@ fn main() -> Result<()> {
             let (movie, timeline) =
                 phone::resolve_import(recording.as_deref(), timeline.as_deref())?;
             let bundle_dir = out.unwrap_or_else(|| {
-                handoff::default_captures_dir().join(format!("{}.scrawl", make_bundle_id()))
+                handoff::default_captures_dir().join(format!("{}.pointo", make_bundle_id()))
             });
             let (dir, _bundle, summary) =
                 phone::import(&movie, timeline.as_deref(), &bundle_dir, note)?;
@@ -1762,7 +1762,7 @@ fn main() -> Result<()> {
                     let iter_out = if i + 1 == iters {
                         out.clone()
                     } else {
-                        out.with_file_name(format!("bench-{i}.scrawl"))
+                        out.with_file_name(format!("bench-{i}.pointo"))
                     };
                     let _ = std::fs::remove_dir_all(&iter_out);
                     std::fs::create_dir_all(&iter_out)?;
@@ -2023,7 +2023,7 @@ fn main() -> Result<()> {
         } => {
             let inputs = mic::inputs();
             if id != "default" && inputs.find(&id).is_none() {
-                anyhow::bail!("No connected microphone has id {id}; see `scrawl mic list`");
+                anyhow::bail!("No connected microphone has id {id}; see `pointo mic list`");
             }
             mic::save_in(&handoff::default_config_path(), &id, &inputs)?;
             mic_list();
@@ -2292,7 +2292,7 @@ fn main() -> Result<()> {
             };
             let mut dirs = Vec::new();
             for path in bundles {
-                if path.join("scrawl.json").is_file() {
+                if path.join("pointo.json").is_file() {
                     dirs.push(path);
                 } else {
                     let mut found: Vec<PathBuf> = std::fs::read_dir(&path)?
@@ -2446,11 +2446,11 @@ mod tests {
     #[test]
     fn artifact_failures_do_not_publish_a_manifest() {
         let root = std::env::temp_dir().join(make_bundle_id());
-        let (_, mut bundle, _) = generate_demo_bundle(Some(root.join("demo.scrawl"))).unwrap();
+        let (_, mut bundle, _) = generate_demo_bundle(Some(root.join("demo.pointo"))).unwrap();
         let frame = RgbaFrame::new(0, 1, 1, vec![20, 30, 40, 255]);
         let mut key = bundle.keyframes[0].clone();
         key.file = "frames/missing/frame.png".into();
-        let frame_failure = root.join("frame-failure.scrawl");
+        let frame_failure = root.join("frame-failure.pointo");
         assert!(
             write_bundle_artifacts(
                 &frame_failure,
@@ -2461,17 +2461,17 @@ mod tests {
             )
             .is_err()
         );
-        assert!(!frame_failure.join("scrawl.json").exists());
+        assert!(!frame_failure.join("pointo.json").exists());
 
         bundle.contact_sheet = "missing/contact-sheet.png".into();
-        let sheet_failure = root.join("sheet-failure.scrawl");
+        let sheet_failure = root.join("sheet-failure.pointo");
         assert!(write_bundle_artifacts(&sheet_failure, &bundle, &[], &frame, "summary").is_err());
-        assert!(!sheet_failure.join("scrawl.json").exists());
+        assert!(!sheet_failure.join("pointo.json").exists());
 
         bundle.contact_sheet = "contact-sheet.png".into();
-        let empty_frames = root.join("empty-frames.scrawl");
+        let empty_frames = root.join("empty-frames.pointo");
         write_bundle_artifacts(&empty_frames, &bundle, &[], &frame, "summary").unwrap();
-        assert!(empty_frames.join("scrawl.json").exists());
+        assert!(empty_frames.join("pointo.json").exists());
         assert!(empty_frames.join("contact-sheet.png").exists());
         std::fs::remove_dir_all(root).unwrap();
     }

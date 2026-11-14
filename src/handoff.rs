@@ -63,18 +63,18 @@ pub fn configured_captures_dir(value: &str) -> Option<PathBuf> {
     }
 }
 
-/// `~/Library/Application Support/scrawl/captures` on macOS, `%LOCALAPPDATA%\scrawl\captures`
+/// `~/Library/Application Support/pointo/captures` on macOS, `%LOCALAPPDATA%\pointo\captures`
 /// on Windows (local, not roaming: the movies are large).
 pub fn builtin_captures_dir() -> PathBuf {
     if cfg!(target_os = "windows") {
         dirs::data_local_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("scrawl")
+            .join("pointo")
             .join("captures")
     } else {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("Library/Application Support/scrawl/captures")
+            .join("Library/Application Support/pointo/captures")
     }
 }
 
@@ -113,7 +113,7 @@ pub fn resolve_bundle_dir(path_or_id: &Path) -> Result<PathBuf> {
         return newest_bundle(&default_captures_dir());
     }
     let mut path = path_or_id.to_owned();
-    if path.file_name().is_some_and(|name| name == "scrawl.json") {
+    if path.file_name().is_some_and(|name| name == "pointo.json") {
         path = path
             .parent()
             .context("Missing bundle directory")?
@@ -125,7 +125,7 @@ pub fn resolve_bundle_dir(path_or_id: &Path) -> Result<PathBuf> {
     if !path.exists() && path.components().count() == 1 {
         path = default_captures_dir().join(&path);
         if path.extension().is_none() {
-            path.set_extension("scrawl");
+            path.set_extension("pointo");
         }
     }
     ensure!(
@@ -138,8 +138,8 @@ pub fn resolve_bundle_dir(path_or_id: &Path) -> Result<PathBuf> {
             .with_context(|| format!("Could not resolve {}", path.display()))?,
     );
     ensure!(
-        path.extension().is_some_and(|ext| ext == "scrawl"),
-        "Expected a .scrawl directory: {}",
+        path.extension().is_some_and(|ext| ext == "pointo"),
+        "Expected a .pointo directory: {}",
         path.display()
     );
     Ok(path)
@@ -152,9 +152,9 @@ fn newest_bundle(captures: &Path) -> Result<PathBuf> {
     {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().is_some_and(|ext| ext == "scrawl") && path.is_dir() {
+        if path.extension().is_some_and(|ext| ext == "pointo") && path.is_dir() {
             // Bundle creation time is stable even after later zoom-frame extraction.
-            let created = fs::read(path.join("scrawl.json"))
+            let created = fs::read(path.join("pointo.json"))
                 .ok()
                 .and_then(|bytes| serde_json::from_slice::<ScrawlBundle>(&bytes).ok())
                 .map(|bundle| bundle.created_at_ms)
@@ -172,7 +172,7 @@ fn newest_bundle(captures: &Path) -> Result<PathBuf> {
     candidates.sort_unstable();
     candidates
         .pop()
-        .context("No .scrawl captures found")?
+        .context("No .pointo captures found")?
         .1
         .canonicalize()
         .map(plain_path)
@@ -189,7 +189,7 @@ fn plain_path(path: PathBuf) -> PathBuf {
 
 pub fn load_bundle(bundle_dir: &Path) -> Result<(PathBuf, ScrawlBundle)> {
     let directory = resolve_bundle_dir(bundle_dir)?;
-    let path = directory.join("scrawl.json");
+    let path = directory.join("pointo.json");
     let bundle = serde_json::from_slice(
         &fs::read(&path).with_context(|| format!("Could not read {}", path.display()))?,
     )
@@ -564,7 +564,7 @@ fn log_config_once(message: String) {
     }
 }
 
-/// More of what Scrawl already knows in the summary: marks, shortcuts, drags and windows inline
+/// More of what Pointo already knows in the summary: marks, shortcuts, drags and windows inline
 /// at their time, numbered marks on shared frames, where a screen changed.
 pub const AGENT_CONTEXT: &str = "agentContext";
 
@@ -574,7 +574,7 @@ pub const LIVE_TRANSCRIBE: &str = "liveTranscribe";
 
 static EXPERIMENT_OVERRIDES: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
-/// Turns an experiment on for this process (`scrawl reprocess --experiment <name>`).
+/// Turns an experiment on for this process (`pointo reprocess --experiment <name>`).
 pub fn enable_experiment(name: &str) {
     EXPERIMENT_OVERRIDES
         .lock()
@@ -602,7 +602,7 @@ pub fn default_config_path() -> PathBuf {
         .unwrap_or_else(|| {
             dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
-                .join(".config/scrawl/config.json")
+                .join(".config/pointo/config.json")
         })
 }
 
@@ -767,7 +767,7 @@ pub fn auto_send() -> bool {
     config().auto_send.unwrap_or(true)
 }
 
-/// Whether the menu offers video export (`videoExport`, default off). `scrawl export` works
+/// Whether the menu offers video export (`videoExport`, default off). `pointo export` works
 /// either way.
 pub fn video_export() -> bool {
     config().video_export.unwrap_or(false)
@@ -876,7 +876,7 @@ pub fn set_config_value_in(path: &Path, key: &str, value: serde_json::Value) -> 
     fs::rename(&tmp, path).with_context(|| format!("Could not write {}", path.display()))
 }
 
-/// Bundle IDs whose `Documents/Scrawl` (and legacy `Documents/Tether`) container the USB watcher
+/// Bundle IDs whose `Documents/Pointo` (and legacy `Documents/Tether`) container the USB watcher
 /// checks (`usbApps` in config, with `tetherApps` accepted as a fallback alias; default empty so
 /// USB polling is off unless configured).
 pub fn usb_apps() -> Vec<String> {
@@ -897,7 +897,7 @@ fn safe_word(text: &str) -> bool {
 }
 
 /// The Mac whose OpenCode server holds Kit's sessions when it isn't this one: an SSH host from
-/// `SCRAWL_AGENT_HOST` or `~/.config/scrawl/config.json` (`{"agentHost": "studio"}`).
+/// `SCRAWL_AGENT_HOST` or `~/.config/pointo/config.json` (`{"agentHost": "studio"}`).
 pub fn agent_host() -> Option<String> {
     std::env::var("SCRAWL_AGENT_HOST")
         .ok()
@@ -947,7 +947,7 @@ pub const MEDIA_PENDING: &str = ".media-pending";
 /// Copies a bundle to the same path on `host`, so the agent there can open its files.
 /// Syncs the contact sheet, keyframe PNGs, manifest, and summary synchronously so the session
 /// can be queued immediately, then streams heavy media (`recording.mp4`/`.mov`, `frames-full`)
-/// in the background for `scrawl zoom`, marked by [`MEDIA_PENDING`] until it lands.
+/// in the background for `pointo zoom`, marked by [`MEDIA_PENDING`] until it lands.
 pub fn sync_bundle_to(host: &str, bundle_dir: &Path) -> Result<()> {
     use std::process::Stdio;
     let parent = bundle_dir.parent().context("Bundle has no parent")?;
@@ -977,7 +977,7 @@ pub fn sync_bundle_to(host: &str, bundle_dir: &Path) -> Result<()> {
         .map(|rel| format!("{name_str}/{rel}"))
         .collect();
     let bundle_q = shell_quote(&parent.join(&name_str).to_string_lossy());
-    // The marker goes up with the light files, before the session is prompted, so `scrawl zoom`
+    // The marker goes up with the light files, before the session is prompted, so `pointo zoom`
     // there knows the video is still on its way rather than missing.
     let mark_pending = if heavy.is_empty() {
         String::new()
@@ -1389,7 +1389,7 @@ pub fn send_to_opencode(
 }
 
 /// The session a recording was addressed to: a ScrawlKit `timeline.json`'s top-level `session`,
-/// else the `destination` a Mac capture of a dev site was routed to (`scrawl.json`).
+/// else the `destination` a Mac capture of a dev site was routed to (`pointo.json`).
 /// `context.session` only names the session that was on screen, and never chooses a destination.
 pub fn recorded_destination(bundle_dir: &Path) -> Option<String> {
     let read = |name: &str| -> Option<serde_json::Value> {
@@ -1404,7 +1404,7 @@ pub fn recorded_destination(bundle_dir: &Path) -> Option<String> {
     };
     read("timeline.json")
         .and_then(|timeline| session(timeline.get("session")))
-        .or_else(|| read("scrawl.json").and_then(|b| session(b.pointer("/destination/session"))))
+        .or_else(|| read("pointo.json").and_then(|b| session(b.pointer("/destination/session"))))
 }
 
 fn choose_destination<'a>(
@@ -1516,7 +1516,7 @@ pub fn send_bundle_to_session(bundle_dir: &Path, session: &str) -> Result<()> {
         "{}\n\nThe contact sheet is attached ({}); read {} for timestamped transcript, marks, and interactions.\nTo look closely at a moment (an animation, a glitch, what the narration points at), run:\nscrawl zoom {} --at <M:SS or \"a phrase that was said\"> [--span 2] [--frames 12]\nIt saves a dense contact sheet of that moment with each frame's time and prints what was said; open the PNG before acting on the feedback. This capture is {} ms long.",
         summary.trim_end(),
         contact_sheet.display(),
-        directory.join("scrawl.json").display(),
+        directory.join("pointo.json").display(),
         quoted_directory,
         bundle.duration_ms,
     );
@@ -1530,7 +1530,7 @@ pub fn send_bundle_to_session(bundle_dir: &Path, session: &str) -> Result<()> {
             "files": [{
                 "uri": file_uri(&contact_sheet),
                 "name": "contact-sheet.png",
-                "description": "Scrawl contact sheet: the capture's keyframes in order",
+                "description": "Pointo contact sheet: the capture's keyframes in order",
             }],
             "delivery": "queue",
         })),
@@ -1714,7 +1714,7 @@ mod tests {
         fn new() -> Self {
             static COUNTER: AtomicU64 = AtomicU64::new(0);
             let path = std::env::temp_dir().join(format!(
-                "scrawl-handoff-{}-{}-{}",
+                "pointo-handoff-{}-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -1727,7 +1727,7 @@ mod tests {
         }
 
         fn bundle(&self, name: &str, created: u64) -> PathBuf {
-            let path = self.0.join(format!("{name}.scrawl"));
+            let path = self.0.join(format!("{name}.pointo"));
             fs::create_dir_all(path.join("frames")).unwrap();
             let keyframes: Vec<_> = [0, 1_900, 2_500, 4_000, 5_100, 6_000].into_iter().enumerate().map(|(index, t)| {
                 let file = format!("frames/frame-{index:03}.png");
@@ -1743,7 +1743,7 @@ mod tests {
                 "contactSheet": "contact-sheet.png"
             });
             fs::write(
-                path.join("scrawl.json"),
+                path.join("pointo.json"),
                 serde_json::to_vec(&bundle).unwrap(),
             )
             .unwrap();
@@ -1766,7 +1766,7 @@ mod tests {
             plain_path(older.canonicalize().unwrap())
         );
         assert_eq!(
-            resolve_bundle_dir(&older.join("scrawl.json")).unwrap(),
+            resolve_bundle_dir(&older.join("pointo.json")).unwrap(),
             plain_path(older.canonicalize().unwrap())
         );
         assert_eq!(
@@ -1774,16 +1774,16 @@ mod tests {
             plain_path(newer.canonicalize().unwrap())
         );
         assert!(resolve_bundle_dir(&fixture.0).is_err());
-        assert!(resolve_bundle_dir(&fixture.0.join("missing.scrawl")).is_err());
+        assert!(resolve_bundle_dir(&fixture.0.join("missing.pointo")).is_err());
     }
 
     #[test]
     fn file_uris_are_percent_encoded() {
         assert_eq!(
             file_uri(Path::new(
-                "/Users/kit/Library/Application Support/scrawl/captures/a b#1.scrawl/contact-sheet.png"
+                "/Users/kit/Library/Application Support/pointo/captures/a b#1.pointo/contact-sheet.png"
             )),
-            "file:///Users/kit/Library/Application%20Support/scrawl/captures/a%20b%231.scrawl/contact-sheet.png"
+            "file:///Users/kit/Library/Application%20Support/pointo/captures/a%20b%231.pointo/contact-sheet.png"
         );
     }
 
@@ -1791,11 +1791,11 @@ mod tests {
     fn loads_manifest_and_reports_invalid_json() {
         let fixture = Fixture::new();
         let path = fixture.bundle("example", 123);
-        let (resolved, bundle) = load_bundle(&path.join("scrawl.json")).unwrap();
+        let (resolved, bundle) = load_bundle(&path.join("pointo.json")).unwrap();
         assert_eq!(resolved, plain_path(path.canonicalize().unwrap()));
         assert_eq!(bundle.id, "example");
         assert_eq!(bundle.created_at_ms, 123);
-        fs::write(path.join("scrawl.json"), b"not json").unwrap();
+        fs::write(path.join("pointo.json"), b"not json").unwrap();
         assert!(load_bundle(&path).is_err());
     }
 
@@ -1828,7 +1828,7 @@ mod tests {
 
     #[test]
     fn recordings_go_to_their_addressed_session_not_the_viewed_one() {
-        let dir = std::env::temp_dir().join(format!("scrawl-dest-{}", crate::make_bundle_id()));
+        let dir = std::env::temp_dir().join(format!("pointo-dest-{}", crate::make_bundle_id()));
         fs::create_dir_all(&dir).unwrap();
         fs::write(
             dir.join("timeline.json"),
@@ -2037,7 +2037,7 @@ mod tests {
 
     #[test]
     fn an_unusable_captures_folder_is_refused() {
-        let root = std::env::temp_dir().join(format!("scrawl-usable-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("pointo-usable-{}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         let file = root.join("file");
         fs::write(&file, "x").unwrap();
@@ -2051,8 +2051,8 @@ mod tests {
         let home = dirs::home_dir().unwrap();
         assert_eq!(configured_captures_dir("~"), Some(home.clone()));
         assert_eq!(
-            configured_captures_dir(" ~/Scrawl Captures "),
-            Some(home.join("Scrawl Captures"))
+            configured_captures_dir(" ~/Pointo Captures "),
+            Some(home.join("Pointo Captures"))
         );
         let absolute = std::env::temp_dir().join("captures");
         assert_eq!(
@@ -2268,9 +2268,9 @@ mod sync_live_check {
     #[ignore]
     fn sync_to_pro() {
         let base = std::path::PathBuf::from(std::env::var("HOME").unwrap())
-            .join("Library/Caches/scrawl-sync-live");
+            .join("Library/Caches/pointo-sync-live");
         let _ = std::fs::remove_dir_all(&base);
-        let bundle = base.join("scrawl-synctest.scrawl");
+        let bundle = base.join("pointo-synctest.pointo");
         std::fs::create_dir_all(bundle.join("frames-full")).unwrap();
         std::fs::write(bundle.join("summary.md"), "hi").unwrap();
         std::fs::write(bundle.join("recording.mp4"), vec![7u8; 8_000_000]).unwrap();

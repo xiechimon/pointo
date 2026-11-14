@@ -2,7 +2,7 @@
 //! (`local-api.json` holds the port and bearer token, found through `support_dirs`: `hex` first,
 //! then the older `voice-control`; `GET /health`, `GET /models`, `POST /transcriptions`).
 //!
-//! Hex returns text and a duration but no word times, and Scrawl needs them to hand each
+//! Hex returns text and a duration but no word times, and Pointo needs them to hand each
 //! keyframe its words. So the recording is cut into speech islands (`audio::speech_islands`),
 //! each island is transcribed on its own, and its words are spread across it by length. Those
 //! times are estimates (`TranscriptData::estimated`): they place words inside the right island
@@ -32,7 +32,7 @@ pub const PREFERRED_MODELS: [&str; 4] = [
     "whisper_large_v3_turbo",
 ];
 
-/// Keep the previous English default; Hex, not Scrawl, validates model/language support.
+/// Keep the previous English default; Hex, not Pointo, validates model/language support.
 pub const DEFAULT_LANGUAGE: &str = "en";
 
 /// Accept language-code syntax without maintaining another list of Hex's languages.
@@ -88,7 +88,7 @@ struct Discovery {
     api_version: String,
 }
 
-/// Where Hex may keep its data, in the order Scrawl tries them: `HEX_APPLICATION_SUPPORT_DIR`
+/// Where Hex may keep its data, in the order Pointo tries them: `HEX_APPLICATION_SUPPORT_DIR`
 /// alone when set, else `hex` in the OS data folder (`~/Library/Application Support`,
 /// `%APPDATA%`, `$XDG_DATA_HOME` or `~/.local/share`), where Hex 3 keeps it on every OS, then
 /// `voice-control`, where older Hex kept it. Hex 3 leaves an old `voice-control` folder alone, so
@@ -247,7 +247,7 @@ pub struct Model {
 }
 
 impl Model {
-    /// Ready to transcribe now. Scrawl never asks Hex to download or prepare a model.
+    /// Ready to transcribe now. Pointo never asks Hex to download or prepare a model.
     pub fn usable(&self) -> bool {
         self.installed && self.verified
     }
@@ -335,7 +335,7 @@ impl Client {
         )?;
         ensure!(
             response.status != 401,
-            "Hex rejected Scrawl's credentials (restart Hex?)"
+            "Hex rejected Pointo's credentials (restart Hex?)"
         );
         ensure!(
             response.status == 200,
@@ -439,7 +439,7 @@ pub fn refresh_in_background() {
         return;
     }
     let spawned = std::thread::Builder::new()
-        .name("scrawl-hex-status".into())
+        .name("pointo-hex-status".into())
         .spawn(|| {
             let status = status().ok();
             if let Ok(mut cache) = CACHE.lock() {
@@ -452,11 +452,11 @@ pub fn refresh_in_background() {
     }
 }
 
-/// Keeps `cached_status` fresh while the app runs, so a Hex started after Scrawl is found. A
+/// Keeps `cached_status` fresh while the app runs, so a Hex started after Pointo is found. A
 /// missing discovery file makes each check a failed file read per folder.
 pub fn watch() {
     let _ = std::thread::Builder::new()
-        .name("scrawl-hex-watch".into())
+        .name("pointo-hex-watch".into())
         .spawn(|| {
             loop {
                 let status = status().ok();
@@ -713,7 +713,7 @@ mod tests {
 
     #[test]
     fn missing_discovery_or_refused_connection_is_not_connected() {
-        let dir = std::env::temp_dir().join(format!("scrawl-hex-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pointo-hex-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         assert!(Client::connect_at(&dir.join("nope.json")).is_err());
         let closed = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
@@ -731,7 +731,7 @@ mod tests {
 
     #[test]
     fn connect_checks_token_and_api_version() {
-        let dir = std::env::temp_dir().join(format!("scrawl-hex-v-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pointo-hex-v-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let fake = fake_hex(|_, path, authorized| {
             match (path, authorized) {
@@ -773,7 +773,7 @@ mod tests {
 
     #[test]
     fn hex_folder_wins_and_voice_control_is_the_fallback() {
-        let root = std::env::temp_dir().join(format!("scrawl-hex-dirs-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("pointo-hex-dirs-{}", std::process::id()));
         let (hex, legacy) = (root.join("hex"), root.join("voice-control"));
         let paths = [hex.join("local-api.json"), legacy.join("local-api.json")];
         let health = |version: &'static str| {

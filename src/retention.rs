@@ -1,12 +1,12 @@
 //! Keeps the captures folder from growing forever.
 //!
-//! A bundle's prompt (`summary.md`, `scrawl.json`, `contact-sheet.png`, `frames/`) is small; its
+//! A bundle's prompt (`summary.md`, `pointo.json`, `contact-sheet.png`, `frames/`) is small; its
 //! video, audio and full-size frames are nearly all of its size. After `mediaDays` the heavy
 //! media (and the `zoom/` sheets made from it) goes to the Trash and the prompt stays; after
-//! `bundleDays` the whole bundle goes. Both live under `"retention"` in `~/.config/scrawl/config.json` (`null` keeps forever). A bundle
+//! `bundleDays` the whole bundle goes. Both live under `"retention"` in `~/.config/pointo/config.json` (`null` keeps forever). A bundle
 //! younger than a day or changed within the last day, one whose media is still copying
-//! (`.media-pending`, `.media-sending`), one Scrawl is working on, a pinned one (`.pinned`), one
-//! still waiting to reach OpenCode (`.deliver.json`), and one `scrawl recover` hasn't built yet
+//! (`.media-pending`, `.media-sending`), one Pointo is working on, a pinned one (`.pinned`), one
+//! still waiting to reach OpenCode (`.deliver.json`), and one `pointo recover` hasn't built yet
 //! are never touched.
 //!
 //! Cabled-iPhone videos are also re-encoded to HEVC at the size keyframes use (`shrink`), which
@@ -49,7 +49,7 @@ const SHRINK_SETTLE_MS: u64 = 10 * 60 * 1000;
 const PASS_EVERY: Duration = Duration::from_secs(3600);
 /// How often a pass also re-encodes missed iPhone videos (each try can take a while).
 const SHRINK_EVERY: Duration = Duration::from_secs(24 * 3600);
-/// Made from the heavy media (`scrawl zoom` sheets and frame ranges), so it goes with it.
+/// Made from the heavy media (`pointo zoom` sheets and frame ranges), so it goes with it.
 const DERIVED_MEDIA: [&str; 1] = ["zoom"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,12 +133,12 @@ impl Policy {
     }
 }
 
-// MARK: What Scrawl is busy with
+// MARK: What Pointo is busy with
 
 static BUSY: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
 static RECORDING: AtomicUsize = AtomicUsize::new(0);
 
-/// Holds a bundle out of cleanup while Scrawl works on it.
+/// Holds a bundle out of cleanup while Pointo works on it.
 pub struct Claim(PathBuf);
 
 /// Claims `dir` unless something else already has.
@@ -254,9 +254,9 @@ fn live_marker(dir: &Path, name: &str, now: SystemTime) -> bool {
 
 fn created_ms(dir: &Path, manifest: &Manifest) -> Option<u64> {
     manifest.created_at_ms.or_else(|| {
-        // `scrawl-<ms>-…`
+        // `pointo-<ms>-…`
         let name = dir.file_stem()?.to_str()?;
-        name.strip_prefix("scrawl-")?
+        name.strip_prefix("pointo-")?
             .split('-')
             .next()?
             .parse()
@@ -275,7 +275,7 @@ pub fn plan(captures: &Path, policy: &Policy, now: SystemTime) -> Vec<Action> {
     };
     let mut bundles: Vec<PathBuf> = entries
         .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.extension().is_some_and(|ext| ext == "scrawl") && p.is_dir())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "pointo") && p.is_dir())
         .collect();
     bundles.sort();
     let mut actions = Vec::new();
@@ -289,7 +289,7 @@ pub fn plan(captures: &Path, policy: &Policy, now: SystemTime) -> Vec<Action> {
         {
             continue;
         }
-        let manifest: Manifest = std::fs::read(dir.join("scrawl.json"))
+        let manifest: Manifest = std::fs::read(dir.join("pointo.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
@@ -646,7 +646,7 @@ pub fn missing_media_reason(dir: &Path) -> Option<String> {
     Some(if days > 0 {
         format!(
             "The bundle's video was cleaned up after {days} days and is in the Trash \
-             (Scrawl menu › Keep Recordings sets how long video is kept)"
+             (Pointo menu › Keep Recordings sets how long video is kept)"
         )
     } else {
         "The bundle's video was cleaned up and is in the Trash".to_owned()
@@ -683,7 +683,7 @@ pub fn start() {
         return;
     }
     let _ = std::thread::Builder::new()
-        .name("scrawl-retention".into())
+        .name("pointo-retention".into())
         .spawn(move || worker(&receiver));
 }
 
@@ -792,7 +792,7 @@ fn shrink_now(dir: &Path) -> std::result::Result<(), ()> {
     let Some(_claim) = claim(dir) else {
         return Err(());
     };
-    let manifest: Manifest = match std::fs::read(dir.join("scrawl.json"))
+    let manifest: Manifest = match std::fs::read(dir.join("pointo.json"))
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
     {
@@ -819,7 +819,7 @@ mod tests {
     impl TempDir {
         fn new(tag: &str) -> Self {
             let dir = std::env::temp_dir().join(format!(
-                "scrawl-retention-{tag}-{}-{}",
+                "pointo-retention-{tag}-{}-{}",
                 std::process::id(),
                 crate::make_bundle_id()
             ));
@@ -846,7 +846,7 @@ mod tests {
 
     /// A bundle created `days` before `later()`.
     fn bundle(captures: &Path, name: &str, days: f64, iphone: bool) -> PathBuf {
-        let dir = captures.join(format!("{name}.scrawl"));
+        let dir = captures.join(format!("{name}.pointo"));
         std::fs::create_dir_all(dir.join("frames")).unwrap();
         let created = ms(later()) - (days * DAY_MS as f64) as u64;
         let video = if iphone {
@@ -865,7 +865,7 @@ mod tests {
             manifest["source"] = "iphone".into();
             manifest["device"] = serde_json::json!({"name": "iPhone", "capture": "mirror", "width": 1320, "height": 2868});
         }
-        std::fs::write(dir.join("scrawl.json"), manifest.to_string()).unwrap();
+        std::fs::write(dir.join("pointo.json"), manifest.to_string()).unwrap();
         std::fs::write(dir.join("summary.md"), "summary").unwrap();
         std::fs::write(dir.join("contact-sheet.png"), "png").unwrap();
         std::fs::write(dir.join("frames/frame-01.png"), "png").unwrap();
@@ -928,12 +928,12 @@ mod tests {
     #[test]
     fn old_media_and_older_bundles_are_planned_for_the_trash() {
         let tmp = TempDir::new("plan");
-        bundle(&tmp.0, "scrawl-fresh", 0.5, false);
-        bundle(&tmp.0, "scrawl-week", 3.0, false);
-        let old = bundle(&tmp.0, "scrawl-old", 8.0, false);
+        bundle(&tmp.0, "pointo-fresh", 0.5, false);
+        bundle(&tmp.0, "pointo-week", 3.0, false);
+        let old = bundle(&tmp.0, "pointo-old", 8.0, false);
         std::fs::create_dir_all(old.join("frames-full")).unwrap();
         std::fs::create_dir_all(old.join("zoom")).unwrap();
-        let ancient = bundle(&tmp.0, "scrawl-ancient", 31.0, false);
+        let ancient = bundle(&tmp.0, "pointo-ancient", 31.0, false);
         assert_eq!(
             planned(&tmp.0, &Policy::default()),
             vec![
@@ -961,24 +961,24 @@ mod tests {
     #[test]
     fn pinned_syncing_and_busy_bundles_are_left_alone() {
         let tmp = TempDir::new("guards");
-        let pinned = bundle(&tmp.0, "scrawl-pinned", 40.0, false);
+        let pinned = bundle(&tmp.0, "pointo-pinned", 40.0, false);
         std::fs::write(pinned.join(PINNED), "").unwrap();
-        let pending = bundle(&tmp.0, "scrawl-pending", 40.0, false);
+        let pending = bundle(&tmp.0, "pointo-pending", 40.0, false);
         marker(
             &pending,
             crate::handoff::MEDIA_PENDING,
             later() - Duration::from_secs(3600),
         );
-        let sending = bundle(&tmp.0, "scrawl-sending", 40.0, false);
+        let sending = bundle(&tmp.0, "pointo-sending", 40.0, false);
         marker(&sending, MEDIA_SENDING, later() - Duration::from_secs(3600));
         // A bundle still waiting to reach OpenCode, however old its marker.
-        let undelivered = bundle(&tmp.0, "scrawl-undelivered", 40.0, false);
+        let undelivered = bundle(&tmp.0, "pointo-undelivered", 40.0, false);
         marker(
             &undelivered,
             crate::delivery::PENDING,
             later() - Duration::from_secs(40 * 24 * 3600),
         );
-        let busy = bundle(&tmp.0, "scrawl-busy", 40.0, false);
+        let busy = bundle(&tmp.0, "pointo-busy", 40.0, false);
         let held = claim(&busy).unwrap();
         assert!(claim(&busy).is_none(), "one claim at a time");
         assert!(planned(&tmp.0, &Policy::default()).is_empty());
@@ -1000,7 +1000,7 @@ mod tests {
     fn recently_changed_folders_wait_a_day() {
         let tmp = TempDir::new("changed");
         // Just copied from another Mac: made long ago, but the folder changed now.
-        let arrived = bundle(&tmp.0, "scrawl-arrived", 40.0, false);
+        let arrived = bundle(&tmp.0, "pointo-arrived", 40.0, false);
         let today = later() - Duration::from_secs(24 * 3600);
         assert!(plan(&tmp.0, &Policy::default(), today).is_empty());
         assert_eq!(
@@ -1015,8 +1015,8 @@ mod tests {
         let captures = tmp.0.join("captures");
         let trash_dir = tmp.0.join("Trash");
         std::fs::create_dir_all(&trash_dir).unwrap();
-        let old = bundle(&captures, "scrawl-old", 8.0, true);
-        let ancient = bundle(&captures, "scrawl-ancient", 31.0, false);
+        let old = bundle(&captures, "pointo-old", 8.0, true);
+        let ancient = bundle(&captures, "pointo-ancient", 31.0, false);
         let fake_trash = |path: &Path| -> Result<()> {
             std::fs::rename(path, trash_dir.join(path.file_name().unwrap()))?;
             Ok(())
@@ -1032,13 +1032,13 @@ mod tests {
         assert!(!ancient.exists());
         assert!(
             trash_dir
-                .join("scrawl-ancient.scrawl/scrawl.json")
+                .join("pointo-ancient.pointo/pointo.json")
                 .is_file()
         );
-        let media = trash_dir.join("scrawl-old media");
+        let media = trash_dir.join("pointo-old media");
         assert!(media.join("recording.mov").is_file() && media.join("audio.wav").is_file());
         for kept in [
-            "scrawl.json",
+            "pointo.json",
             "summary.md",
             "contact-sheet.png",
             "frames/frame-01.png",
@@ -1050,7 +1050,7 @@ mod tests {
         let reason = missing_media_reason(&old).unwrap();
         assert!(reason.contains("after 7 days"), "{reason}");
         let manifest: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(old.join("scrawl.json")).unwrap()).unwrap();
+            serde_json::from_slice(&std::fs::read(old.join("pointo.json")).unwrap()).unwrap();
         assert_eq!(
             manifest["video"], "recording.mov",
             "the manifest is left as it was"
@@ -1063,9 +1063,9 @@ mod tests {
     #[test]
     fn only_native_iphone_video_is_shrunk() {
         let tmp = TempDir::new("shrink");
-        let phone = bundle(&tmp.0, "scrawl-phone", 2.0, true);
-        bundle(&tmp.0, "scrawl-mac", 2.0, false);
-        let small = bundle(&tmp.0, "scrawl-small", 2.0, true);
+        let phone = bundle(&tmp.0, "pointo-phone", 2.0, true);
+        bundle(&tmp.0, "pointo-mac", 2.0, false);
+        let small = bundle(&tmp.0, "pointo-small", 2.0, true);
         std::fs::write(small.join("recording.mov"), vec![0u8; 2_500_000]).unwrap();
         assert_eq!(
             planned(&tmp.0, &Policy::default()),
@@ -1075,8 +1075,8 @@ mod tests {
             }]
         );
         // Hours old is enough to shrink; minutes old is left to the capture's own shrink.
-        let hours = bundle(&tmp.0, "scrawl-hours", 0.1, true);
-        bundle(&tmp.0, "scrawl-minutes", 0.003, true);
+        let hours = bundle(&tmp.0, "pointo-hours", 0.1, true);
+        bundle(&tmp.0, "pointo-minutes", 0.003, true);
         let shrinks: Vec<PathBuf> = planned(&tmp.0, &Policy::default())
             .into_iter()
             .filter_map(|a| match a {

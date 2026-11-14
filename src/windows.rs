@@ -1,10 +1,10 @@
 //! Window geometry and cursor log for Screen-mode captures.
 //!
 //! While a full-screen capture records, a low-rate worker writes down which windows were on
-//! screen (front to back) and where the cursor was, so `scrawl autocrop` can work out which
+//! screen (front to back) and where the cursor was, so `pointo autocrop` can work out which
 //! window the narration and ink were about. Snapshots are deduped (only stored when the window
 //! list changes), cursor samples are deduped by movement, and window titles stay in
-//! `scrawl.json`: they never go into `summary.md` or the clipboard.
+//! `pointo.json`: they never go into `summary.md` or the clipboard.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -543,7 +543,7 @@ impl WindowLogger {
         let stop = Arc::clone(&stopping);
         let dock = dock_rect(frame);
         let worker = thread::Builder::new()
-            .name("scrawl-window-log".into())
+            .name("pointo-window-log".into())
             .spawn(move || run(frame, dock, started_at, &request, &stop))
             .ok();
         Self { stopping, worker }
@@ -762,7 +762,7 @@ mod tests {
             alpha: 1.0,
         };
         let windows = [
-            raw(1, 9, "Scrawl", "", [1000.0, 0.0, 300.0, 300.0], 0),
+            raw(1, 9, "Pointo", "", [1000.0, 0.0, 300.0, 300.0], 0),
             raw(
                 2,
                 10,
@@ -850,9 +850,9 @@ mod tests {
             settings[0].clone(),
         ];
         assert!(macos_is_asking(&quit_and_reopen));
-        // The same alert behind Scrawl's window.
+        // The same alert behind Pointo's window.
         let behind = [
-            window(11, "Scrawl Helper", [650.0, 145.0, 620.0, 532.0], 0),
+            window(11, "Pointo Helper", [650.0, 145.0, 620.0, 532.0], 0),
             quit_and_reopen[0].clone(),
             settings[0].clone(),
         ];

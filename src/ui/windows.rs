@@ -38,7 +38,7 @@ pub(super) const HEADER_TRAIL: f32 = 0.0;
 /// The pill's top edge on the screen.
 pub(super) const PILL_TOP: f32 = 14.0;
 
-/// GPUI lays out in DIPs; Scrawl's global coordinates are pixels.
+/// GPUI lays out in DIPs; Pointo's global coordinates are pixels.
 pub(super) fn points_per_pixel(window: &Window) -> f32 {
     1.0 / window.scale_factor().max(0.25)
 }
@@ -87,7 +87,7 @@ pub(crate) fn gpui_display_for(
 static PICKER_HWND: AtomicIsize = AtomicIsize::new(0);
 static PILL_HWND: AtomicIsize = AtomicIsize::new(0);
 
-/// The window in `slot`, while it's still one of Scrawl's.
+/// The window in `slot`, while it's still one of Pointo's.
 fn own_window(slot: &AtomicIsize) -> Option<isize> {
     let id = slot.load(Ordering::Acquire);
     if id == 0 {
@@ -122,7 +122,7 @@ pub(super) fn move_picker_window(frame: [f64; 4], cx: &mut App) {
 /// The picker takes the keys itself (`configure_picker_window`); the review window opens in front.
 pub(super) fn take_keys(_cx: &mut App) {}
 
-/// Windows activates the window below when Scrawl's closes.
+/// Windows activates the window below when Pointo's closes.
 pub(super) fn hand_back_keys(_cx: &mut App) {}
 
 /// Pressing a region drags its window (`HTCAPTION`), with Aero Snap.
@@ -215,7 +215,7 @@ pub(super) fn start_updates() {}
 
 pub(super) fn check_for_updates() {
     let _ = crate::handoff::open_path(Path::new(
-        "https://github.com/kitlangton/scrawl/releases/latest",
+        "https://github.com/xiechimon/pointo/releases/latest",
     ));
 }
 
@@ -271,7 +271,7 @@ pub(crate) fn set_app_icon(window: &Window) {
     }
 }
 
-/// Brings one of Scrawl's floating windows to the top of the always-on-top band.
+/// Brings one of Pointo's floating windows to the top of the always-on-top band.
 pub(super) fn raise_window(window: &mut Window) {
     if let Some(hwnd) = hwnd_of(window) {
         let _ = unsafe {
@@ -288,7 +288,7 @@ pub(super) fn raise_window(window: &mut Window) {
     }
 }
 
-/// `scrawl lab`'s backdrop stays an ordinary popup on Windows.
+/// `pointo lab`'s backdrop stays an ordinary popup on Windows.
 pub(super) fn configure_lab_backdrop(_w: f32, _h: f32) {}
 
 struct KeepAlive;
@@ -299,7 +299,7 @@ impl gpui::Render for KeepAlive {
     }
 }
 
-/// GPUI on Windows quits when its last window closes, and Scrawl lives in the notification
+/// GPUI on Windows quits when its last window closes, and Pointo lives in the notification
 /// area with no window most of the time: a hidden window keeps it running.
 pub(super) fn keep_alive(cx: &mut App) {
     let _ = cx.open_window(
@@ -321,12 +321,12 @@ pub(super) fn keep_alive(cx: &mut App) {
     );
 }
 
-/// Opens a window Scrawl's way on this platform.
+/// Opens a window Pointo's way on this platform.
 pub(super) fn decorate_app_window(window: &mut Window) {
     set_app_icon(window);
 }
 
-/// Floating chrome for Scrawl's own popups: no taskbar button, always on top, never in a
+/// Floating chrome for Pointo's own popups: no taskbar button, always on top, never in a
 /// recording, no Windows 11 border or shadow, and no veil from GPUI's transparent background.
 pub(crate) fn style_floating(hwnd: HWND, activates: bool) {
     let style = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) } as u32;
@@ -340,7 +340,7 @@ pub(crate) fn style_floating(hwnd: HWND, activates: bool) {
 }
 
 /// The picker: on top of everything over the whole display at `frame` (global pixels), taking
-/// clicks and keys (in `scrawl lab` replays too: a window made click-through after its first
+/// clicks and keys (in `pointo lab` replays too: a window made click-through after its first
 /// frame stops drawing).
 pub(super) fn configure_picker_window(
     window: &mut Window,
@@ -523,7 +523,7 @@ pub(super) fn pointer_on_hud_pill() -> bool {
     })
 }
 
-/// The largest of Scrawl's windows (for `scrawl preview --capture-screenshot`).
+/// The largest of Pointo's windows (for `pointo preview --capture-screenshot`).
 pub(super) fn front_own_window() -> Option<isize> {
     let pid = std::process::id();
     win::top_level_windows()
@@ -540,7 +540,7 @@ pub(super) fn capture_own_window_screenshot(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let window = window.ok_or_else(|| anyhow::anyhow!("Could not find Scrawl's window"))?;
+    let window = window.ok_or_else(|| anyhow::anyhow!("Could not find Pointo's window"))?;
     let frame = win::overlay::capture_window(window)?;
     crate::render::save_png(&frame, out_path)
 }
@@ -561,7 +561,7 @@ struct Tray {
     menu: Menu,
     toggle: MenuItem,
     export: MenuItem,
-    /// Whether `export` is in the menu (`"videoExport"` can change while Scrawl runs).
+    /// Whether `export` is in the menu (`"videoExport"` can change while Pointo runs).
     export_shown: bool,
     /// Inbox rows, replaced each time the menu opens.
     dynamic: Vec<Box<dyn IsMenuItem>>,
@@ -658,7 +658,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
         true,
         None,
     ));
-    let _ = menu.append(&MenuItem::with_id(ID_QUIT, "Quit Scrawl", true, None));
+    let _ = menu.append(&MenuItem::with_id(ID_QUIT, "Quit Pointo", true, None));
 
     MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
         if let Some(action) = menu_action(event.id()) {
@@ -677,7 +677,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     }));
 
     let icon = TrayIconBuilder::new()
-        .with_tooltip("Scrawl")
+        .with_tooltip("Pointo")
         .with_icon(tray_icon_image()?)
         .with_menu(Box::new(menu.clone()))
         .with_menu_on_left_click(false)
@@ -773,10 +773,10 @@ pub(super) fn poll_status_bar() {
 
 fn update_tooltip(tray: &Tray) {
     let text = match (&tray.status, tray.inbox) {
-        (Some(status), _) => format!("Scrawl — {status}"),
-        (None, 0) => "Scrawl".to_owned(),
-        (None, 1) => "Scrawl — 1 capture from iPhone".to_owned(),
-        (None, n) => format!("Scrawl — {n} captures from iPhone"),
+        (Some(status), _) => format!("Pointo — {status}"),
+        (None, 0) => "Pointo".to_owned(),
+        (None, 1) => "Pointo — 1 capture from iPhone".to_owned(),
+        (None, n) => format!("Pointo — {n} captures from iPhone"),
     };
     let _ = tray.icon.set_tooltip(Some(text));
 }

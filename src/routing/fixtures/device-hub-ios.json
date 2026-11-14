@@ -1,9 +1,9 @@
 {
- "capture": "scrawl-1792518491486-15cec-52.scrawl",
+ "capture": "pointo-1792518491486-15cec-52.pointo",
  "savedDecision": "keep",
  "bundle": {
   "version": 1,
-  "id": "scrawl-1792518491486-15cec-52",
+  "id": "pointo-1792518491486-15cec-52",
   "createdAtMs": 1792518519092,
   "durationMs": 27277,
   "target": {
@@ -269,9 +269,9 @@
    },
    {
     "id": "ses_edb816b31ffe4B3nexhh9rqAJp",
-    "title": "SCRAWL",
-    "directory": "/Users/kit/code/open-source/scrawl",
-    "repo": "/Users/kit/code/open-source/scrawl",
+    "title": "POINTO",
+    "directory": "/path/to/pointo",
+    "repo": "/path/to/pointo",
     "updatedMs": 1792518150815,
     "viewedMs": 1792516152471
    },
@@ -397,9 +397,9 @@
    },
    {
     "id": "ses_ead37e06cffeRfPkN2vrbdNWDs",
-    "title": "SCRAWL RECORDER",
-    "directory": "/Users/kit/code/open-source/scrawl",
-    "repo": "/Users/kit/code/open-source/scrawl",
+    "title": "POINTO RECORDER",
+    "directory": "/path/to/pointo",
+    "repo": "/path/to/pointo",
     "updatedMs": 1792391837251,
     "viewedMs": 1792391837366
    },

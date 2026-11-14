@@ -56,7 +56,7 @@ const KEY_Z: u16 = 0x5A;
 /// front doesn't open its menu bar (or the Start menu) on the lone modifier release.
 const VK_MASK: u16 = 0xE8;
 
-/// `%LOCALAPPDATA%\Scrawl\Logs`.
+/// `%LOCALAPPDATA%\Pointo\Logs`.
 pub fn log_dir() -> Option<PathBuf> {
     Some(win::local_dir().join("Logs"))
 }
@@ -91,7 +91,7 @@ pub fn screen_capture_usable(_probe: bool) -> bool {
     true
 }
 
-/// The primary display's size (`scrawl sck-probe`); Windows.Graphics.Capture needs no grant.
+/// The primary display's size (`pointo sck-probe`); Windows.Graphics.Capture needs no grant.
 pub fn screen_capture_probe() -> Result<(u32, u32), String> {
     let monitor = win::primary_monitor().ok_or("no display")?;
     Ok((monitor.rect[2] as u32, monitor.rect[3] as u32))
@@ -234,7 +234,7 @@ pub fn record_external_frontmost_app() {
     }
 }
 
-/// Puts the last app that was in front (before Scrawl's own window took focus) back in front,
+/// Puts the last app that was in front (before Pointo's own window took focus) back in front,
 /// so a paste lands in it.
 pub fn ensure_external_app_active() {
     if let Some(front) = win::foreground_window()
@@ -271,12 +271,12 @@ fn external_front_window() -> Option<win::WindowInfo> {
     }
 }
 
-/// The frontmost app's pid, or the last external one while Scrawl itself is in front.
+/// The frontmost app's pid, or the last external one while Pointo itself is in front.
 pub fn frontmost_external_pid() -> Option<i32> {
     external_front_window().map(|w| w.pid as i32)
 }
 
-/// The frontmost app (pid, name, executable as its identifier), or the last one before Scrawl.
+/// The frontmost app (pid, name, executable as its identifier), or the last one before Pointo.
 pub fn frontmost_app_info() -> Option<(i32, String, Option<String>)> {
     let front = external_front_window()?;
     let (name, id) = win::app_identity(front.pid)?;
@@ -299,7 +299,7 @@ fn frame_of(rect: [f64; 4], scale: f64) -> TargetFrame {
     }
 }
 
-/// Selectable app windows (not Scrawl's), front to back, with their app names.
+/// Selectable app windows (not Pointo's), front to back, with their app names.
 fn app_windows() -> Vec<(win::WindowInfo, String, String)> {
     let mut names: std::collections::HashMap<u32, Option<(String, String)>> =
         std::collections::HashMap::new();
@@ -391,7 +391,7 @@ pub(super) fn raw_windows_now() -> Vec<crate::windows::RawWindow> {
     crate::windows::raw_windows()
 }
 
-/// Windows has no `scrawl-helper`: every Scrawl window is in its own process.
+/// Windows has no `pointo-helper`: every Pointo window is in its own process.
 pub(super) fn is_helper_process(_pid: i32) -> bool {
     false
 }
@@ -441,7 +441,7 @@ pub fn post_synthetic_cmd_v() {
         inputs.push(keyboard_input(VK_CONTROL.0, KEYEVENTF_KEYUP));
     }
     if !send(&inputs) {
-        scrawl_log("Ctrl+V was refused (an elevated app in front ignores Scrawl's input)");
+        scrawl_log("Ctrl+V was refused (an elevated app in front ignores Pointo's input)");
     }
 }
 
@@ -602,7 +602,7 @@ pub fn install_global_hotkeys(telemetry: &Arc<SharedCaptureTelemetry>) {
     let _ = HOTKEY_REQUESTS.set(Mutex::new(request_tx));
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let spawned = thread::Builder::new()
-        .name("scrawl-hotkeys".into())
+        .name("pointo-hotkeys".into())
         .spawn(move || {
             let mut msg = MSG::default();
             // Make the thread's message queue before anyone posts to it.
@@ -683,7 +683,7 @@ pub fn set_shortcuts(
     Ok(())
 }
 
-/// While Settings records a new shortcut, Scrawl's own stop answering, so pressing the current
+/// While Settings records a new shortcut, Pointo's own stop answering, so pressing the current
 /// combo reaches the recorder instead of starting a capture.
 pub fn pause_shortcuts(telemetry: &SharedCaptureTelemetry, paused: bool) {
     if telemetry.shortcuts_paused.swap(paused, Ordering::AcqRel) == paused {
@@ -884,7 +884,7 @@ fn handle_hook_event(telemetry: &SharedCaptureTelemetry, event: HookEvent) {
             let t_ms = telemetry.elapsed_ms();
             // A Shift-press is never a click: a Shift-click drops a pin, a Shift-drag is ink.
             if down {
-                // Scrawl's own controls (the HUD) aren't part of what is being shown.
+                // Pointo's own controls (the HUD) aren't part of what is being shown.
                 if !telemetry.on_scrawl_window(x, y) {
                     if !pure_shift {
                         telemetry.pointer_down(t_ms, x, y);
@@ -949,14 +949,14 @@ pub fn start_global_input_tap(telemetry: Arc<SharedCaptureTelemetry>) {
     }
     let worker_telemetry = Arc::clone(&telemetry);
     let _ = thread::Builder::new()
-        .name("scrawl-input-events".into())
+        .name("pointo-input-events".into())
         .spawn(move || {
             while let Ok(event) = receiver.recv() {
                 handle_hook_event(&worker_telemetry, event);
             }
         });
     let _ = thread::Builder::new()
-        .name("scrawl-input-hooks".into())
+        .name("pointo-input-hooks".into())
         .spawn(|| {
             let module: Option<HINSTANCE> = None;
             let keyboard =
@@ -976,7 +976,7 @@ pub fn start_global_input_tap(telemetry: Arc<SharedCaptureTelemetry>) {
         });
     let poller_telemetry = Arc::clone(&telemetry);
     let _ = thread::Builder::new()
-        .name("scrawl-key-poller".into())
+        .name("pointo-key-poller".into())
         .spawn(move || run_key_poller(poller_telemetry));
 }
 

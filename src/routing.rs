@@ -1,7 +1,7 @@
 //! Where a Mac capture of a browser tab goes. When the capture ends on a browser showing a dev
 //! site, the bundle is sent to that project's OpenCode session instead of only the clipboard:
 //!
-//! 1. The page registered itself through Scrawl's `/sdk.js` (`web`): its session, or the session
+//! 1. The page registered itself through Pointo's `/sdk.js` (`web`): its session, or the session
 //!    for the directory it named.
 //! 2. The tab is on a loopback host: the process listening on that port, its working directory,
 //!    that directory's git root, and the most recently active root session in it.
@@ -152,7 +152,7 @@ fn safe_bundle_id(id: &str) -> bool {
 }
 
 /// The front tab's URL in the browser `bundle_id`, through AppleScript. The first time macOS
-/// asks whether Scrawl may control the browser; while that prompt is up this waits a few
+/// asks whether Pointo may control the browser; while that prompt is up this waits a few
 /// seconds, then gives up for this capture. A denial just returns `None`.
 pub fn browser_tab_url(bundle_id: &str) -> Option<String> {
     let kind = browser_kind(bundle_id)?;
@@ -497,7 +497,7 @@ pub fn judge_capture(
     (judgement, url)
 }
 
-/// `scrawl route --explain`: what smart routing sees for a bundle and what it decides, beside
+/// `pointo route --explain`: what smart routing sees for a bundle and what it decides, beside
 /// what the ladder (smart routing off) does. Read-only.
 pub fn explain_bundle(bundle: &Path, url: Option<&str>) -> Result<String> {
     use std::fmt::Write as _;
@@ -557,7 +557,7 @@ pub fn explain_bundle(bundle: &Path, url: Option<&str>) -> Result<String> {
 }
 
 /// The evidence and decision behind a capture's routing, saved beside it so
-/// `scrawl route --explain` replays the same decision.
+/// `pointo route --explain` replays the same decision.
 pub const RECORD: &str = "routing.json";
 
 pub fn write_record(
@@ -576,10 +576,10 @@ pub fn read_record(dir: &Path) -> Option<smart::Evidence> {
     serde_json::from_value(value.get("evidence")?.clone()).ok()
 }
 
-/// Writes `dest` into the bundle's `scrawl.json` and `summary.md`.
+/// Writes `dest` into the bundle's `pointo.json` and `summary.md`.
 pub fn record_destination(dir: &Path, bundle: &mut ScrawlBundle, dest: Destination) -> Result<()> {
     bundle.destination = Some(dest);
-    std::fs::write(dir.join("scrawl.json"), serde_json::to_vec_pretty(bundle)?)?;
+    std::fs::write(dir.join("pointo.json"), serde_json::to_vec_pretty(bundle)?)?;
     std::fs::write(
         dir.join("summary.md"),
         crate::sketch::summary_markdown(bundle, dir),
@@ -659,17 +659,17 @@ mod tests {
         let listen = "p48211\ncnode\np48211\np50002\n";
         assert_eq!(parse_lsof_pids(listen), vec![48211, 50002]);
         assert!(parse_lsof_pids("").is_empty());
-        let cwd = "p48211\nfcwd\nn/Users/kit/code/open-source/scrawl/site\n";
+        let cwd = "p48211\nfcwd\nn/path/to/pointo/site\n";
         assert_eq!(
             parse_lsof_cwd(cwd),
-            Some(PathBuf::from("/Users/kit/code/open-source/scrawl/site"))
+            Some(PathBuf::from("/path/to/pointo/site"))
         );
         assert_eq!(parse_lsof_cwd("p1\nfcwd\n"), None);
     }
 
     #[test]
     fn project_root_walks_up_to_git() {
-        let base = std::env::temp_dir().join(format!("scrawl-root-{}", crate::make_bundle_id()));
+        let base = std::env::temp_dir().join(format!("pointo-root-{}", crate::make_bundle_id()));
         let site = base.join("repo/site/src");
         std::fs::create_dir_all(&site).unwrap();
         std::fs::create_dir_all(base.join("repo/.git")).unwrap();
@@ -862,7 +862,7 @@ mod tests {
     #[test]
     fn destination_is_recorded_and_preferred_by_send() {
         let dir =
-            std::env::temp_dir().join(format!("scrawl-route-{}.scrawl", crate::make_bundle_id()));
+            std::env::temp_dir().join(format!("pointo-route-{}.pointo", crate::make_bundle_id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mut bundle: ScrawlBundle = serde_json::from_value(serde_json::json!({
             "version": 1, "id": "t", "createdAtMs": 0, "durationMs": 1_000,

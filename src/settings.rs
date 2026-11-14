@@ -1,15 +1,15 @@
-//! The Settings window. It is SwiftUI in `scrawl-helper settings` and, like onboarding, only
+//! The Settings window. It is SwiftUI in `pointo-helper settings` and, like onboarding, only
 //! draws what this module sends it (`View`) and reports what was clicked or typed (`Action`).
-//! Everything is decided and written here: `~/.config/scrawl/config.json` keeps its other keys
+//! Everything is decided and written here: `~/.config/pointo/config.json` keeps its other keys
 //! and its `0600` mode (it holds the ingest token).
 //!
 //! Panes: General (launch at login, sending dev-site captures, the two shortcuts), Recording
 //! (transcriber, video export), Storage (how long recordings are kept), Permissions (the
-//! onboarding checklist, to fix things later), Agents (`scrawl` on PATH, the skill's install
+//! onboarding checklist, to fix things later), Agents (`pointo` on PATH, the skill's install
 //! command) and About.
 //!
 //! Shortcuts live under `"shortcuts"` (`{"record": {"keyCode", "modifiers", "label"}}`, Carbon
-//! modifier bits; absent means the default, and `"paste": null` turns paste off). While the window records one, Scrawl's hotkeys are
+//! modifier bits; absent means the default, and `"paste": null` turns paste off). While the window records one, Pointo's hotkeys are
 //! paused (`capture::pause_shortcuts`) so the current combo reaches the recorder.
 
 use std::collections::BTreeSet;
@@ -25,7 +25,7 @@ use crate::onboarding::{Grants, Permission, Status};
 
 // MARK: Shortcuts in the config
 
-/// Scrawl's two shortcuts.
+/// Pointo's two shortcuts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Shortcuts {
     pub record: ShortcutConfig,
@@ -64,7 +64,7 @@ impl Shortcuts {
         }
     }
 
-    /// From `~/.config/scrawl/config.json`, moving a shortcut saved by 0.3.x (its own file
+    /// From `~/.config/pointo/config.json`, moving a shortcut saved by 0.3.x (its own file
     /// under Application Support) across the first time.
     pub fn load() -> Self {
         let path = crate::handoff::default_config_path();
@@ -261,11 +261,11 @@ const DELETE_KEYS: [u32; 2] = [51, 117];
 pub enum Rejection {
     /// Only ⇧, or nothing, with a key that isn't a function key.
     NoModifier,
-    /// A key Scrawl can't name or that the recorder uses (Esc).
+    /// A key Pointo can't name or that the recorder uses (Esc).
     UnsupportedKey,
     /// macOS or every app already uses it.
     Reserved(String),
-    /// Scrawl's other shortcut.
+    /// Pointo's other shortcut.
     Taken(ShortcutKind),
     /// `RegisterEventHotKey` refused it.
     Refused,
@@ -278,7 +278,7 @@ impl Rejection {
                 "Hold Ctrl, Alt or Win with the key.".to_owned()
             }
             Self::NoModifier => "Hold ⌘, ⌥ or ⌃ with the key.".to_owned(),
-            Self::UnsupportedKey => "Scrawl can't use that key. Try a letter or number.".to_owned(),
+            Self::UnsupportedKey => "Pointo can't use that key. Try a letter or number.".to_owned(),
             Self::Reserved(label) if cfg!(target_os = "windows") => {
                 if label.starts_with("Ctrl+") && !label.contains("Alt+") && !label.contains("Win+")
                 {
@@ -442,7 +442,7 @@ fn reserved(modifiers: u32, key: &str) -> bool {
     .contains(&(modifiers, key))
 }
 
-/// Checks a pressed combination for `kind` and names it. `other` is Scrawl's other shortcut.
+/// Checks a pressed combination for `kind` and names it. `other` is Pointo's other shortcut.
 pub fn validate(
     kind: ShortcutKind,
     pressed: &Pressed,
@@ -489,7 +489,7 @@ pub enum LoginItem {
     /// Registered, waiting for the user in System Settings › Login Items (on Windows: switched
     /// off in Settings › Apps › Startup).
     NeedsApproval,
-    /// Not running from Scrawl.app (a development build).
+    /// Not running from Pointo.app (a development build).
     Unavailable,
 }
 
@@ -536,7 +536,7 @@ mod login {
         use objc2::runtime::Bool;
         use objc2_foundation::NSError;
         let service =
-            main_app_service().ok_or_else(|| anyhow::anyhow!("not running from Scrawl.app"))?;
+            main_app_service().ok_or_else(|| anyhow::anyhow!("not running from Pointo.app"))?;
         let mut error: Option<objc2::rc::Retained<NSError>> = None;
         let ok: Bool = unsafe {
             if on {
@@ -612,8 +612,8 @@ pub enum Pane {
     About,
 }
 
-/// What `bunx skills add` installs: `skills/scrawl/SKILL.md` from this repository.
-pub const SKILL_COMMAND: &str = "bunx skills add kitlangton/scrawl";
+/// What `bunx skills add` installs: `skills/pointo/SKILL.md` from this repository.
+pub const SKILL_COMMAND: &str = "bunx skills add xiechimon/pointo";
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -641,7 +641,7 @@ pub struct View {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandLineView {
-    /// Where `scrawl` is linked, once it is.
+    /// Where `pointo` is linked, once it is.
     pub path: Option<String>,
     /// "install", "uninstall", or none.
     pub button: Option<&'static str>,
@@ -664,19 +664,19 @@ impl CommandLineView {
         match state {
             State::Installed { link, homebrew } => {
                 view.path = Some(tilde(link));
-                view.caption = "Agents and your terminal can run scrawl to read captures, zoom \
+                view.caption = "Agents and your terminal can run pointo to read captures, zoom \
                                 into a moment and export video."
                     .to_owned();
                 if *homebrew {
                     view.button = None;
                     view.caption = "Installed with Homebrew. Agents and your terminal can run \
-                                    scrawl to read captures, zoom into a moment and export video."
+                                    pointo to read captures, zoom into a moment and export video."
                         .to_owned();
                 } else {
                     view.button = Some("uninstall");
                     if !usually_on_path(link) {
                         view.caption = format!(
-                            "If your shell can't find scrawl, add {} to your PATH.",
+                            "If your shell can't find pointo, add {} to your PATH.",
                             folder(link)
                         );
                     }
@@ -684,13 +684,13 @@ impl CommandLineView {
             }
             State::Missing { link } => {
                 view.caption = format!(
-                    "Links scrawl into {}, so agents and your terminal can run it.",
+                    "Links pointo into {}, so agents and your terminal can run it.",
                     folder(link)
                 );
             }
             State::Stale { link } => {
                 view.caption = format!(
-                    "{} points to another copy of Scrawl. Install links it to this one.",
+                    "{} points to another copy of Pointo. Install links it to this one.",
                     tilde(link)
                 );
             }
@@ -698,7 +698,7 @@ impl CommandLineView {
                 view.button = None;
                 view.error = true;
                 view.caption = format!(
-                    "{} is another program, so Scrawl leaves it alone.",
+                    "{} is another program, so Pointo leaves it alone.",
                     tilde(link)
                 );
             }
@@ -706,12 +706,12 @@ impl CommandLineView {
                 view.enabled = false;
                 view.error = true;
                 view.caption =
-                    "There's no folder on your PATH that Scrawl can write to.".to_owned();
+                    "There's no folder on your PATH that Pointo can write to.".to_owned();
             }
             State::Unavailable => {
                 view.enabled = false;
                 view.caption =
-                    "The command-line tool works in the installed Scrawl.app.".to_owned();
+                    "The command-line tool works in the installed Pointo.app.".to_owned();
             }
         }
         if let Some(error) = error {
@@ -892,7 +892,7 @@ pub struct PermissionView {
     pub status: Status,
     pub required: bool,
     pub requested: bool,
-    /// Granted, but on only after Scrawl reopens.
+    /// Granted, but on only after Pointo reopens.
     pub relaunch: bool,
 }
 
@@ -989,13 +989,13 @@ pub enum Action {
     Grant {
         permission: Permission,
     },
-    /// Reopen Scrawl so a Screen Recording grant takes.
+    /// Reopen Pointo so a Screen Recording grant takes.
     Reopen,
     ShowCaptures,
     CheckForUpdates,
     /// "Show Welcome Tour" on About.
     Tour,
-    /// Link `scrawl` into a folder on PATH, or remove that link.
+    /// Link `pointo` into a folder on PATH, or remove that link.
     InstallCli,
     UninstallCli,
     Close,
@@ -1021,7 +1021,7 @@ pub enum Effect {
     Close,
 }
 
-/// The outside world the window changes: Scrawl's hotkeys and the config file.
+/// The outside world the window changes: Pointo's hotkeys and the config file.
 pub trait Host {
     fn shortcuts(&self) -> Shortcuts;
     /// Registers both, keeping the old ones if macOS refuses one.
@@ -1029,7 +1029,7 @@ pub trait Host {
     fn pause_shortcuts(&mut self, paused: bool);
     fn config_path(&self) -> PathBuf;
     fn set_login_item(&mut self, on: bool) -> anyhow::Result<()>;
-    /// Scrawl's binary and the folders `scrawl` may be linked into.
+    /// Pointo's binary and the folders `pointo` may be linked into.
     fn command_line(&self) -> crate::command_line::Places;
 }
 
@@ -1403,7 +1403,7 @@ impl Panel {
     }
 }
 
-/// Whether this copy can check for updates: Sparkle in Scrawl.app; on Windows the releases
+/// Whether this copy can check for updates: Sparkle in Pointo.app; on Windows the releases
 /// page always opens.
 fn updates_available() -> bool {
     #[cfg(target_os = "macos")]
@@ -1420,7 +1420,7 @@ fn check_for_updates() {
 }
 
 #[cfg(not(target_os = "macos"))]
-const RELEASES_URL: &str = "https://github.com/kitlangton/scrawl/releases/latest";
+const RELEASES_URL: &str = "https://github.com/xiechimon/pointo/releases/latest";
 
 // MARK: The live window
 
@@ -1555,7 +1555,7 @@ impl Session {
         })
     }
 
-    /// `scrawl-helper settings`, reading its actions off stdout.
+    /// `pointo-helper settings`, reading its actions off stdout.
     fn spawn_helper(
         pane: Option<Pane>,
         events: std::sync::Arc<dyn Fn(Event) + Send + Sync>,
@@ -1626,7 +1626,7 @@ impl Session {
             }
         };
         let result = match effect {
-            // Attributed to whichever process asks, so Scrawl itself asks.
+            // Attributed to whichever process asks, so Pointo itself asks.
             Effect::Request(Permission::ScreenRecording) => {
                 crate::capture::request_screen_capture();
                 Effect::None
@@ -1794,7 +1794,7 @@ mod tests {
     impl TempDir {
         fn new(name: &str) -> Self {
             let dir = std::env::temp_dir().join(format!(
-                "scrawl-settings-{name}-{}-{}",
+                "pointo-settings-{name}-{}-{}",
                 std::process::id(),
                 crate::now_epoch_ms()
             ));
@@ -1874,7 +1874,7 @@ mod tests {
         let mut system = pressed(R, CTRL_OPT, "r");
         system.reserved = true;
         assert_eq!(no(system), Rejection::Reserved(label(CTRL_OPT, "R")));
-        // Scrawl's other shortcut.
+        // Pointo's other shortcut.
         assert_eq!(
             no(pressed(V, OPT_SHIFT, "v")),
             Rejection::Taken(ShortcutKind::Paste)
@@ -2528,12 +2528,12 @@ mod tests {
 
         std::fs::write(
             &host.path,
-            r#"{"transcriber":"apple","transcribeCommand":["/opt/stt/whisper-scrawl","{audio}"]}"#,
+            r#"{"transcriber":"apple","transcribeCommand":["/opt/stt/whisper-pointo","{audio}"]}"#,
         )
         .unwrap();
         let view = panel.view(&host).transcriber;
         assert_eq!(view.engine, "apple");
-        assert_eq!(view.command.as_deref(), Some("whisper-scrawl"));
+        assert_eq!(view.command.as_deref(), Some("whisper-pointo"));
 
         panel.on(
             Action::Set {
@@ -2652,7 +2652,7 @@ mod tests {
         assert_eq!(parse(r#"{"action":"uninstall-cli"}"#), Action::UninstallCli);
     }
 
-    /// Links are a unix thing; Windows has no Scrawl.app to link (`State::Unavailable`).
+    /// Links are a unix thing; Windows has no Pointo.app to link (`State::Unavailable`).
     #[cfg(unix)]
     #[test]
     fn the_command_line_row_installs_uninstalls_and_says_why_not() {
@@ -2664,30 +2664,30 @@ mod tests {
         assert_eq!((row.button, row.enabled), (Some("install"), false));
         assert_eq!(
             row.caption,
-            "The command-line tool works in the installed Scrawl.app."
+            "The command-line tool works in the installed Pointo.app."
         );
         assert_eq!(
             panel.view(&host).skill_command,
-            "bunx skills add kitlangton/scrawl"
+            "bunx skills add xiechimon/pointo"
         );
 
-        let macos = dir.0.join("Scrawl.app/Contents/MacOS");
+        let macos = dir.0.join("Pointo.app/Contents/MacOS");
         std::fs::create_dir_all(&macos).unwrap();
-        std::fs::write(macos.join("scrawl"), "").unwrap();
-        host.cli.target = Some(std::fs::canonicalize(macos.join("scrawl")).unwrap());
+        std::fs::write(macos.join("pointo"), "").unwrap();
+        host.cli.target = Some(std::fs::canonicalize(macos.join("pointo")).unwrap());
         let row = panel.view(&host).command_line;
         assert_eq!(
             (row.button, row.enabled, row.path),
             (Some("install"), true, None)
         );
         assert!(
-            row.caption.starts_with("Links scrawl into "),
+            row.caption.starts_with("Links pointo into "),
             "{}",
             row.caption
         );
 
         panel.on(Action::InstallCli, &mut host);
-        let link = dir.0.join("bin/scrawl");
+        let link = dir.0.join("bin/pointo");
         assert_eq!(
             std::fs::read_link(&link).unwrap(),
             host.cli.target.clone().unwrap()
@@ -2703,13 +2703,13 @@ mod tests {
         assert!(link.symlink_metadata().is_err());
         assert_eq!(panel.view(&host).command_line.button, Some("install"));
 
-        // Someone else's scrawl stays, and the row says so.
+        // Someone else's pointo stays, and the row says so.
         std::fs::write(&link, "other").unwrap();
         let row = panel.view(&host).command_line;
         assert_eq!((row.button, row.error), (None, true));
         assert!(
             row.caption
-                .ends_with("is another program, so Scrawl leaves it alone.")
+                .ends_with("is another program, so Pointo leaves it alone.")
         );
         panel.on(Action::InstallCli, &mut host);
         assert_eq!(std::fs::read_to_string(&link).unwrap(), "other");

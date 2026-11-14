@@ -1,5 +1,5 @@
-//! iPhone sources: a live cabled capture mirrored through `scrawl-helper`, and recordings made
-//! in-app with ScrawlKit. Both become ordinary `.scrawl` bundles whose keyframes are decoded
+//! iPhone sources: a live cabled capture mirrored through `pointo-helper`, and recordings made
+//! in-app with ScrawlKit. Both become ordinary `.pointo` bundles whose keyframes are decoded
 //! from the phone's own video, never from a screenshot of the mirror window.
 
 use std::collections::BTreeMap;
@@ -58,7 +58,7 @@ pub struct PhoneSession {
 pub struct PhoneRecording {
     pub movie: PathBuf,
     pub device: PhoneDevice,
-    /// How long after Scrawl's session clock started the movie's first frame arrived.
+    /// How long after Pointo's session clock started the movie's first frame arrived.
     pub offset_ms: u64,
     /// M presses in the mirror, on the movie's clock.
     pub flags: Vec<u64>,
@@ -160,7 +160,7 @@ impl PhoneSession {
         let stdout = child.stdout.take().context("No mirror output")?;
         if let Some(stderr) = child.stderr.take() {
             let _ = std::thread::Builder::new()
-                .name("scrawl-phone-stderr".into())
+                .name("pointo-phone-stderr".into())
                 .spawn(move || {
                     for line in BufReader::new(stderr).lines().map_while(Result::ok) {
                         let trimmed = line.trim();
@@ -175,7 +175,7 @@ impl PhoneSession {
         let reader_state = Arc::clone(&state);
         let reader_cancelled = Arc::clone(&cancelled);
         let reader = std::thread::Builder::new()
-            .name("scrawl-phone".into())
+            .name("pointo-phone".into())
             .spawn(move || {
                 for line in BufReader::new(stdout).lines() {
                     let Ok(line) = line else { break };
@@ -248,7 +248,7 @@ impl PhoneSession {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .ended = true;
-                // The helper ended; if Scrawl didn't ask (phone unplugged, no phone, denied),
+                // The helper ended; if Pointo didn't ask (phone unplugged, no phone, denied),
                 // let the app finish or cancel the capture.
                 if !reader_cancelled.load(std::sync::atomic::Ordering::Acquire)
                     && let Some(telemetry) = &telemetry
@@ -614,7 +614,7 @@ pub fn build_movie_bundle(
     )
 }
 
-/// Finishes a live capture: re-bases Scrawl's pointer and pen input onto the movie's clock.
+/// Finishes a live capture: re-bases Pointo's pointer and pen input onto the movie's clock.
 pub fn finalize_live_capture(
     bundle_dir: &Path,
     recording: PhoneRecording,
@@ -913,7 +913,7 @@ fn sibling(path: &Path, want_movie: bool) -> Option<PathBuf> {
         })
 }
 
-/// Resolves what `scrawl import` was given into a movie and its timeline: a movie (timeline
+/// Resolves what `pointo import` was given into a movie and its timeline: a movie (timeline
 /// beside it), a timeline (movie beside it), or nothing (the newest pair in ~/Downloads, where
 /// AirDrop puts them).
 pub fn resolve_import(
@@ -947,7 +947,7 @@ pub fn resolve_import(
     Ok((movie, timeline))
 }
 
-/// `scrawl import`: a ScrawlKit recording becomes a bundle. Touches become taps and swipes
+/// `pointo import`: a ScrawlKit recording becomes a bundle. Touches become taps and swipes
 /// (ripples and trails on keyframes), markers become flags, app events land in the summary.
 pub fn import(
     movie: &Path,
@@ -1096,7 +1096,7 @@ impl Default for IngestHooks {
 }
 
 /// How long an upload waits for its bundle to be built and sent before the Mac answers
-/// "processing". The phone can ask for less with `X-Scrawl-Wait` (seconds); without it the Mac
+/// "processing". The phone can ask for less with `X-Pointo-Wait` (seconds); without it the Mac
 /// stays under the 30 s idle timeout of ScrawlKit builds from before the header.
 const REPLY_WAIT_MAX: Duration = Duration::from_secs(45);
 const REPLY_WAIT_DEFAULT: Duration = Duration::from_secs(25);
@@ -1133,7 +1133,7 @@ fn bearer_token(header: &str) -> Option<&str> {
     })
 }
 
-/// Discovers this Mac's candidate Scrawl ingest base URLs on `port`: Tailscale IPv4 first,
+/// Discovers this Mac's candidate Pointo ingest base URLs on `port`: Tailscale IPv4 first,
 /// followed by `en0` / `en1` LAN IPs.
 pub fn discover_default_ingest_urls(port: u16) -> Vec<String> {
     let mut urls = Vec::new();
@@ -1193,7 +1193,7 @@ fn normalize_http_base_url(raw: &str) -> Result<String> {
     Ok(trimmed.to_owned())
 }
 
-/// Formats `<scheme>://scrawl?url=<urlencoded base>[&url=<second>]&token=<token>[&session=ses_…]`.
+/// Formats `<scheme>://pointo?url=<urlencoded base>[&url=<second>]&token=<token>[&session=ses_…]`.
 pub fn format_setup_link(
     scheme: &str,
     urls: &[String],
@@ -1231,12 +1231,12 @@ pub fn format_setup_link(
     if let Some(session) = session.map(str::trim).filter(|s| !s.is_empty()) {
         query.push(format!("session={}", crate::handoff::query_escape(session)));
     }
-    Ok(format!("{scheme}://scrawl?{}", query.join("&")))
+    Ok(format!("{scheme}://pointo?{}", query.join("&")))
 }
 
-/// Starts Scrawl's background ScrawlKit ingest inside the GUI app: an HTTP server on
+/// Starts Pointo's background ScrawlKit ingest inside the GUI app: an HTTP server on
 /// `0.0.0.0:47777` the phone uploads to, and a cabled-iPhone `devicectl` watcher for when the
-/// network can't reach the Mac. Each recording becomes a `.scrawl` bundle, lands on the clipboard
+/// network can't reach the Mac. Each recording becomes a `.pointo` bundle, lands on the clipboard
 /// and is queued into the OpenCode session matching the app.
 pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     if let Err(err) = crate::handoff::ensure_ingest_token() {
@@ -1257,7 +1257,7 @@ pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     };
     let http_cfg = config.clone();
     let _ = std::thread::Builder::new()
-        .name("scrawl-ingest-http".into())
+        .name("pointo-ingest-http".into())
         .spawn(move || {
             if let Err(err) = serve_http(DEFAULT_INGEST_PORT, http_cfg) {
                 scrawl_log(format!("ingest server: {err:#}"));
@@ -1266,7 +1266,7 @@ pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     spawn_usb_poller(config);
 }
 
-/// Runs the headless ScrawlKit ingest server (`scrawl serve`): same HTTP auth, dedupe, bundle
+/// Runs the headless ScrawlKit ingest server (`pointo serve`): same HTTP auth, dedupe, bundle
 /// building, and OpenCode routing as the GUI app, without touching the clipboard or HUD.
 pub fn run_ingest_server(port: u16, usb: bool, no_opencode: bool) -> Result<()> {
     let _ = crate::handoff::ensure_ingest_token()?;
@@ -1301,7 +1301,7 @@ fn serve_http(port: u16, config: IngestConfig) -> Result<()> {
         };
         let cfg = config.clone();
         let _ = std::thread::Builder::new()
-            .name("scrawl-ingest-client".into())
+            .name("pointo-ingest-client".into())
             .spawn(move || {
                 let _permit = permit;
                 if let Err(err) = handle_ingest_connection(stream, &cfg) {
@@ -1314,7 +1314,7 @@ fn serve_http(port: u16, config: IngestConfig) -> Result<()> {
 
 fn spawn_usb_poller(config: IngestConfig) {
     let _ = std::thread::Builder::new()
-        .name("scrawl-ingest-usb".into())
+        .name("pointo-ingest-usb".into())
         .spawn(move || {
             loop {
                 std::thread::sleep(Duration::from_millis(1500));
@@ -1427,7 +1427,7 @@ fn ingest_recording(
     let spawned = {
         let (key, title, config) = (key.clone(), title.clone(), config.clone());
         std::thread::Builder::new()
-            .name("scrawl-ingest-build".into())
+            .name("pointo-ingest-build".into())
             .spawn(move || {
                 let built = build_ingested(
                     &movie,
@@ -1504,7 +1504,7 @@ fn build_ingested(
 ) -> Result<Delivery> {
     let bundle_dir = config
         .captures_dir()
-        .join(format!("{}.scrawl", crate::make_bundle_id()));
+        .join(format!("{}.pointo", crate::make_bundle_id()));
     let (dir, bundle) = (config.hooks.build)(movie, timeline_path, &bundle_dir)?;
     if config.copy_clipboard {
         let _ = crate::handoff::copy_bundle_to_clipboard(&dir);
@@ -1613,7 +1613,7 @@ fn handle_ingest_connection_with_token(
     ensure!(4 + json_len < payload.len(), "Invalid framed payload");
     let json_bytes = &payload[4..4 + json_len];
     let timeline: Timeline = serde_json::from_slice(json_bytes).unwrap_or_default();
-    let staging = std::env::temp_dir().join(format!("scrawl-ingest-{}", crate::make_bundle_id()));
+    let staging = std::env::temp_dir().join(format!("pointo-ingest-{}", crate::make_bundle_id()));
     std::fs::create_dir_all(&staging)?;
     let timeline_path = staging.join("timeline.json");
     let movie_path = staging.join("recording.mp4");
@@ -1643,7 +1643,7 @@ fn handle_ingest_connection_with_token(
     Ok(())
 }
 
-/// How long the phone will wait for the answer: `X-Scrawl-Wait` seconds, at most
+/// How long the phone will wait for the answer: `X-Pointo-Wait` seconds, at most
 /// `REPLY_WAIT_MAX`.
 fn reply_wait(header: &str) -> Duration {
     header
@@ -1652,7 +1652,7 @@ fn reply_wait(header: &str) -> Duration {
         .find_map(|line| {
             let (k, v) = line.split_once(':')?;
             k.trim()
-                .eq_ignore_ascii_case("x-scrawl-wait")
+                .eq_ignore_ascii_case("x-pointo-wait")
                 .then(|| v.trim().parse::<u64>().ok())
                 .flatten()
         })
@@ -1711,7 +1711,7 @@ fn usb_failed(key: &str) -> Duration {
     wait
 }
 
-/// Takes in recordings the phone marked `.ready` but has no `.sent` for (in `Documents/Scrawl` or
+/// Takes in recordings the phone marked `.ready` but has no `.sent` for (in `Documents/Pointo` or
 /// the legacy `Documents/Tether` directory). Once the bundle is built and sent (or 15 s pass),
 /// writes back `.delivery` (the same JSON an HTTP upload gets) and then `.sent` (the session's
 /// name, all that ScrawlKit builds before `.delivery` read).
@@ -1741,7 +1741,7 @@ fn poll_usb_app_containers(apps: &[String], config: &IngestConfig) -> Result<()>
     };
 
     for bundle_id in apps {
-        for subdir in ["Documents/Scrawl", "Documents/Tether"] {
+        for subdir in ["Documents/Pointo", "Documents/Tether"] {
             let files = Command::new("xcrun")
                 .args([
                     "devicectl",
@@ -1775,7 +1775,7 @@ fn poll_usb_app_containers(apps: &[String], config: &IngestConfig) -> Result<()>
                     continue;
                 }
                 let staging =
-                    std::env::temp_dir().join(format!("scrawl-usb-{}", crate::make_bundle_id()));
+                    std::env::temp_dir().join(format!("pointo-usb-{}", crate::make_bundle_id()));
                 std::fs::create_dir_all(&staging)?;
                 let local_json = staging.join(format!("{stem}.json"));
                 let local_mp4 = staging.join(format!("{stem}.mp4"));
@@ -1828,7 +1828,7 @@ fn poll_usb_app_containers(apps: &[String], config: &IngestConfig) -> Result<()>
                 // `.delivery` (the HTTP reply) goes first: ScrawlKit reads it once `.sent`
                 // appears. Builds from before it only read `.sent`, the session's name.
                 let replies =
-                    std::env::temp_dir().join(format!("scrawl-usb-{}", crate::make_bundle_id()));
+                    std::env::temp_dir().join(format!("pointo-usb-{}", crate::make_bundle_id()));
                 std::fs::create_dir_all(&replies)?;
                 let delivery = replies.join(format!("{stem}.delivery"));
                 let sent = replies.join(format!("{stem}.sent"));
@@ -2057,7 +2057,7 @@ mod tests {
             format_setup_link("updown://", &urls, "deadbeef0123", Some("ses_abc123")).unwrap();
         assert_eq!(
             link,
-            "updown://scrawl?url=http%3A%2F%2F100.64.0.12%3A47777&url=http%3A%2F%2F192.168.1.20%3A47777&token=deadbeef0123&session=ses_abc123"
+            "updown://pointo?url=http%3A%2F%2F100.64.0.12%3A47777&url=http%3A%2F%2F192.168.1.20%3A47777&token=deadbeef0123&session=ses_abc123"
         );
 
         assert!(format_setup_link("updown", &[], "tok", None).is_err());
@@ -2183,7 +2183,7 @@ mod tests {
         let mut payload = (json.len() as u32).to_be_bytes().to_vec();
         payload.extend_from_slice(json.as_bytes());
         payload.extend_from_slice(movie);
-        let wait = wait.map_or(String::new(), |s| format!("X-Scrawl-Wait: {s}\r\n"));
+        let wait = wait.map_or(String::new(), |s| format!("X-Pointo-Wait: {s}\r\n"));
         let mut request = format!(
             "POST /ingest HTTP/1.1\r\nAuthorization: Bearer {SECRET}\r\n{wait}Content-Length: {}\r\n\r\n",
             payload.len()
@@ -2204,7 +2204,7 @@ mod tests {
 
     fn temp_captures() -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("scrawl-ingest-test-{}", crate::make_bundle_id()));
+            std::env::temp_dir().join(format!("pointo-ingest-test-{}", crate::make_bundle_id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -2323,11 +2323,11 @@ mod tests {
     fn reply_wait_reads_the_phones_header_and_caps_it() {
         assert_eq!(reply_wait("POST /ingest HTTP/1.1\r\n"), REPLY_WAIT_DEFAULT);
         assert_eq!(
-            reply_wait("POST /ingest HTTP/1.1\r\nx-scrawl-wait: 10\r\n"),
+            reply_wait("POST /ingest HTTP/1.1\r\nx-pointo-wait: 10\r\n"),
             Duration::from_secs(10)
         );
         assert_eq!(
-            reply_wait("POST /ingest HTTP/1.1\r\nX-Scrawl-Wait: 600\r\n"),
+            reply_wait("POST /ingest HTTP/1.1\r\nX-Pointo-Wait: 600\r\n"),
             REPLY_WAIT_MAX
         );
     }

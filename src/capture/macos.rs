@@ -33,9 +33,9 @@ pub(super) const KEY_SOURCE: &str = "the key tap";
 pub(super) const NO_KEY_SOURCE: &str =
     "nowhere (Accessibility off; the record shortcut still works)";
 
-/// `~/Library/Logs/Scrawl`.
+/// `~/Library/Logs/Pointo`.
 pub fn log_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| home.join("Library/Logs/Scrawl"))
+    dirs::home_dir().map(|home| home.join("Library/Logs/Pointo"))
 }
 
 pub fn main_display_id() -> u32 {
@@ -47,7 +47,7 @@ pub(super) fn raw_windows_now() -> Vec<crate::windows::RawWindow> {
     objc2::rc::autoreleasepool(|_| crate::windows::raw_windows())
 }
 
-/// Whether `pid` runs this Scrawl's `scrawl-helper` (the iPhone mirror, Settings, onboarding, the
+/// Whether `pid` runs this Pointo's `pointo-helper` (the iPhone mirror, Settings, onboarding, the
 /// permission panel), going by its executable, so a helper started by another helper counts too.
 pub(super) fn is_helper_process(pid: i32) -> bool {
     static HELPER: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
@@ -549,7 +549,7 @@ pub fn set_shortcuts(
     Ok(())
 }
 
-/// While Settings records a new shortcut, Scrawl's own stop answering, so pressing the current
+/// While Settings records a new shortcut, Pointo's own stop answering, so pressing the current
 /// combo reaches the recorder instead of starting a capture.
 pub fn pause_shortcuts(telemetry: &SharedCaptureTelemetry, paused: bool) {
     if telemetry.shortcuts_paused.swap(paused, Ordering::AcqRel) == paused {
@@ -579,7 +579,7 @@ pub fn update_global_shortcut(telemetry: &SharedCaptureTelemetry, config: Shortc
     }
 }
 
-/// Whether this running copy of Scrawl may record the screen, by `CGPreflightScreenCaptureAccess`,
+/// Whether this running copy of Pointo may record the screen, by `CGPreflightScreenCaptureAccess`,
 /// which keeps its first answer for the life of the process. See `screen_capture_usable`.
 pub fn screen_capture_granted() -> bool {
     unsafe { CGPreflightScreenCaptureAccess() }
@@ -589,12 +589,12 @@ pub fn screen_capture_granted() -> bool {
 static SCREEN_PROBE_OK: AtomicBool = AtomicBool::new(false);
 static SCREEN_PROBE_AT: Mutex<Option<Instant>> = Mutex::new(None);
 
-/// Whether this copy of Scrawl can capture the screen now: `CGPreflightScreenCaptureAccess`, or
+/// Whether this copy of Pointo can capture the screen now: `CGPreflightScreenCaptureAccess`, or
 /// a ScreenCaptureKit capture that already worked here. With `probe` (only once a fresh helper
 /// says Screen Recording is granted, so no prompt can come of it, and never on the UI thread) a
 /// stale preflight is checked with a real one-frame capture, at most every 2 s. Whether a grant
 /// reaches a running process this way on macOS 26 and 27 is what the probe finds out; when it
-/// does, Scrawl doesn't relaunch.
+/// does, Pointo doesn't relaunch.
 pub fn screen_capture_usable(probe: bool) -> bool {
     if screen_capture_granted() || SCREEN_PROBE_OK.load(Ordering::Acquire) {
         return true;
@@ -630,7 +630,7 @@ pub fn screen_capture_usable(probe: bool) -> bool {
 
 /// One small ScreenCaptureKit screenshot of the first display: `SCShareableContent`, then
 /// `SCScreenshotManager`. Returns the image size. Asks for Screen Recording if it was never
-/// decided, so only call it once it's known to be granted (or from `scrawl sck-probe`).
+/// decided, so only call it once it's known to be granted (or from `pointo sck-probe`).
 pub fn screen_capture_probe() -> Result<(u32, u32), String> {
     let content = SCShareableContent::get().map_err(|e| format!("SCShareableContent: {e:?}"))?;
     let display = content
@@ -661,7 +661,7 @@ pub fn request_screen_capture() {
 }
 
 /// Whether ⌥⇧V may post ⌘V into the app in front (System Settings › Accessibility). Unlike
-/// Screen Recording, a grant shows up here while Scrawl runs.
+/// Screen Recording, a grant shows up here while Pointo runs.
 pub fn accessibility_granted() -> bool {
     unsafe { AXIsProcessTrusted() }
 }
@@ -975,7 +975,7 @@ pub fn ensure_external_app_active() {
     }
 }
 
-/// The frontmost app's pid, or the last external one while Scrawl itself is in front.
+/// The frontmost app's pid, or the last external one while Pointo itself is in front.
 pub fn frontmost_external_pid() -> Option<i32> {
     use objc2_app_kit::NSWorkspace;
     let our_pid = std::process::id() as i32;
@@ -1072,7 +1072,7 @@ pub(super) fn run_sampler(sampler: Sampler) -> Option<PathBuf> {
                 build_sck_filter_and_config(&sampler_target, &cur_excluded)
             {
                 // The recording must hide the same windows as the candidates, or
-                // keyframes decoded from it could show Scrawl's own overlays.
+                // keyframes decoded from it could show Pointo's own overlays.
                 if let Some(ref stream) = stream
                     && let Err(error) = stream.update_content_filter(&new_filter)
                 {
@@ -1151,8 +1151,8 @@ fn build_sck_filter_and_config(
         .find(|d| d.display_id() == target.display_id)
         .or_else(|| content.displays().into_iter().next())
     {
-        // Exclude Scrawl's floating HUD pill and Metal overlay windows by explicit window ID
-        // (and any non-layer-0 Scrawl panels), while keeping Scrawl's normal Review window visible.
+        // Exclude Pointo's floating HUD pill and Metal overlay windows by explicit window ID
+        // (and any non-layer-0 Pointo panels), while keeping Pointo's normal Review window visible.
         let excluded_overlays: Vec<SCWindow> = content
             .windows()
             .into_iter()
@@ -1175,7 +1175,7 @@ fn build_sck_filter_and_config(
         None
     }?;
 
-    // Full-screen captures get auto-cropped to a window or region afterwards (`scrawl autocrop`),
+    // Full-screen captures get auto-cropped to a window or region afterwards (`pointo autocrop`),
     // so they need enough pixels for a crop to a quarter of the screen to stay sharp.
     let long_edge = if target.mode == CaptureMode::Display {
         2560.0
@@ -1417,7 +1417,7 @@ pub fn start_global_input_tap(telemetry: Arc<SharedCaptureTelemetry>) {
         }
     ));
     let _ = thread::Builder::new()
-        .name("scrawl-hid-poller".into())
+        .name("pointo-hid-poller".into())
         .spawn(move || run_global_hid_poller(telemetry));
 }
 
@@ -1439,8 +1439,8 @@ const MOUSE_MONITOR_MASK: u64 = (1 << EVENT_LEFT_MOUSE_DOWN)
     | (1 << EVENT_SCROLL_WHEEL);
 
 /// `+[NSEvent addGlobalMonitorForEventsMatchingMask:handler:]` for mouse buttons and scrolls.
-/// AppKit sends it events bound for other apps only, so clicks on Scrawl's own windows (the stop
-/// control, the HUD) never arrive; those on `scrawl-helper`'s windows do, and `mouse_event` drops
+/// AppKit sends it events bound for other apps only, so clicks on Pointo's own windows (the stop
+/// control, the HUD) never arrive; those on `pointo-helper`'s windows do, and `mouse_event` drops
 /// them. The monitor lives as long as the app.
 fn install_mouse_monitor(telemetry: Arc<SharedCaptureTelemetry>) -> bool {
     use objc2::msg_send;
@@ -1464,7 +1464,7 @@ fn install_mouse_monitor(telemetry: Arc<SharedCaptureTelemetry>) -> bool {
 }
 
 /// A mouse button or scroll in another app, from the mouse monitor (main thread). Presses and
-/// scrolls on Scrawl's helper windows (`on_scrawl`: Settings, onboarding) aren't part of what is
+/// scrolls on Pointo's helper windows (`on_scrawl`: Settings, onboarding) aren't part of what is
 /// being shown.
 fn mouse_event(
     telemetry: &SharedCaptureTelemetry,
@@ -1544,7 +1544,7 @@ fn stop_key_tap(telemetry: &SharedCaptureTelemetry) {
 fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
     let starting = Arc::clone(&telemetry);
     let spawned = thread::Builder::new()
-        .name("scrawl-key-tap".into())
+        .name("pointo-key-tap".into())
         .spawn(move || {
             let mask = 1_u64 << EVENT_KEY_DOWN;
             let user_info = Arc::into_raw(Arc::clone(&telemetry))

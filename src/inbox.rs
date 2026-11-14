@@ -159,7 +159,7 @@ mod tests {
     impl Fixture {
         fn new() -> Self {
             let root =
-                std::env::temp_dir().join(format!("scrawl-inbox-{}", crate::make_bundle_id()));
+                std::env::temp_dir().join(format!("pointo-inbox-{}", crate::make_bundle_id()));
             std::fs::create_dir_all(&root).unwrap();
             let root = root.canonicalize().unwrap();
             Self { root }
@@ -170,7 +170,7 @@ mod tests {
         }
 
         fn bundle(&self, name: &str) -> PathBuf {
-            let dir = self.root.join(format!("{name}.scrawl"));
+            let dir = self.root.join(format!("{name}.pointo"));
             std::fs::create_dir_all(&dir).unwrap();
             dir
         }
@@ -235,7 +235,7 @@ mod tests {
         inbox.add(fx.entry("b", 2));
         // Same bundle through a non-canonical path.
         let mut again = fx.entry("a", 3);
-        again.dir = fx.root.join(".").join("a.scrawl");
+        again.dir = fx.root.join(".").join("a.pointo");
         inbox.add(again);
         assert_eq!(inbox.len(), 2);
         assert_eq!(inbox.newest().unwrap().received_at_ms, 3);
@@ -248,7 +248,7 @@ mod tests {
         let mut inbox = Inbox::load(fx.store());
         inbox.add(fx.entry("a", 1));
         inbox.add(fx.entry("b", 2));
-        assert!(inbox.remove(&fx.root.join(".").join("b.scrawl")));
+        assert!(inbox.remove(&fx.root.join(".").join("b.pointo")));
         assert!(!inbox.remove(&fx.bundle("b")));
         assert!(!inbox.remove(Path::new("latest")));
         assert_eq!(dirs(&inbox), [fx.bundle("a")]);

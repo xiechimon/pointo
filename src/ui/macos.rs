@@ -1,6 +1,6 @@
 //! The macOS shell around the shared UI: the menu bar item and its menu, AppKit window levels
 //! and styles for the pill and picker, the pill's CALayer shell (sharp border, shadow, GPU
-//! scale and blur), Sparkle updates, and window screenshots for `scrawl preview`.
+//! scale and blur), Sparkle updates, and window screenshots for `pointo preview`.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -124,7 +124,7 @@ pub(super) fn caption_buttons() -> Option<AnyElement> {
 /// Window levels keep the pill above the picker above the overlay.
 pub(super) fn raise_window(_window: &mut Window) {}
 
-/// `scrawl lab`'s backdrop (`w` × `h` points): borderless, under the capsule, letting clicks through.
+/// `pointo lab`'s backdrop (`w` × `h` points): borderless, under the capsule, letting clicks through.
 pub(super) fn configure_lab_backdrop(w: f32, h: f32) {
     if let Some(mtm) = MainThreadMarker::new() {
         for win in NSApplication::sharedApplication(mtm).windows() {
@@ -138,13 +138,13 @@ pub(super) fn configure_lab_backdrop(w: f32, h: f32) {
 }
 
 /// AppKit keeps an accessory app running without windows. Info.plist's `LSUIElement` starts
-/// Scrawl as one with no Dock icon, but gpui 0.2.2 sets the regular activation policy once
+/// Pointo as one with no Dock icon, but gpui 0.2.2 sets the regular activation policy once
 /// launched, so this puts it back (`stay_out_of_dock`).
 pub(super) fn keep_alive(_cx: &mut App) {
     stay_out_of_dock();
 }
 
-/// Keeps Scrawl a menu bar app with no Dock icon.
+/// Keeps Pointo a menu bar app with no Dock icon.
 fn stay_out_of_dock() {
     use objc2_app_kit::NSApplicationActivationPolicy;
     if let Some(mtm) = MainThreadMarker::new() {
@@ -156,11 +156,11 @@ fn stay_out_of_dock() {
 /// AppKit gives every window the app's icon.
 pub(super) fn decorate_app_window(_window: &mut Window) {}
 
-/// The app that was in front when Scrawl activated itself for the picker or the review window
+/// The app that was in front when Pointo activated itself for the picker or the review window
 /// (0: none).
 static PREVIOUS_FRONT_APP: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
 
-/// Called just before Scrawl activates itself to take the keys. Scrawl in front already (one
+/// Called just before Pointo activates itself to take the keys. Pointo in front already (one
 /// key window opening over another) keeps the app remembered first.
 fn remember_front_app() {
     use objc2_app_kit::NSWorkspace;
@@ -225,7 +225,7 @@ pub(super) fn open_overlay(
 }
 
 /// The picker: borderless at status level + 1 over the whole screen at `frame` (global points,
-/// menu bar included), taking clicks (`scrawl lab` replays let them through). Returns its window
+/// menu bar included), taking clicks (`pointo lab` replays let them through). Returns its window
 /// number, to leave out of the recording.
 pub(super) fn configure_picker_window(
     _window: &mut Window,
@@ -238,7 +238,7 @@ pub(super) fn configure_picker_window(
     configure_floating_window(&ns_win, lab, 1);
     move_window_to_screen(&ns_win, frame);
     // gpui made it key before the style change above; make it key again so it takes the keys
-    // once Scrawl is active (`take_keys`).
+    // once Pointo is active (`take_keys`).
     if !lab {
         ns_win.makeKeyAndOrderFront(None);
     }
@@ -361,7 +361,7 @@ impl PillChrome {
     }
 }
 
-/// The largest of Scrawl's windows, brought to the front (for `scrawl preview --capture-screenshot`).
+/// The largest of Pointo's windows, brought to the front (for `pointo preview --capture-screenshot`).
 pub(super) fn front_own_window() -> Option<isize> {
     let mtm = MainThreadMarker::new()?;
     let app = NSApplication::sharedApplication(mtm);
@@ -604,7 +604,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     let mtm = MainThreadMarker::new()?;
     let (sender, receiver) = flume::bounded(16);
     let target = ScrawlMenuTarget::new(sender, mtm);
-    let menu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str("Scrawl"));
+    let menu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str("Pointo"));
 
     let add = |title: &str, action: objc2::runtime::Sel| {
         let item = unsafe {
@@ -637,7 +637,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
         item.setKeyEquivalent(&NSString::from_str(","));
     }
     add("Check for Updates…", sel!(checkForUpdates:));
-    add("Quit Scrawl", sel!(quitApp:));
+    add("Quit Pointo", sel!(quitApp:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setKeyEquivalent(&NSString::from_str("q"));
     }
@@ -1061,7 +1061,7 @@ pub(super) fn capture_own_window_screenshot(
                     .is_some_and(|a| a.process_id() == pid)
         })
         .max_by_key(|w| (w.frame().size.width as u64) * (w.frame().size.height as u64))
-        .ok_or_else(|| anyhow::anyhow!("Could not find Scrawl window"))?;
+        .ok_or_else(|| anyhow::anyhow!("Could not find Pointo window"))?;
     let frame = window.frame();
     let filter = SCContentFilter::create()
         .with_window(&window)

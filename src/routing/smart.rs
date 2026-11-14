@@ -128,7 +128,7 @@ pub enum Source {
 }
 
 impl Source {
-    /// The `via` written into `scrawl.json`'s `destination`. The ladder's two keep their names.
+    /// The `via` written into `pointo.json`'s `destination`. The ladder's two keep their names.
     pub fn via(self) -> &'static str {
         match self {
             Self::Page => "sdk",
@@ -1152,10 +1152,10 @@ mod tests {
 
     fn sessions() -> Vec<Candidate> {
         vec![
-            cand("ses_scrawl", "SCRAWL", "/p/scrawl", 2),
+            cand("ses_scrawl", "POINTO", "/p/pointo", 2),
             cand("ses_ios", "OPENCODE IOS", "/p/opencode-ios", 5),
             cand("ses_console", "CONSOLE VORTEX", "/p/opencode-console", 30),
-            cand("ses_old", "SCRAWL OLD", "/p/scrawl", 60 * 24 * 5),
+            cand("ses_old", "POINTO OLD", "/p/pointo", 60 * 24 * 5),
         ]
     }
 
@@ -1189,7 +1189,7 @@ mod tests {
     fn an_address_always_wins() {
         let mut e = ev(vec![
             named(Source::Page, "ses_ios"),
-            folder(Source::Port, "/p/scrawl"),
+            folder(Source::Port, "/p/pointo"),
         ]);
         e.address = Some(Address::Recorded("ses_console".into()));
         for policy in [Policy::Ladder, Policy::Weigh] {
@@ -1207,15 +1207,15 @@ mod tests {
         let j = decide(&ev(vec![named(Source::Page, "ses_ios")]), Policy::Weigh);
         assert_eq!(sent_to(&j), Some("ses_ios"));
         assert_eq!(destination(&j, Some("http://x")).unwrap().via, "sdk");
-        // The port names /p/scrawl: the recent session wins over the five-day-old one.
-        let j = decide(&ev(vec![folder(Source::Port, "/p/scrawl")]), Policy::Weigh);
+        // The port names /p/pointo: the recent session wins over the five-day-old one.
+        let j = decide(&ev(vec![folder(Source::Port, "/p/pointo")]), Policy::Weigh);
         assert_eq!(sent_to(&j), Some("ses_scrawl"));
         assert_eq!(destination(&j, None).unwrap().via, "localhost");
     }
 
     #[test]
     fn two_close_sessions_are_offered_not_sent() {
-        let mut e = ev(vec![folder(Source::Port, "/p/scrawl")]);
+        let mut e = ev(vec![folder(Source::Port, "/p/pointo")]);
         e.candidates[3].updated_ms = NOW - 3 * MIN;
         let j = decide(&e, Policy::Weigh);
         assert_eq!(sent_to(&j), None);
@@ -1284,7 +1284,7 @@ mod tests {
     #[test]
     fn recency_only_breaks_ties_between_sessions_the_clues_put_forward() {
         // A port names two sessions equally: the recent one is sent to.
-        let j = decide(&ev(vec![folder(Source::Port, "/p/scrawl")]), Policy::Weigh);
+        let j = decide(&ev(vec![folder(Source::Port, "/p/pointo")]), Policy::Weigh);
         assert_eq!(sent_to(&j), Some("ses_scrawl"));
         // A stronger clue for a stale session isn't overtaken by a weaker one's recency.
         let mut e = ev(vec![
@@ -1301,7 +1301,7 @@ mod tests {
     #[test]
     fn an_offer_keeps_the_runner_up_from_another_clue_one_click_away() {
         let mut e = ev(vec![
-            folder(Source::App, "/p/scrawl"),
+            folder(Source::App, "/p/pointo"),
             named(Source::Viewed, "ses_ios"),
         ]);
         e.clues[0].points = Some(70);
@@ -1335,9 +1335,9 @@ mod tests {
             Source::Speech,
         ] {
             let clue = match source {
-                Source::App | Source::Title | Source::Speech => said(source, "scrawl"),
+                Source::App | Source::Title | Source::Speech => said(source, "pointo"),
                 Source::Viewed => named(source, "ses_scrawl"),
-                _ => folder(source, "/p/scrawl"),
+                _ => folder(source, "/p/pointo"),
             };
             let mut e = ev(vec![clue]);
             e.candidates.truncate(3);
@@ -1360,7 +1360,7 @@ mod tests {
             folder(Source::Terminal, "/p/opencode-ios"),
             said(Source::Speech, "composer in opencode ios"),
             named(Source::Viewed, "ses_ios"),
-            said(Source::Title, "Scrawl"),
+            said(Source::Title, "Pointo"),
         ];
         let base = decide(&ev(clues.clone()), Policy::Weigh);
         let mut reversed = ev(clues.iter().rev().cloned().collect());
@@ -1453,14 +1453,14 @@ mod tests {
     #[test]
     fn another_checkout_of_the_repo_gets_half() {
         let mut e = ev(Vec::new());
-        e.candidates[0].repo = Some("/p/scrawl".into());
+        e.candidates[0].repo = Some("/p/pointo".into());
         e.clues.push(Clue {
             source: Source::Port,
             pointer: Pointer::Folder(Folder {
-                path: "/w/scrawl-routing/site".into(),
-                root: "/w/scrawl-routing".into(),
+                path: "/w/pointo-routing/site".into(),
+                root: "/w/pointo-routing".into(),
                 tree: true,
-                repo: Some("/p/scrawl".into()),
+                repo: Some("/p/pointo".into()),
             }),
             note: "port 5173".into(),
             points: None,
@@ -1474,7 +1474,7 @@ mod tests {
     fn the_ladder_takes_the_first_rung_with_a_clue() {
         // A page folder with no session doesn't fall through to the port.
         let e = ev(vec![
-            folder(Source::Port, "/p/scrawl"),
+            folder(Source::Port, "/p/pointo"),
             folder(Source::Page, "/p/none"),
         ]);
         let j = decide(&e, Policy::Ladder);
@@ -1490,17 +1490,17 @@ mod tests {
     #[test]
     fn words_skip_filler_and_keep_names() {
         assert_eq!(
-            words("Why don't we fix the Scrawl pill, who knows? OpenCode iOS 26"),
-            vec!["scrawl", "pill", "knows", "opencode", "ios"]
+            words("Why don't we fix the Pointo pill, who knows? OpenCode iOS 26"),
+            vec!["pointo", "pill", "knows", "opencode", "ios"]
         );
     }
 
     #[test]
     fn evidence_round_trips_through_json() {
         let mut e = ev(vec![
-            folder(Source::Port, "/p/scrawl"),
+            folder(Source::Port, "/p/pointo"),
             named(Source::Page, "ses_ios"),
-            said(Source::Speech, "hello scrawl"),
+            said(Source::Speech, "hello pointo"),
         ]);
         e.address = Some(Address::Recorded("ses_ios".into()));
         let json = serde_json::to_string(&e).unwrap();

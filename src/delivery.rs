@@ -185,7 +185,7 @@ pub fn retry_due(captures: &Path, now: u64, forward: Forward) -> Report {
     };
     let mut bundles: Vec<PathBuf> = entries
         .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.extension().is_some_and(|ext| ext == "scrawl") && p.join(PENDING).is_file())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "pointo") && p.join(PENDING).is_file())
         .collect();
     bundles.sort();
     for dir in bundles {
@@ -251,7 +251,7 @@ pub fn retry_due(captures: &Path, now: u64, forward: Forward) -> Report {
 /// `on_sent` hears about each that went through.
 pub fn spawn_retries(captures: PathBuf, forward: Forward, on_sent: fn(&Path, &Pending)) {
     let _ = std::thread::Builder::new()
-        .name("scrawl-deliver".into())
+        .name("pointo-deliver".into())
         .spawn(move || {
             loop {
                 std::thread::sleep(SCAN_EVERY);
@@ -268,7 +268,7 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
     fn temp_captures() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("scrawl-deliver-{}", crate::make_bundle_id()));
+        let dir = std::env::temp_dir().join(format!("pointo-deliver-{}", crate::make_bundle_id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn retries_when_due_then_clears_the_marker() {
         let captures = temp_captures();
-        let bundle = captures.join("scrawl-1-a.scrawl");
+        let bundle = captures.join("pointo-1-a.pointo");
         std::fs::create_dir_all(&bundle).unwrap();
         Pending::new("ses_retry", "Retry", Some("k"), "offline", 1_000)
             .write(&bundle)
@@ -366,7 +366,7 @@ mod tests {
     #[test]
     fn gives_up_after_a_day() {
         let captures = temp_captures();
-        let bundle = captures.join("scrawl-2-b.scrawl");
+        let bundle = captures.join("pointo-2-b.pointo");
         std::fs::create_dir_all(&bundle).unwrap();
         let mut pending = Pending::new("ses_x", "X", None, "offline", 0);
         pending.next_at = GIVE_UP_AFTER_MS;

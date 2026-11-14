@@ -764,7 +764,7 @@ pub fn summary_markdown_with(
         }
     }
     let mut out = format!(
-        "[scrawl {} · {target} · {}]\n",
+        "[pointo {} · {target} · {}]\n",
         format_clock(bundle.duration_ms),
         bundle_dir.display()
     );
@@ -1563,7 +1563,7 @@ mod tests {
             .collect()
     }
 
-    /// The two ⇧ strokes of a real capture (`scrawl-1792536608591-641c-2`), drawn with a mouse on
+    /// The two ⇧ strokes of a real capture (`pointo-1792536608591-641c-2`), drawn with a mouse on
     /// a 1728×1117 screen: a flat loop round a table cell that ends just past where it began,
     /// and an arrow drawn in one go, shaft left to right, then a barb back above it, back to the
     /// tip and a barb below.
@@ -2104,7 +2104,7 @@ mod tests {
         assert!(tl.contains("— frame #1"));
 
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/test"));
-        assert!(summary.starts_with("[scrawl 0:14 · App “Window” · /recordings/test]"));
+        assert!(summary.starts_with("[pointo 0:14 · App “Window” · /recordings/test]"));
         assert!(summary.contains("Note: Simplify it."));
         assert!(summary.contains("- #1 (0:05) “This row is too dense.”"));
         assert!(!summary.contains("No transcript"));
@@ -2174,7 +2174,7 @@ mod tests {
         assert_eq!(
             summary,
             format!(
-                "[scrawl 0:14 · iPhone · dev.example.App (42) · /recordings/phone]\n\
+                "[pointo 0:14 · iPhone · dev.example.App (42) · /recordings/phone]\n\
                  {LOOK_AT_IMAGES}\n\
                  \x20 · 0:01 app: launched\n\
                  - #1 (0:05) “This row is too dense.”\n\
@@ -2297,7 +2297,7 @@ mod tests {
         assert_eq!(
             summary,
             format!(
-                "[scrawl 0:25 · iPhone · OpenCode 1.4 (354) · /recordings/phone]\n\
+                "[pointo 0:25 · iPhone · OpenCode 1.4 (354) · /recordings/phone]\n\
                  {LOOK_AT_IMAGES}\n\
                  Screen: Sessions · server: studio · session: {session}\n\
                  - #1 (0:01) “So here.”\n\
@@ -2315,7 +2315,7 @@ mod tests {
         bundle.device.as_mut().unwrap().app_short_version = None;
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/phone"));
         assert!(summary.starts_with(&format!(
-            "[scrawl 0:25 · iPhone · OpenCode (354) · /recordings/phone]\n{LOOK_AT_IMAGES}\n- #1 (0:01) “So here.”\n"
+            "[pointo 0:25 · iPhone · OpenCode (354) · /recordings/phone]\n{LOOK_AT_IMAGES}\n- #1 (0:01) “So here.”\n"
         )));
     }
 }

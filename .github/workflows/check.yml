@@ -25,7 +25,7 @@ jobs:
         run: xcrun --sdk macosx metal --version || xcodebuild -downloadComponent MetalToolchain
       - run: cargo build --locked
       - name: No compromised eMudhra CA roots
-        run: scripts/check-ca-roots.sh target/debug/scrawl
+        run: scripts/check-ca-roots.sh target/debug/pointo
       - run: cargo test --locked
 
   windows:
@@ -44,8 +44,8 @@ jobs:
       - run: cargo test --locked
       - uses: actions/upload-artifact@v5
         with:
-          name: scrawl-windows-x86_64
+          name: pointo-windows-x86_64
           path: |
-            target/debug/scrawl.exe
+            target/debug/pointo.exe
             target/debug/transcribe.dll
             target/debug/ggml*.dll

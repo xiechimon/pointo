@@ -83,13 +83,13 @@ pub struct ScrawlBundle {
     pub source: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device: Option<DeviceInfo>,
-    /// App-defined values when the recording started (ScrawlKit `Scrawl.context`).
+    /// App-defined values when the recording started (ScrawlKit `Pointo.context`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub context: BTreeMap<String, String>,
     /// Changes to `context` during the recording.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_changes: Vec<ContextChange>,
-    /// Which screen the app said it was on, and when (ScrawlKit `Scrawl.screen`).
+    /// Which screen the app said it was on, and when (ScrawlKit `Pointo.screen`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub screens: Vec<ScreenSpan>,
     /// Screen mode: the on-screen windows over time, front to back, stored only when they
@@ -103,7 +103,7 @@ pub struct ScrawlBundle {
     /// the full frames are kept beside them).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub autocrop: Option<AutocropInfo>,
-    /// The OpenCode session a Mac capture of a dev site was sent to (`routing`), so `scrawl send`
+    /// The OpenCode session a Mac capture of a dev site was sent to (`routing`), so `pointo send`
     /// recovers to the same place.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<Destination>,
@@ -242,7 +242,7 @@ pub struct ContextChange {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
     pub name: String,
-    /// `"mirror"` for a cabled capture through Scrawl, `"scrawlkit"` for an in-app SDK recording.
+    /// `"mirror"` for a cabled capture through Pointo, `"scrawlkit"` for an in-app SDK recording.
     pub capture: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
@@ -325,7 +325,7 @@ pub struct TranscriptData {
 pub struct MissingTranscript {
     /// One plain sentence for the summary.
     pub reason: String,
-    /// Scrawl transcribes the bundle again once the speech model is installed.
+    /// Pointo transcribes the bundle again once the speech model is installed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub retry: bool,
 }

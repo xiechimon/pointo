@@ -2,13 +2,13 @@ import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-// Times bundle processing: one warmup and seven `scrawl demo` runs (synthetic frames, no recording,
+// Times bundle processing: one warmup and seven `pointo demo` runs (synthetic frames, no recording,
 // transcription or clipboard), plus the per-stage `BENCH` timings `SCRAWL_BENCH=1` prints.
 //   CARGO_TARGET_DIR=<target> nice -n 10 bun scripts/bench-processing.ts
 // Build separately: timing must never include cargo or depend on its cache state. `SCRAWL_BIN`
 // picks a saved control binary to compare against.
-const binary = resolve(process.env.SCRAWL_BIN ?? join(process.env.CARGO_TARGET_DIR ?? "target", "debug/scrawl"));
-const root = await mkdtemp(join(tmpdir(), "scrawl-processing-"));
+const binary = resolve(process.env.SCRAWL_BIN ?? join(process.env.CARGO_TARGET_DIR ?? "target", "debug/pointo"));
+const root = await mkdtemp(join(tmpdir(), "pointo-processing-"));
 const samples: number[] = [];
 const stages: Record<string, number[]> = {};
 let pngBytes = 0;
@@ -19,7 +19,7 @@ const summarize = (xs: number[]) => {
 };
 try {
   for (let run = 0; run < 8; run++) {
-    const out = join(root, `${run}.scrawl`);
+    const out = join(root, `${run}.pointo`);
     const start = performance.now();
     const child = Bun.spawn([binary, "demo", "--out", out], {
       env: { ...process.env, SCRAWL_BENCH: "1" }, stdout: "pipe", stderr: "pipe",

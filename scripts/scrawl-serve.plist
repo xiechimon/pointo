@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>dev.kitlangton.scrawl.serve</string>
+  <string>dev.xiechimon.pointo.serve</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/kit/Applications/Scrawl.app/Contents/MacOS/scrawl</string>
+    <string>/Users/kit/Applications/Pointo.app/Contents/MacOS/pointo</string>
     <string>serve</string>
   </array>
   <key>EnvironmentVariables</key>
@@ -19,8 +19,8 @@
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/Users/kit/Library/Logs/scrawl-serve.log</string>
+  <string>/Users/kit/Library/Logs/pointo-serve.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/kit/Library/Logs/scrawl-serve.log</string>
+  <string>/Users/kit/Library/Logs/pointo-serve.log</string>
 </dict>
 </plist>

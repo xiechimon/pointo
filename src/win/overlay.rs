@@ -4,7 +4,7 @@
 //! a ⇧-click pin's brief pulse and the Shift tip dot. It is left out of the recording
 //! (`WDA_EXCLUDEFROMCAPTURE`).
 //!
-//! Also the Win32 window helpers Scrawl's other popups use.
+//! Also the Win32 window helpers Pointo's other popups use.
 
 use std::ffi::c_void;
 use std::sync::atomic::Ordering;
@@ -42,7 +42,7 @@ use crate::sketch::{pin_pulse, slice_laser_window, smooth_ink_points, smooth_las
 const TAIL_MS: u64 = 420;
 
 /// Leaves a window out of every screen capture (Windows 10 2004 and later).
-/// `SCRAWL_SHOW_OWN_WINDOWS=1` keeps them in, for screenshots of Scrawl itself.
+/// `SCRAWL_SHOW_OWN_WINDOWS=1` keeps them in, for screenshots of Pointo itself.
 pub fn exclude_from_capture(hwnd: HWND) {
     if std::env::var_os("SCRAWL_SHOW_OWN_WINDOWS").is_some() {
         return;
@@ -305,7 +305,7 @@ impl InkOverlay {
     }
 }
 
-/// Puts one of Scrawl's GPUI windows (the overlay, picker or pill) over `rect` (global pixels)
+/// Puts one of Pointo's GPUI windows (the overlay, picker or pill) over `rect` (global pixels)
 /// on top, and shows it without activating it. Call it outside GPUI updates: the moves it makes
 /// reach GPUI's resize and DPI handlers at once.
 pub(crate) fn place(id: isize, rect: [f64; 4]) {

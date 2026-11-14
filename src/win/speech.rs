@@ -1,7 +1,7 @@
 //! On-device transcription on Windows, with measured word timings: Parakeet through
 //! `transcribe.cpp`, the engine Hex uses. It loads a model Hex has already installed
-//! (`%APPDATA%\hex\models`, else the older `%APPDATA%\voice-control\models`), else Scrawl's own
-//! copy of Hex's Parakeet Unified English (`%LOCALAPPDATA%\Scrawl\models`), which `install` downloads once in the background and checks
+//! (`%APPDATA%\hex\models`, else the older `%APPDATA%\voice-control\models`), else Pointo's own
+//! copy of Hex's Parakeet Unified English (`%LOCALAPPDATA%\Pointo\models`), which `install` downloads once in the background and checks
 //! against its SHA-256. Like the Hex client, it transcribes each speech island on its own; unlike
 //! it, every word keeps the time the model heard it (`estimated: false`), so spoken cues ("look
 //! here") can cut keyframes.
@@ -19,7 +19,7 @@ const KHZ: u64 = 16;
 /// Silence kept around each clip, so first and last words aren't clipped.
 const CLIP_PAD_MS: u64 = 200;
 
-/// The model Scrawl downloads when Hex hasn't installed one: the same file, revision and
+/// The model Pointo downloads when Hex hasn't installed one: the same file, revision and
 /// checksum as Hex's `PARAKEET_UNIFIED_ENGLISH_ARTIFACT`.
 pub struct Artifact {
     pub filename: &'static str,
@@ -35,7 +35,7 @@ pub const PARAKEET: Artifact = Artifact {
     sha256: "4b50b6dd862bf6e346929aaf4f5eaacec003bfa3f56462d6c874b41ef2f38795",
 };
 
-/// Where Scrawl keeps the model it downloaded (`SCRAWL_MODELS_DIR` for tests).
+/// Where Pointo keeps the model it downloaded (`SCRAWL_MODELS_DIR` for tests).
 pub fn own_models_dir() -> PathBuf {
     std::env::var_os("SCRAWL_MODELS_DIR")
         .map(PathBuf::from)
@@ -64,7 +64,7 @@ fn verified_in(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Hex's installed models (verified downloads), Hex's chosen one first, then Parakeet ones;
-/// then the one Scrawl downloaded.
+/// then the one Pointo downloaded.
 pub fn installed_models() -> Vec<PathBuf> {
     let mut models = hex_models();
     models.extend(verified_in(&own_models_dir()));
@@ -223,9 +223,9 @@ fn init_backends() -> Result<()> {
     .map_err(|error| anyhow::anyhow!("transcribe.cpp backends: {error}"))
 }
 
-/// Makes sure a model is on disk: `installed` when Hex's or Scrawl's own is there, else downloads
+/// Makes sure a model is on disk: `installed` when Hex's or Pointo's own is there, else downloads
 /// `PARAKEET` into `own_models_dir()`, reporting progress, and keeps it only if its SHA-256
-/// matches. The same lines as macOS's `scrawl-helper speech-model --install`.
+/// matches. The same lines as macOS's `pointo-helper speech-model --install`.
 pub fn install(mut line: impl FnMut(SpeechModelLine)) -> Result<()> {
     let report = |status: &str, progress: Option<f64>, error: Option<String>| SpeechModelLine {
         status: status.into(),
@@ -350,7 +350,7 @@ mod tests {
     };
 
     fn temp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("scrawl-speech-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pointo-speech-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir

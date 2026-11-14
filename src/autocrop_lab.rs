@@ -1,6 +1,6 @@
-//! Tooling around `src/autocrop.rs`: the tuning playground (`scrawl autocrop`), simulated
-//! captures built through the real pipeline (`scrawl fixture`), and the scorer that compares
-//! crops with hand-labelled ground truth (`scrawl autocrop-eval`).
+//! Tooling around `src/autocrop.rs`: the tuning playground (`pointo autocrop`), simulated
+//! captures built through the real pipeline (`pointo fixture`), and the scorer that compares
+//! crops with hand-labelled ground truth (`pointo autocrop-eval`).
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -81,7 +81,7 @@ pub fn resize(frame: &RgbaFrame, w: u32, h: u32) -> RgbaFrame {
     RgbaFrame::new(frame.t_ms, w as u32, h as u32, rgba)
 }
 
-/// The crop algorithm's input for a bundle: change regions from `scrawl.json` when the bundle
+/// The crop algorithm's input for a bundle: change regions from `pointo.json` when the bundle
 /// was cropped, else from its keyframe images.
 pub fn input_for_bundle(dir: &Path, bundle: &ScrawlBundle) -> Input {
     let changes = match &bundle.autocrop {
@@ -117,7 +117,7 @@ pub fn input_for_bundle(dir: &Path, bundle: &ScrawlBundle) -> Input {
         &changes,
     );
     input.pin_ink(&bundle.keyframes, &bundle.strokes, &bundle.marks);
-    // The full frames carry Scrawl's ink, which reads as content too; close enough for tuning.
+    // The full frames carry Pointo's ink, which reads as content too; close enough for tuning.
     let full = bundle
         .autocrop
         .as_ref()
@@ -328,7 +328,7 @@ pub fn serve(dir: &Path, bundle: &ScrawlBundle, port: u16, open: bool) -> Result
 // Simulated captures
 // ---------------------------------------------------------------------------------------------
 
-/// A simulated Screen capture, written by `scripts/autocrop-corpus.mjs`: what Scrawl's input
+/// A simulated Screen capture, written by `scripts/autocrop-corpus.mjs`: what Pointo's input
 /// monitors and window log would have recorded, plus a rendered frame for each screen state.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1229,8 +1229,8 @@ pub fn print_scores(label: &str, scores: &[CaseScore]) {
 mod tests {
     use super::*;
 
-    /// The simulated corpus (`scripts/autocrop-corpus.mjs`, built with `scrawl fixture` and
-    /// exported with `scrawl autocrop-eval --export`), without images: no content maps, so edges
+    /// The simulated corpus (`scripts/autocrop-corpus.mjs`, built with `pointo fixture` and
+    /// exported with `pointo autocrop-eval --export`), without images: no content maps, so edges
     /// don't snap to white space here.
     fn corpus() -> Vec<Case> {
         serde_json::from_str(include_str!("autocrop-corpus.json")).unwrap()

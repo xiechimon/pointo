@@ -1,4 +1,4 @@
-//! `scrawl` on PATH, on Windows: Settings › Agents writes a `scrawl.cmd` shim that runs this
+//! `pointo` on PATH, on Windows: Settings › Agents writes a `pointo.cmd` shim that runs this
 //! executable into `%LOCALAPPDATA%\Microsoft\WindowsApps`, which is on every user's PATH. A shim
 //! rather than a link: symbolic links need Developer Mode, and a hard link can't cross drives.
 //! Same API as the macOS module (`command_line.rs`), so Settings is the same on both.
@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-const NAME: &str = "scrawl.cmd";
+const NAME: &str = "pointo.cmd";
 
 /// The executable the shim runs and the folders to look in.
 #[derive(Clone, Debug)]
@@ -40,15 +40,15 @@ impl Places {
 pub enum State {
     /// No executable to run (never on Windows; kept for the shared Settings row).
     Unavailable,
-    /// `link` runs this Scrawl. `homebrew` is always false on Windows.
+    /// `link` runs this Pointo. `homebrew` is always false on Windows.
     Installed { link: PathBuf, homebrew: bool },
     /// Install would write `link`.
     Missing { link: PathBuf },
-    /// `link` runs another copy of Scrawl or one that's gone; Install replaces it.
+    /// `link` runs another copy of Pointo or one that's gone; Install replaces it.
     Stale { link: PathBuf },
-    /// Something else is called `scrawl` there, and Scrawl leaves it alone.
+    /// Something else is called `pointo` there, and Pointo leaves it alone.
     Taken { link: PathBuf },
-    /// No folder Scrawl may write to.
+    /// No folder Pointo may write to.
     Nowhere,
 }
 
@@ -57,12 +57,12 @@ fn shim(target: &Path) -> String {
     format!("@\"{}\" %*\r\n", target.display())
 }
 
-/// The executable a Scrawl shim runs, if `link` is one.
+/// The executable a Pointo shim runs, if `link` is one.
 fn shim_target(link: &Path) -> Option<PathBuf> {
     let text = std::fs::read_to_string(link).ok()?;
     let rest = text.trim().strip_prefix("@\"")?;
     let (target, args) = rest.split_once('"')?;
-    (args.trim() == "%*" && target.to_ascii_lowercase().ends_with("scrawl.exe"))
+    (args.trim() == "%*" && target.to_ascii_lowercase().ends_with("pointo.exe"))
         .then(|| PathBuf::from(target))
 }
 
@@ -74,7 +74,7 @@ fn same_file(a: &Path, b: &Path) -> bool {
 }
 
 fn writable(dir: &Path) -> bool {
-    let probe = dir.join(format!(".scrawl-write-{}", std::process::id()));
+    let probe = dir.join(format!(".pointo-write-{}", std::process::id()));
     let ok = std::fs::write(&probe, b"").is_ok();
     let _ = std::fs::remove_file(&probe);
     dir.is_dir() && ok
@@ -107,7 +107,7 @@ pub fn state(places: &Places) -> State {
         return State::Nowhere;
     };
     let link = dir.join(NAME);
-    let exe = dir.join("scrawl.exe");
+    let exe = dir.join("pointo.exe");
     if exe.exists() {
         State::Taken { link: exe }
     } else if !link.exists() {
@@ -125,10 +125,10 @@ pub fn install(places: &Places) -> Result<PathBuf> {
         State::Installed { link, .. } => return Ok(link),
         State::Missing { link } | State::Stale { link } => link,
         State::Taken { link } => bail!("{} is another program", tilde(&link)),
-        State::Unavailable => bail!("there's no Scrawl executable to run"),
-        State::Nowhere => bail!("there's no folder Scrawl can write to"),
+        State::Unavailable => bail!("there's no Pointo executable to run"),
+        State::Nowhere => bail!("there's no folder Pointo can write to"),
     };
-    let target = places.target.as_ref().context("no Scrawl executable")?;
+    let target = places.target.as_ref().context("no Pointo executable")?;
     let dir = link.parent().context("no folder")?;
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", tilde(dir)))?;
     std::fs::write(&link, shim(target))
@@ -179,7 +179,7 @@ mod tests {
     impl TempDir {
         fn new(name: &str) -> Self {
             let dir = std::env::temp_dir().join(format!(
-                "scrawl-cli-{name}-{}-{}",
+                "pointo-cli-{name}-{}-{}",
                 std::process::id(),
                 crate::now_epoch_ms()
             ));
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn a_shim_runs_this_scrawl_and_uninstall_removes_it() {
         let dir = TempDir::new("shim");
-        let exe = dir.0.join("app").join("scrawl.exe");
+        let exe = dir.0.join("app").join("pointo.exe");
         std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
         std::fs::write(&exe, "").unwrap();
         let places = places(&dir, &exe);
@@ -221,7 +221,7 @@ mod tests {
             }
         );
         // Another copy's shim is stale and replaced.
-        let other = dir.0.join("old").join("scrawl.exe");
+        let other = dir.0.join("old").join("pointo.exe");
         std::fs::write(&link, shim(&other)).unwrap();
         assert_eq!(state(&places), State::Stale { link: link.clone() });
         install(&places).unwrap();
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn another_program_called_scrawl_is_left_alone() {
         let dir = TempDir::new("taken");
-        let exe = dir.0.join("scrawl.exe");
+        let exe = dir.0.join("pointo.exe");
         std::fs::write(&exe, "").unwrap();
         let places = places(&dir, &exe);
         let bin = dir.0.join("bin");

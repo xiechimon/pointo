@@ -2,12 +2,12 @@
 
 Read this before changing `src/routing/smart.rs` or `src/routing/look.rs`. The ladder that runs when the experiment is off is described in `docs/iphone-and-routing.md`, and the words used here are defined in `CONTEXT.md`.
 
-Smart routing is an experiment, on with `"experiments": {"smartRouting": true}` in `~/.config/scrawl/config.json` (read through `handoff::experiment`). With it off the app calls `routing::route_capture` exactly as before. With it on, a Mac Screen or Window capture is routed in three steps.
+Smart routing is an experiment, on with `"experiments": {"smartRouting": true}` in `~/.config/pointo/config.json` (read through `handoff::experiment`). With it off the app calls `routing::route_capture` exactly as before. With it on, a Mac Screen or Window capture is routed in three steps.
 
 1. `look::look_live` runs while the bundle is built. It reads the browser tab in front (or captured) and turns it into clues: the page's `/sdk.js` registration, and the folder of the process serving its port when the tab is on this Mac (or, when that process serves the page from outside its own project, the page's file and its publisher: see below). "On this Mac" means a loopback host or one of this Mac's own names (`hostname`, its `.local` name, its Tailscale name), whose port is mapped through `tailscale serve status --json`. It reads Ghostty's focused pane (folder and title) when Ghostty is captured or in front. Then it reads the open root sessions: the newest `SESSION_PAGES` pages, the newest page in each folder a clue names, and each session a clue names.
 2. Once the bundle exists, `look::bundle_clues` adds clues from it: the window title minus the app's own name, the captured app's name unless it's a browser, terminal, editor or system app, the checkout the captured app is built from, the transcript, and for OpenCode Desktop the session viewed last. The recorded destination becomes the address. `smart::decide(&evidence, Policy::Weigh)` returns a judgement. `routing::judge_capture` saves the evidence and decision as `routing.json` in the bundle and logs one line.
 3. `ScrawlCoordinator::act_on_route` acts on it when it arrives, after the capture has been copied and shown as Completed (routing never delays that; ✕ or Paste before it arrives keeps the capture on the clipboard). Session reads are bounded as described in `docs/iphone-and-routing.md`.
-   - A send shows "Sending to DESKTOP…" for `SMART_SEND_UNDO` (3 s), with the runner-up as a "Send to OPENCODE IOS" chip beside Paste. ✕ or Paste cancels the send; the chip sends there instead, at once. Then the destination is written to `scrawl.json` and `summary.md` and sent through `send_completed` (and so `delivery::deliver`, with its retries).
+   - A send shows "Sending to DESKTOP…" for `SMART_SEND_UNDO` (3 s), with the runner-up as a "Send to OPENCODE IOS" chip beside Paste. ✕ or Paste cancels the send; the chip sends there instead, at once. Then the destination is written to `pointo.json` and `summary.md` and sent through `send_completed` (and so `delivery::deliver`, with its retries).
    - An offer asks: the Completed island keeps "Copied" and adds "Send to DESKTOP" and the runner-up ("OPENCODE IOS") beside Paste, which stays the default. Nothing is sent until a chip is clicked; a click is the user's choice (`via: "chosen"`). The review window's status names the suggestions too.
 
 ## Pages from a file server
@@ -25,16 +25,16 @@ For a page from elsewhere the port clue is worth `served::SERVER_ONLY` (15), so 
 - **Publisher, from history** (95 for a session whose tool call was running when the file last changed, 60 for one whose calls named its folder in the 30 minutes before): `served::opencode_writes` reads the local OpenCode server's database read-only (`/usr/bin/sqlite3 -readonly`, found through the pid `/api/info` reports and `lsof`; 3 s limit; nothing when `agentHost` is set) for tool calls whose input names the page's folder below the served folder (`2026-10-19-hex-shout2`), in messages started within that window, with each call's root session. OpenCode's API has no search across sessions; the query depends on `session_message` and `session_v2`, and any failure is no clue.
 - **Document** (40): the words of the file's path below the served folder.
 
-`scrawl route --explain` does this for older captures too, with the URL their destination recorded and the file and history as they are now.
+`pointo route --explain` does this for older captures too, with the URL their destination recorded and the file and history as they are now.
 
 ## The captured app's checkout
 
 When the captured app is software whose source Kit works on, that checkout is a clue (`Source::App` with a folder, 70 points, like a terminal's folder). `look::app_checkout` finds it:
 
 - `"routing": {"apps": {"<bundle ID or prefix>": "<folder>"}}` in config.json, for apps whose checkout is named otherwise (`"com.kitlangton.problems": "~/code/worktrees/team-board/rewrite"`). The longest matching prefix wins.
-- Otherwise the one open session repository (or folder, outside a repository) whose name is the app's name run together or one of its words or bundle ID parts, generic ones dropped: OpenCode Beta (`ai.opencode.desktop.beta`) → `…/opencode`, Scrawl Helper (`dev.kitlangton.scrawl.helper`) → `…/scrawl`, Hex → `…/hex`. Two checkouts named alike give nothing. Browsers, terminals, editors and system apps give nothing, OpenCode aside.
+- Otherwise the one open session repository (or folder, outside a repository) whose name is the app's name run together or one of its words or bundle ID parts, generic ones dropped: OpenCode Beta (`ai.opencode.desktop.beta`) → `…/opencode`, Pointo Helper (`dev.xiechimon.pointo.helper`) → `…/pointo`, Hex → `…/hex`. Two checkouts named alike give nothing. Browsers, terminals, editors and system apps give nothing, OpenCode aside.
 
-There are no built-in paths: the defaults for OpenCode and Scrawl come from their checkouts being named `opencode` and `scrawl`, so they work on any Mac where a session is open in them.
+There are no built-in paths: the defaults for OpenCode and Pointo come from their checkouts being named `opencode` and `pointo`, so they work on any Mac where a session is open in them.
 
 ## OpenCode Desktop: the session or the app?
 
@@ -75,5 +75,5 @@ The Metal capsule (`src/native/pill`) draws the chips as `ElemId::Route0`/`Route
 
 ## Tools
 
-- `scrawl route --explain <bundle|latest> [--url URL]` prints the evidence, the sessions weighed with their points, the decision with why it wasn't sent and what's one click away, and what the ladder does. It replays `routing.json` when the bundle has one, keeping the sessions and what was seen live (the tab, the port, the publisher, the terminal) and reading the bundle's own clues again with today's rules; a page from a file server saved before publishers were looked for is looked at now. Otherwise it gathers what it can now (sessions as they are today, so recency and the viewed session are only approximate), and `--url` stands in for the tab.
+- `pointo route --explain <bundle|latest> [--url URL]` prints the evidence, the sessions weighed with their points, the decision with why it wasn't sent and what's one click away, and what the ladder does. It replays `routing.json` when the bundle has one, keeping the sessions and what was seen live (the tab, the port, the publisher, the terminal) and reading the bundle's own clues again with today's rules; a page from a file server saved before publishers were looked for is looked at now. Otherwise it gathers what it can now (sessions as they are today, so recency and the viewed session are only approximate), and `--url` stands in for the tab.
 - Tests swap the outside steps through `look::Senses` (which holds `routing::Hooks`), and never post to a session.

@@ -4,7 +4,7 @@
 //! `settings::Action`s, as the helper's JSON lines parse into.
 //!
 //! Windows uses it in process (`settings::Session`); macOS still runs the SwiftUI window in
-//! `scrawl-helper settings`.
+//! `pointo-helper settings`.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -326,7 +326,7 @@ fn open(request: Request, cx: &mut App) {
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
-                title: Some("Scrawl Settings".into()),
+                title: Some("Pointo Settings".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(20.0), px(20.0))),
             }),
@@ -337,7 +337,7 @@ fn open(request: Request, cx: &mut App) {
             is_resizable: false,
             is_minimizable: true,
             window_background: WindowBackgroundAppearance::Opaque,
-            app_id: Some("dev.kitlangton.scrawl".into()),
+            app_id: Some("dev.xiechimon.pointo".into()),
             ..Default::default()
         },
         move |window, cx| {
@@ -817,7 +817,7 @@ impl SettingsWindow {
                             .child(self.item(theme, Pane::Permissions, cx))
                             .child(self.item(theme, Pane::Agents, cx)),
                     )
-                    .child(section("Scrawl"))
+                    .child(section("Pointo"))
                     .child(self.item(theme, Pane::About, cx)),
             )
     }
@@ -941,16 +941,16 @@ impl SettingsWindow {
             column = column.child(caption(
                 theme,
                 if WINDOWS {
-                    "Turn Scrawl on in Settings › Apps › Startup."
+                    "Turn Pointo on in Settings › Apps › Startup."
                 } else {
-                    "Allow Scrawl in System Settings › General › Login Items."
+                    "Allow Pointo in System Settings › General › Login Items."
                 },
                 false,
             ));
         } else if !state.login.available {
             column = column.child(caption(
                 theme,
-                "Launch at login works in the installed Scrawl.app.",
+                "Launch at login works in the installed Pointo.app.",
                 false,
             ));
         }
@@ -1209,7 +1209,7 @@ impl SettingsWindow {
                 "Parakeet runs on this PC and times each word. Hex uses a model you have in Hex, and its word times are estimates."
             }
             (true, false) => {
-                "Parakeet runs on this PC and times each word. Scrawl downloads its 730 MB model once, unless Hex already has it. Hex shows up here while Hex is running."
+                "Parakeet runs on this PC and times each word. Pointo downloads its 730 MB model once, unless Hex already has it. Hex shows up here while Hex is running."
             }
             (false, true) => {
                 "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."
@@ -1229,7 +1229,7 @@ impl SettingsWindow {
             )),
             "failed" => Some((
                 format!(
-                    "The speech model couldn't be downloaded{}. Scrawl tries again in a few minutes.",
+                    "The speech model couldn't be downloaded{}. Pointo tries again in a few minutes.",
                     t.speech
                         .error
                         .as_deref()
@@ -1369,9 +1369,9 @@ impl SettingsWindow {
             column = column.child(group(theme, required_rows)).child(caption(
                 theme,
                 if WINDOWS {
-                    "Scrawl needs the microphone to hear you. Recording the screen, clicks and shortcuts need no permission on Windows."
+                    "Pointo needs the microphone to hear you. Recording the screen, clicks and shortcuts need no permission on Windows."
                 } else {
-                    "Scrawl needs these three to record."
+                    "Pointo needs these three to record."
                 },
                 false,
             ));
@@ -1452,7 +1452,7 @@ impl SettingsWindow {
         let granted = row.status == Status::Granted;
         let id = SharedString::from(format!("settings-grant-{permission:?}"));
         let trailing: AnyElement = if granted && row.relaunch {
-            button(theme, id, "Reopen Scrawl", true)
+            button(theme, id, "Reopen Pointo", true)
                 .on_click(cx.listener(|view, _, _, _| view.act(Action::Reopen)))
                 .into_any_element()
         } else if granted {
@@ -1505,7 +1505,7 @@ impl SettingsWindow {
             .child(trailing)
     }
 
-    /// The agent skill's install command, with Copy. `scrawl.exe` is a console program, so the
+    /// The agent skill's install command, with Copy. `pointo.exe` is a console program, so the
     /// CLI needs no install step on Windows (macOS links it onto PATH here).
     fn agents(&self, theme: Theme, state: &ViewState, cx: &mut Context<Self>) -> Div {
         let command = state.skill_command.clone();
@@ -1555,7 +1555,7 @@ impl SettingsWindow {
             .child(group(theme, vec![line]))
             .child(caption(
                 theme,
-                "Run it in a terminal. It teaches Claude Code, OpenCode, Codex and other agents to read your captures and use scrawl.",
+                "Run it in a terminal. It teaches Claude Code, OpenCode, Codex and other agents to read your captures and use pointo.",
                 false,
             ))
     }
@@ -1607,7 +1607,7 @@ impl SettingsWindow {
                                     .text_size(px(14.0))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(theme.text())
-                                    .child("Scrawl"),
+                                    .child("Pointo"),
                             )
                             .child(
                                 div()
@@ -1635,7 +1635,7 @@ impl SettingsWindow {
         if !state.updates {
             column = column.child(caption(
                 theme,
-                "Updates work in the installed Scrawl.app.",
+                "Updates work in the installed Pointo.app.",
                 false,
             ));
         }
@@ -1645,15 +1645,15 @@ impl SettingsWindow {
                 link(
                     "settings-website",
                     "Website",
-                    "scrawl.kitlangton.com",
-                    "https://scrawl.kitlangton.com",
+                    "xiechimon.github.io/pointo",
+                    "https://xiechimon.github.io/pointo",
                 )
                 .into_any_element(),
                 link(
                     "settings-source",
                     "Source",
-                    "github.com/kitlangton/scrawl",
-                    "https://github.com/kitlangton/scrawl",
+                    "github.com/xiechimon/pointo",
+                    "https://github.com/xiechimon/pointo",
                 )
                 .into_any_element(),
                 row(

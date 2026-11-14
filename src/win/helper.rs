@@ -1,6 +1,6 @@
-//! The Windows side of `scrawl-helper`: the same calls as `src/helper.rs`, answered in process.
+//! The Windows side of `pointo-helper`: the same calls as `src/helper.rs`, answered in process.
 //! Movies go through Media Foundation (`win::media`), transcription through `transcribe.cpp`
-//! with Hex's model or Scrawl's own copy of it (`win::speech`), and permissions through the privacy settings
+//! with Hex's model or Pointo's own copy of it (`win::speech`), and permissions through the privacy settings
 //! (`win::privacy`). There is no cabled-iPhone mirror on Windows.
 
 use std::path::{Path, PathBuf};
@@ -12,7 +12,7 @@ use crate::model::{RgbaFrame, TranscriptData};
 
 /// There is no helper executable on Windows; its work happens in process.
 pub fn path() -> Result<PathBuf> {
-    bail!("scrawl-helper is macOS-only")
+    bail!("pointo-helper is macOS-only")
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -24,7 +24,7 @@ pub struct PhoneDevice {
     pub height: u32,
 }
 
-/// What Windows lets Scrawl use: the microphone and camera privacy switches. Screen capture,
+/// What Windows lets Pointo use: the microphone and camera privacy switches. Screen capture,
 /// input monitoring and pasting need no permission.
 pub fn permissions()
 -> Result<std::collections::BTreeMap<crate::onboarding::Permission, crate::onboarding::Status>> {
@@ -36,7 +36,7 @@ pub fn devices() -> Result<Vec<PhoneDevice>> {
     Ok(Vec::new())
 }
 
-/// One line of macOS's `scrawl-helper speech-model [--install]`.
+/// One line of macOS's `pointo-helper speech-model [--install]`.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct SpeechModelLine {
     pub status: String,
@@ -52,7 +52,7 @@ pub struct SpeechModelLine {
     pub error: Option<String>,
 }
 
-/// Windows transcribes with Parakeet (`win::speech`): Hex's installed model, else Scrawl's own
+/// Windows transcribes with Parakeet (`win::speech`): Hex's installed model, else Pointo's own
 /// copy, downloaded and checked here.
 pub fn install_speech_model(
     _stop: &dyn Fn() -> bool,

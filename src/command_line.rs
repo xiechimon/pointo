@@ -1,21 +1,21 @@
-//! `scrawl` on PATH. Settings › Agents links the binary inside Scrawl.app into a folder on PATH,
+//! `pointo` on PATH. Settings › Agents links the binary inside Pointo.app into a folder on PATH,
 //! so agents and terminals run the app's own copy and it updates with the app. The binary finds
-//! `scrawl-helper` through its real path (`helper::path`), so it works through the link.
-//! Homebrew's cask (`binary "#{appdir}/Scrawl.app/Contents/MacOS/scrawl"`) makes the same link,
-//! and `brew` accepts one Scrawl made because it points at the same file.
+//! `pointo-helper` through its real path (`helper::path`), so it works through the link.
+//! Homebrew's cask (`binary "#{appdir}/Pointo.app/Contents/MacOS/pointo"`) makes the same link,
+//! and `brew` accepts one Pointo made because it points at the same file.
 //!
-//! Windows has no Scrawl.app (`State::Unavailable`); `scrawl.exe` is a console program already.
+//! Windows has no Pointo.app (`State::Unavailable`); `pointo.exe` is a console program already.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-const NAME: &str = "scrawl";
+const NAME: &str = "pointo";
 
 /// The binary to link and the folders to look in.
 #[derive(Clone, Debug)]
 pub struct Places {
-    /// This executable's real path, when it is inside Scrawl.app.
+    /// This executable's real path, when it is inside Pointo.app.
     pub target: Option<PathBuf>,
     /// Where a new link may go, in order. The first that exists and is writable is used; the
     /// last is created if needed.
@@ -49,17 +49,17 @@ impl Places {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum State {
-    /// Not running from Scrawl.app (a development build).
+    /// Not running from Pointo.app (a development build).
     Unavailable,
-    /// `link` points at this Scrawl. `homebrew` when the cask made it.
+    /// `link` points at this Pointo. `homebrew` when the cask made it.
     Installed { link: PathBuf, homebrew: bool },
     /// Install would make `link`.
     Missing { link: PathBuf },
-    /// `link` points at another copy of Scrawl or at nothing; Install replaces it.
+    /// `link` points at another copy of Pointo or at nothing; Install replaces it.
     Stale { link: PathBuf },
-    /// Something else is called `scrawl` there, and Scrawl leaves it alone.
+    /// Something else is called `pointo` there, and Pointo leaves it alone.
     Taken { link: PathBuf },
-    /// No folder Scrawl may write to.
+    /// No folder Pointo may write to.
     Nowhere,
 }
 
@@ -77,9 +77,9 @@ fn writable(dir: &Path) -> bool {
     dir.is_dir() && unsafe { libc::access(path.as_ptr(), libc::W_OK) } == 0
 }
 
-/// A symlink to some copy of Scrawl.app's binary, whether or not it still exists.
+/// A symlink to some copy of Pointo.app's binary, whether or not it still exists.
 fn scrawl_link(link: &Path) -> bool {
-    std::fs::read_link(link).is_ok_and(|to| to.ends_with("Contents/MacOS/scrawl"))
+    std::fs::read_link(link).is_ok_and(|to| to.ends_with("Contents/MacOS/pointo"))
 }
 
 fn links_to(link: &Path, target: &Path) -> bool {
@@ -129,17 +129,17 @@ pub fn state(places: &Places) -> State {
     }
 }
 
-/// Links `scrawl` and returns where. A link that's already right is left alone.
+/// Links `pointo` and returns where. A link that's already right is left alone.
 pub fn install(places: &Places) -> Result<PathBuf> {
     let target = places.target.as_ref();
     let link = match state(places) {
         State::Installed { link, .. } => return Ok(link),
         State::Missing { link } | State::Stale { link } => link,
         State::Taken { link } => bail!("{} is another program", tilde(&link)),
-        State::Unavailable => bail!("the command-line tool works in the installed Scrawl.app"),
-        State::Nowhere => bail!("there's no folder Scrawl can write to"),
+        State::Unavailable => bail!("the command-line tool works in the installed Pointo.app"),
+        State::Nowhere => bail!("there's no folder Pointo can write to"),
     };
-    let target = target.context("no Scrawl binary")?;
+    let target = target.context("no Pointo binary")?;
     let dir = link.parent().context("no folder")?;
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", tilde(dir)))?;
     // Made beside it and renamed over, so a stale link is replaced in one step.
@@ -162,7 +162,7 @@ fn symlink(_target: &Path, _link: &Path) -> std::io::Result<()> {
     Err(std::io::ErrorKind::Unsupported.into())
 }
 
-/// Removes the link Install made (or a stale one). Anything that isn't a link to Scrawl stays.
+/// Removes the link Install made (or a stale one). Anything that isn't a link to Pointo stays.
 pub fn uninstall(places: &Places) -> Result<()> {
     let link = match state(places) {
         State::Installed { link, .. } | State::Stale { link } => link,
@@ -174,7 +174,7 @@ pub fn uninstall(places: &Places) -> Result<()> {
     Ok(())
 }
 
-/// `~/.local/bin/scrawl` rather than `/Users/kit/.local/bin/scrawl`.
+/// `~/.local/bin/pointo` rather than `/Users/kit/.local/bin/pointo`.
 pub fn tilde(path: &Path) -> String {
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
         && let Ok(rest) = path.strip_prefix(&home)
@@ -201,7 +201,7 @@ mod tests {
     impl Sandbox {
         fn new(name: &str) -> Self {
             let dir = std::env::temp_dir().join(format!(
-                "scrawl-cli-{name}-{}-{}",
+                "pointo-cli-{name}-{}-{}",
                 std::process::id(),
                 crate::now_epoch_ms()
             ));
@@ -209,14 +209,14 @@ mod tests {
             Self(std::fs::canonicalize(dir).unwrap())
         }
 
-        /// A fake `Scrawl.app` at `name` with an executable `scrawl` and `scrawl-helper`.
+        /// A fake `Pointo.app` at `name` with an executable `pointo` and `pointo-helper`.
         fn app(&self, name: &str) -> PathBuf {
             let macos = self.0.join(name).join("Contents/MacOS");
             std::fs::create_dir_all(&macos).unwrap();
-            for file in ["scrawl", "scrawl-helper"] {
+            for file in ["pointo", "pointo-helper"] {
                 std::fs::write(macos.join(file), "#!/bin/sh\n").unwrap();
             }
-            macos.join("scrawl")
+            macos.join("pointo")
         }
 
         fn places(&self, target: &Path, install: &[&str]) -> Places {
@@ -237,11 +237,11 @@ mod tests {
     #[test]
     fn installs_into_the_first_writable_folder_and_uninstalls() {
         let sb = Sandbox::new("install");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Pointo.app");
         std::fs::create_dir_all(sb.0.join("brew/bin")).unwrap();
         // The first folder doesn't exist, so the second (which does) is used.
         let places = sb.places(&target, &["missing/bin", "brew/bin", "local/bin"]);
-        let link = sb.0.join("brew/bin/scrawl");
+        let link = sb.0.join("brew/bin/pointo");
         assert_eq!(state(&places), State::Missing { link: link.clone() });
         assert_eq!(install(&places).unwrap(), link);
         assert_eq!(std::fs::read_link(&link).unwrap(), target);
@@ -262,14 +262,14 @@ mod tests {
     #[test]
     fn the_last_folder_is_created_when_nothing_else_is_writable() {
         let sb = Sandbox::new("local");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Pointo.app");
         let places = sb.places(&target, &["opt/bin", "local/bin"]);
-        let link = sb.0.join("local/bin/scrawl");
+        let link = sb.0.join("local/bin/pointo");
         assert_eq!(state(&places), State::Missing { link: link.clone() });
         install(&places).unwrap();
         assert!(links_to(&link, &target));
         assert!(!usually_on_path(&link));
-        assert!(usually_on_path(Path::new("/opt/homebrew/bin/scrawl")));
+        assert!(usually_on_path(Path::new("/opt/homebrew/bin/pointo")));
     }
 
     #[cfg(unix)]
@@ -277,100 +277,100 @@ mod tests {
     fn a_read_only_folder_is_skipped() {
         use std::os::unix::fs::PermissionsExt;
         let sb = Sandbox::new("readonly");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Pointo.app");
         let locked = sb.0.join("locked/bin");
         std::fs::create_dir_all(&locked).unwrap();
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
         let places = sb.places(&target, &["locked/bin", "local/bin"]);
         let result = install(&places);
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
-        assert_eq!(result.unwrap(), sb.0.join("local/bin/scrawl"));
+        assert_eq!(result.unwrap(), sb.0.join("local/bin/pointo"));
     }
 
     #[test]
     fn another_program_called_scrawl_is_left_alone() {
         let sb = Sandbox::new("taken");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Pointo.app");
         let bin = sb.0.join("brew/bin");
         std::fs::create_dir_all(&bin).unwrap();
-        std::fs::write(bin.join("scrawl"), "someone else's").unwrap();
+        std::fs::write(bin.join("pointo"), "someone else's").unwrap();
         let places = sb.places(&target, &["brew/bin", "local/bin"]);
         assert_eq!(
             state(&places),
             State::Taken {
-                link: bin.join("scrawl")
+                link: bin.join("pointo")
             }
         );
         assert!(install(&places).is_err());
         uninstall(&places).unwrap();
         assert_eq!(
-            std::fs::read_to_string(bin.join("scrawl")).unwrap(),
+            std::fs::read_to_string(bin.join("pointo")).unwrap(),
             "someone else's"
         );
         // A symlink to some other tool counts as taken too.
-        std::fs::remove_file(bin.join("scrawl")).unwrap();
-        std::os::unix::fs::symlink("/usr/bin/true", bin.join("scrawl")).unwrap();
+        std::fs::remove_file(bin.join("pointo")).unwrap();
+        std::os::unix::fs::symlink("/usr/bin/true", bin.join("pointo")).unwrap();
         assert!(matches!(state(&places), State::Taken { .. }));
     }
 
     #[test]
     fn a_link_to_another_or_a_deleted_copy_is_replaced() {
         let sb = Sandbox::new("stale");
-        let target = sb.app("Scrawl.app");
-        let old = sb.app("Old/Scrawl.app");
+        let target = sb.app("Pointo.app");
+        let old = sb.app("Old/Pointo.app");
         let bin = sb.0.join("brew/bin");
         std::fs::create_dir_all(&bin).unwrap();
-        std::os::unix::fs::symlink(&old, bin.join("scrawl")).unwrap();
+        std::os::unix::fs::symlink(&old, bin.join("pointo")).unwrap();
         let places = sb.places(&target, &["brew/bin"]);
         assert_eq!(
             state(&places),
             State::Stale {
-                link: bin.join("scrawl")
+                link: bin.join("pointo")
             }
         );
         install(&places).unwrap();
-        assert_eq!(std::fs::read_link(bin.join("scrawl")).unwrap(), target);
+        assert_eq!(std::fs::read_link(bin.join("pointo")).unwrap(), target);
         // A link whose app was deleted is stale as well.
-        std::fs::remove_file(bin.join("scrawl")).unwrap();
+        std::fs::remove_file(bin.join("pointo")).unwrap();
         std::os::unix::fs::symlink(
-            sb.0.join("Gone.app/Contents/MacOS/scrawl"),
-            bin.join("scrawl"),
+            sb.0.join("Gone.app/Contents/MacOS/pointo"),
+            bin.join("pointo"),
         )
         .unwrap();
         assert!(matches!(state(&places), State::Stale { .. }));
         uninstall(&places).unwrap();
-        assert!(bin.join("scrawl").symlink_metadata().is_err());
+        assert!(bin.join("pointo").symlink_metadata().is_err());
     }
 
     #[test]
     fn existing_links_in_home_bin_and_from_homebrew_count_as_installed() {
         let sb = Sandbox::new("found");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Pointo.app");
         let home_bin = sb.0.join("home-bin");
         std::fs::create_dir_all(&home_bin).unwrap();
         // A link through a relative path still resolves to this binary.
         std::os::unix::fs::symlink(
-            "../Scrawl.app/Contents/MacOS/scrawl",
-            home_bin.join("scrawl"),
+            "../Pointo.app/Contents/MacOS/pointo",
+            home_bin.join("pointo"),
         )
         .unwrap();
         let places = sb.places(&target, &["brew/bin", "local/bin"]);
         assert_eq!(
             state(&places),
             State::Installed {
-                link: home_bin.join("scrawl"),
+                link: home_bin.join("pointo"),
                 homebrew: false
             }
         );
-        std::fs::remove_file(home_bin.join("scrawl")).unwrap();
+        std::fs::remove_file(home_bin.join("pointo")).unwrap();
         let bin = sb.0.join("brew/bin");
         std::fs::create_dir_all(&bin).unwrap();
-        std::fs::create_dir_all(sb.0.join("brew/Caskroom/scrawl/0.4.0")).unwrap();
-        std::os::unix::fs::symlink(&target, bin.join("scrawl")).unwrap();
+        std::fs::create_dir_all(sb.0.join("brew/Caskroom/pointo/0.4.0")).unwrap();
+        std::os::unix::fs::symlink(&target, bin.join("pointo")).unwrap();
         assert_eq!(
             state(&places),
             State::Installed {
-                link: bin.join("scrawl"),
+                link: bin.join("pointo"),
                 homebrew: true
             }
         );

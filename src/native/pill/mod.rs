@@ -1,4 +1,4 @@
-//! Native AppKit `NSPanel` + `CAMetalLayer` + Metal renderer for the Scrawl recording pill.
+//! Native AppKit `NSPanel` + `CAMetalLayer` + Metal renderer for the Pointo recording pill.
 //!
 //! Replaces the GPUI `HudPillWindow` with a single fixed-size `NSPanel` (`640 × 84 pt` at `y = 34`
 //! below the menu bar) that never resizes or moves during morphs. Supports two backdrop looks via
@@ -161,7 +161,7 @@ define_class!(
 
         #[unsafe(method_id(accessibilityLabel))]
         fn accessibility_label(&self) -> Retained<NSString> {
-            NSString::from_str("Scrawl Recording Controls")
+            NSString::from_str("Pointo Recording Controls")
         }
     }
 );

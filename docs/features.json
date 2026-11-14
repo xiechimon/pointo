@@ -305,7 +305,7 @@
       "says": "A .scrawl folder with contact-sheet.png, frames/, summary.md, scrawl.json, the recording and audio.wav.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md"]
+      "docs": ["skills/pointo/SKILL.md"]
     },
     {
       "id": "contact-sheet",
@@ -332,7 +332,7 @@
       "says": "Each keyframe line gives what was done and the words said while it was on screen, split at clause boundaries.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md", "docs/keyframes-and-text.md"]
+      "docs": ["skills/pointo/SKILL.md", "docs/keyframes-and-text.md"]
     },
     {
       "id": "spoken-cues",
@@ -697,7 +697,7 @@
       "says": "bunx skills add kitlangton/scrawl teaches an agent to read a paste and use the CLI; scrawl skill prints it.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md"]
+      "docs": ["skills/pointo/SKILL.md"]
     },
     {
       "id": "cli-zoom",
@@ -706,7 +706,7 @@
       "says": "A dense sheet of frames around a time, a phrase that was said, or a numbered mark.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md"]
+      "docs": ["skills/pointo/SKILL.md"]
     },
     {
       "id": "cli-read",
@@ -715,7 +715,7 @@
       "says": "Print summary.md, scrawl.json or the marks; pull plain PNGs of a time range.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md"]
+      "docs": ["skills/pointo/SKILL.md"]
     },
     {
       "id": "cli-send",
@@ -724,7 +724,7 @@
       "says": "Queue a capture into a session (refusing a different one than recorded without --reroute); see where a URL would route.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md", "README.md#sending-captures-of-a-dev-site-to-its-session"]
+      "docs": ["skills/pointo/SKILL.md", "README.md#sending-captures-of-a-dev-site-to-its-session"]
     },
     {
       "id": "cli-reprocess",

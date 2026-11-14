@@ -1,4 +1,4 @@
-//! `scrawl zoom`: a dense contact sheet around one moment of a bundle, for looking closely at an
+//! `pointo zoom`: a dense contact sheet around one moment of a bundle, for looking closely at an
 //! animation or glitch the narration points at.
 
 use std::path::{Path, PathBuf};

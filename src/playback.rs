@@ -1,4 +1,4 @@
-//! Lowers the output volume while recording (`lowerPlayback`). A warm `scrawl-helper
+//! Lowers the output volume while recording (`lowerPlayback`). A warm `pointo-helper
 //! playback-volume` ramps it without blocking recording or the UI, and puts it back when told
 //! to stop, when this process exits or crashes (its stdin closes), or when it is terminated.
 use std::io::Write;

@@ -1,6 +1,6 @@
-//! `scrawl lab pill <scene>`: drives the capsule through exact states on a fixed timeline, with a
+//! `pointo lab pill <scene>`: drives the capsule through exact states on a fixed timeline, with a
 //! pretend recording (no capture, microphone, files, overlay, hotkeys or ingest server), so a
-//! motion can be replayed, traced (`SCRAWL_MOTION_TRACE`), filmed and tuned (`scrawl tune`).
+//! motion can be replayed, traced (`SCRAWL_MOTION_TRACE`), filmed and tuned (`pointo tune`).
 
 use std::time::Duration;
 

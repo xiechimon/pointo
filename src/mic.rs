@@ -1,5 +1,5 @@
 //! Which microphone Mac captures record from: `"microphone": {"id", "name"}` in
-//! `~/.config/scrawl/config.json` (absent = the macOS default, followed as it changes). The id is
+//! `~/.config/pointo/config.json` (absent = the macOS default, followed as it changes). The id is
 //! the CoreAudio device UID, which is also `AVCaptureDevice.uniqueID`; the name is kept only to
 //! say which device is missing. A chosen device that isn't connected falls back to the default.
 
@@ -244,7 +244,7 @@ mod watch {
         let (sender, receiver) = std::sync::mpsc::channel();
         let data = Box::into_raw(Box::new(sender.clone())) as *mut c_void as usize;
         let spawned = std::thread::Builder::new()
-            .name("scrawl-mic-watch".into())
+            .name("pointo-mic-watch".into())
             .spawn(move || {
                 let data = data as *mut c_void;
                 let addresses = [DEVICES, DEFAULT_INPUT].map(|selector| Address {
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn the_choice_round_trips_through_the_config_keeping_other_keys() {
         let dir = std::env::temp_dir().join(format!(
-            "scrawl-mic-{}-{}",
+            "pointo-mic-{}-{}",
             std::process::id(),
             crate::now_epoch_ms()
         ));

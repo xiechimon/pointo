@@ -31,7 +31,7 @@ jobs:
     env:
       TAG: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
       BUILD: --release --locked --target x86_64-pc-windows-msvc
-      EXE: target\x86_64-pc-windows-msvc\release\scrawl.exe
+      EXE: target\x86_64-pc-windows-msvc\release\pointo.exe
     steps:
       - uses: actions/checkout@v5
         with:
@@ -44,16 +44,16 @@ jobs:
 
       - run: cargo build ${{ env.BUILD }}
 
-      - name: scrawl --help runs headless
+      - name: pointo --help runs headless
         run: '& $env:EXE --help'
 
       - name: No AVX-512 outside the CPU backends that need it
         run: scripts\check-windows-cpu-tiers.ps1 target\x86_64-pc-windows-msvc\release
 
-      # transcribe.cpp builds against the DLL C runtime, so the Visual C++ runtime DLLs scrawl.exe
+      # transcribe.cpp builds against the DLL C runtime, so the Visual C++ runtime DLLs pointo.exe
       # and transcribe.cpp's DLLs import go beside them in the zip (app-local, as Microsoft
       # allows): a fresh Windows has no Visual C++ redistributable.
-      # A fresh runner has no Scrawl config, so the app opens the welcome window. Scrawl leaves its
+      # A fresh runner has no Pointo config, so the app opens the welcome window. Pointo leaves its
       # own windows out of screen captures unless SCRAWL_SHOW_OWN_WINDOWS is set.
       - name: The welcome window opens on a fresh profile
         shell: pwsh
@@ -62,7 +62,7 @@ jobs:
         run: |
           $app = Start-Process -FilePath $env:EXE -ArgumentList "app" -PassThru
           Start-Sleep -Seconds 12
-          if ($app.HasExited) { throw "Scrawl exited with code $($app.ExitCode)" }
+          if ($app.HasExited) { throw "Pointo exited with code $($app.ExitCode)" }
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
           $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
@@ -70,7 +70,7 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           $bitmap.Save("dist\welcome.png")
           Stop-Process -Id $app.Id -Force
-          $log = Join-Path $env:LOCALAPPDATA "Scrawl\Logs\scrawl.log"
+          $log = Join-Path $env:LOCALAPPDATA "Pointo\Logs\pointo.log"
           if (Test-Path $log) { Get-Content $log -Tail 40 }
           if ((Test-Path $log) -and (Select-String -Path $log -Pattern "onboarding: could not decode state" -Quiet)) {
             throw "the welcome window rejected the onboarding state"
@@ -116,9 +116,9 @@ jobs:
           SCRAWL_TEST_MODEL_DIR: ${{ runner.temp }}\speech-model
           SCRAWL_TEST_NO_AVX512: "1"
         run: |
-          $test = cargo test ${{ env.BUILD }} --bin scrawl --no-run --message-format=json |
+          $test = cargo test ${{ env.BUILD }} --bin pointo --no-run --message-format=json |
             ForEach-Object { $_ | ConvertFrom-Json } |
-            Where-Object { $_.reason -eq "compiler-artifact" -and $_.target.name -eq "scrawl" -and $_.profile.test } |
+            Where-Object { $_.reason -eq "compiler-artifact" -and $_.target.name -eq "pointo" -and $_.profile.test } |
             Select-Object -ExpandProperty executable -First 1
           "test binary: $test"
           $sde = Get-ChildItem $env:SDE_PATH -Recurse -Filter sde.exe | Select-Object -First 1
@@ -130,17 +130,17 @@ jobs:
         shell: pwsh
         run: |
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-          $name = "Scrawl-$version-windows-x64.zip"
-          $dir = "dist\Scrawl"
+          $name = "Pointo-$version-windows-x64.zip"
+          $dir = "dist\Pointo"
           New-Item -ItemType Directory -Force $dir | Out-Null
-          Copy-Item $env:EXE "$dir\scrawl.exe"
+          Copy-Item $env:EXE "$dir\pointo.exe"
           Copy-Item target\x86_64-pc-windows-msvc\release\transcribe.dll, target\x86_64-pc-windows-msvc\release\ggml*.dll $dir
           Copy-Item runtime\*.dll $dir
           Copy-Item LICENSE "$dir\LICENSE.txt"
           @"
-          Scrawl $version for Windows (preview)
+          Pointo $version for Windows (preview)
 
-          Run scrawl.exe, keeping the DLLs beside it. Scrawl lives in the notification area;
+          Run pointo.exe, keeping the DLLs beside it. Pointo lives in the notification area;
           press Alt+Shift+S to record.
 
           This build isn't signed yet, so Windows may say "Windows protected your PC".
@@ -149,8 +149,8 @@ jobs:
           The first launch downloads the speech model (730 MB) in the background, unless Hex
           already installed one. Captures made before it finishes get their transcript afterwards.
 
-          https://scrawl.kitlangton.com
-          https://github.com/kitlangton/scrawl
+          https://xiechimon.github.io/pointo
+          https://github.com/xiechimon/pointo
           "@ | Set-Content -Encoding utf8 "$dir\README.txt"
           Compress-Archive -Path $dir -DestinationPath "dist\$name" -Force
           Get-ChildItem dist\$name | Format-Table Name, Length
@@ -162,7 +162,7 @@ jobs:
         run: |
           Expand-Archive "dist\${{ steps.package.outputs.name }}" -DestinationPath dist\check -Force
           Get-ChildItem -Recurse dist\check | Format-Table FullName, Length
-          dist\check\Scrawl\scrawl.exe --version
+          dist\check\Pointo\pointo.exe --version
 
       - uses: actions/upload-artifact@v5
         with:
@@ -177,5 +177,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "Scrawl ${TAG#v}" --notes "Release notes to follow."
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "Pointo ${TAG#v}" --notes "Release notes to follow."
           gh release upload "$TAG" "dist/${{ steps.package.outputs.name }}" "dist/${{ steps.package.outputs.name }}.sha256" --clobber

@@ -1,4 +1,4 @@
-//! Dev pages telling Scrawl which OpenCode session they belong to.
+//! Dev pages telling Pointo which OpenCode session they belong to.
 //!
 //! A project adds `<script src="http://127.0.0.1:47777/sdk.js" data-session="ses_…"></script>`
 //! (or `data-directory`) to its dev build. The script registers the page with the ingest server
@@ -116,7 +116,7 @@ pub fn lookup(url: &str) -> Option<Registration> {
     if SERVING.load(Ordering::Acquire) {
         return registry().lookup(url, now);
     }
-    // `SCRAWL_INGEST_PORT` points at a `scrawl serve --port` other than the app's.
+    // `SCRAWL_INGEST_PORT` points at a `pointo serve --port` other than the app's.
     let port = std::env::var("SCRAWL_INGEST_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -133,7 +133,7 @@ pub fn fetch_registrations(port: u16) -> Result<Vec<Registration>> {
     let token = crate::handoff::ensure_ingest_token()?;
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(400))
-        .with_context(|| format!("Scrawl isn't listening on port {port}"))?;
+        .with_context(|| format!("Pointo isn't listening on port {port}"))?;
     stream.set_read_timeout(Some(Duration::from_secs(2)))?;
     write!(
         stream,
@@ -147,7 +147,7 @@ pub fn fetch_registrations(port: u16) -> Result<Vec<Registration>> {
         .context("Malformed response")?;
     anyhow::ensure!(
         head.starts_with("HTTP/1.1 200"),
-        "Scrawl answered {}",
+        "Pointo answered {}",
         head.lines().next().unwrap_or("")
     );
     let value: serde_json::Value = serde_json::from_str(body)?;

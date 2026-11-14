@@ -1,5 +1,5 @@
-//! Keeps `site/src/features.json` (the feature map) in step with the code. Every top-level key
-//! of `~/.config/scrawl/config.json` the app reads and every `handoff::experiment` it asks about
+//! Keeps `docs/features.json` (the feature map) in step with the code. Every top-level key
+//! of `~/.config/pointo/config.json` the app reads and every `handoff::experiment` it asks about
 //! needs a feature entry; every entry with a stable, main or experiment status must name keys
 //! and flags that still exist; and every doc it links must be in the repo.
 //!
@@ -165,9 +165,9 @@ struct Map {
 }
 
 fn feature_map() -> Map {
-    let path = repo().join("site/src/features.json");
+    let path = repo().join("docs/features.json");
     let json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).unwrap())
-        .expect("site/src/features.json is valid JSON");
+        .expect("docs/features.json is valid JSON");
     let mut map = Map {
         keys: BTreeSet::new(),
         flags: BTreeSet::new(),
@@ -267,7 +267,7 @@ fn the_feature_map_covers_every_config_key_and_experiment() {
     }
     assert!(
         problems.is_empty(),
-        "site/src/features.json is out of date (see the feature map rule in AGENTS.md):\n- {}",
+        "docs/features.json is out of date (see the feature map rule in AGENTS.md):\n- {}",
         problems.join("\n- ")
     );
 }

@@ -1,8 +1,8 @@
 //! The `agentContext` experiment's text: each keyframe's speech broken up by what happened while
 //! it was said (marks, clicks, drags, shortcuts, windows opening and closing, app events), so the
 //! agent reads "this part" next to the mark drawn as it was said. Marks sharing a keyframe are
-//! numbered ①②③ in drawing order (the images show only the ink; `scrawl zoom --mark` and
-//! `scrawl inspect --marks` look marks up by these numbers).
+//! numbered ①②③ in drawing order (the images show only the ink; `pointo zoom --mark` and
+//! `pointo inspect --marks` look marks up by these numbers).
 //! Nothing here gives raw coordinates: the images show where, so a place is only written when
 //! something names it (an Accessibility label, the dev page's element).
 
@@ -336,7 +336,7 @@ fn events(bundle: &ScrawlBundle) -> Vec<(u64, String)> {
             InteractionEvent::AppEvent { t, label } if bundle.device.is_none() => {
                 Some((*t, label.clone()))
             }
-            // Window titles stay in scrawl.json; the summary names apps only.
+            // Window titles stay in pointo.json; the summary names apps only.
             InteractionEvent::AppChange { t, app, .. } => Some((*t, format!("switched to {app}"))),
             other => event_text(other).map(|text| (other.timestamp_ms(), text)),
         };
@@ -580,7 +580,7 @@ fn window_changes(snapshots: &[WindowSnapshot]) -> Vec<(u64, String)> {
         snapshot
             .windows
             .iter()
-            .filter(|w| w.layer == 0 && w.regular && w.app != "Scrawl")
+            .filter(|w| w.layer == 0 && w.regular && w.app != "Pointo")
             .map(|w| (w.id, w.app.clone()))
             .collect()
     };

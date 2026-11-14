@@ -4,7 +4,7 @@
 //! the same actions (`continue`, `back`, `later`, `close`, `grant:<permission>`).
 //!
 //! Windows uses it in process (`onboarding::Session`); macOS still runs the SwiftUI window in
-//! `scrawl-helper onboarding`.
+//! `pointo-helper onboarding`.
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -151,7 +151,7 @@ fn open(request: Request, cx: &mut App) {
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
-                title: Some("Welcome to Scrawl".into()),
+                title: Some("Welcome to Pointo".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(14.0), px(14.0))),
             }),
@@ -162,7 +162,7 @@ fn open(request: Request, cx: &mut App) {
             is_resizable: false,
             is_minimizable: false,
             window_background: WindowBackgroundAppearance::Opaque,
-            app_id: Some("dev.kitlangton.scrawl".into()),
+            app_id: Some("dev.xiechimon.pointo".into()),
             ..Default::default()
         },
         move |window, cx| {
@@ -638,7 +638,7 @@ impl OnboardingWindow {
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(rgb(TEXT))
                     .text_center()
-                    .child("How Scrawl works"),
+                    .child("How Pointo works"),
             )
             .child(
                 div()
@@ -659,7 +659,7 @@ impl OnboardingWindow {
                     .child(row(
                         keycap(&shift, true, 26.0),
                         format!(
-                            "Talk as you go, and hold {shift} and drag to draw in red. Scrawl records your clicks too."
+                            "Talk as you go, and hold {shift} and drag to draw in red. Pointo records your clicks too."
                         ),
                     ))
                     .child(divider())
@@ -825,7 +825,7 @@ impl OnboardingWindow {
         let note = if windows {
             ""
         } else {
-            "If macOS offers to Quit & Reopen Scrawl, choose Later; Scrawl reopens once when you're done."
+            "If macOS offers to Quit & Reopen Pointo, choose Later; Pointo reopens once when you're done."
         };
         let settings = if windows {
             "Windows Settings"
@@ -836,7 +836,7 @@ impl OnboardingWindow {
         let (title, body) = if state.fix && only(Permission::Camera) {
             (
                 "Camera, for your iPhone".to_owned(),
-                "macOS treats a cabled iPhone's screen as a camera, so Scrawl needs Camera access to show and record it. Pick iPhone again once it's on.".to_owned(),
+                "macOS treats a cabled iPhone's screen as a camera, so Pointo needs Camera access to show and record it. Pick iPhone again once it's on.".to_owned(),
             )
         } else if state.fix && only(Permission::Accessibility) {
             (
@@ -850,7 +850,7 @@ impl OnboardingWindow {
             )
         } else if state.fix {
             (
-                "Scrawl can't record yet".to_owned(),
+                "Pointo can't record yet".to_owned(),
                 format!("Turn these on, then press {} again. {note}", self.shortcut)
                     .trim_end()
                     .to_owned(),
@@ -859,7 +859,7 @@ impl OnboardingWindow {
             let count = rows.iter().filter(|r| r.required).count();
             (
                 format!(
-                    "Scrawl needs {} permission{}",
+                    "Pointo needs {} permission{}",
                     number_word(count),
                     if count == 1 { "" } else { "s" }
                 ),
@@ -1063,7 +1063,7 @@ impl Render for OnboardingWindow {
                 .centered(
                     self.welcome_art(phase),
                     200.0,
-                    "Welcome to Scrawl",
+                    "Welcome to Pointo",
                     "Record your screen and your voice, draw on what matters, and paste it all into your agent.".into(),
                 )
                 .into_any_element(),
@@ -1073,7 +1073,7 @@ impl Render for OnboardingWindow {
                 .centered(
                     self.try_art(phase),
                     164.0,
-                    "Make your first Scrawl",
+                    "Make your first Pointo",
                     format!("Tap {s} now. Talk, point at something, then tap {s} again."),
                 )
                 .into_any_element(),
@@ -1083,7 +1083,7 @@ impl Render for OnboardingWindow {
                     164.0,
                     "It's on your clipboard",
                     format!(
-                        "Press {paste} in your agent. Scrawl stays in the {tray}; tap {s} whenever you want to show something."
+                        "Press {paste} in your agent. Pointo stays in the {tray}; tap {s} whenever you want to show something."
                     ),
                 )
                 .into_any_element(),

@@ -32,7 +32,7 @@ impl AudioRecorder {
         let worker_samples = Arc::clone(&samples);
         let worker_error = Arc::clone(&error);
         let worker = std::thread::Builder::new()
-            .name("scrawl-audio".into())
+            .name("pointo-audio".into())
             .spawn(move || {
                 let stream =
                     Self::open_stream(worker_samples, worker_error).inspect_err(|error| {
@@ -264,7 +264,7 @@ where
     )?)
 }
 
-/// Reads a 16 kHz mono WAV (as written by `scrawl-helper audio`) back into a recording.
+/// Reads a 16 kHz mono WAV (as written by `pointo-helper audio`) back into a recording.
 pub fn recorded_audio_from_wav(wav_bytes: Vec<u8>) -> Result<RecordedAudio> {
     let sample_count = wav_16k_reader(&wav_bytes)?.duration() as usize;
     Ok(RecordedAudio {

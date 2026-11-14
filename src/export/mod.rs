@@ -1,4 +1,4 @@
-//! `scrawl export`: a bundle's recording as one shareable `.mp4` (H.264 or HEVC, AAC audio).
+//! `pointo export`: a bundle's recording as one shareable `.mp4` (H.264 or HEVC, AAC audio).
 //!
 //! Rust decides everything about the picture and the helper (`helper/Export.swift`) renders it:
 //!
@@ -74,15 +74,15 @@ pub struct Exported {
     pub bytes: u64,
 }
 
-/// Where `~/Movies/Scrawl/<bundle>.mp4` goes for a bundle.
+/// Where `~/Movies/Pointo/<bundle>.mp4` goes for a bundle.
 pub fn default_output(bundle_dir: &Path) -> PathBuf {
     let name = bundle_dir
         .file_stem()
         .and_then(|n| n.to_str())
-        .unwrap_or("scrawl");
+        .unwrap_or("pointo");
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("Movies/Scrawl")
+        .join("Movies/Pointo")
         .join(format!("{name}.mp4"))
 }
 
@@ -235,7 +235,7 @@ pub fn export(
     };
 
     // The audio: an iPhone movie's own track (full quality, on the movie's clock), else
-    // `audio.wav`, which Scrawl records from the bundle's start, `video_offset_ms` before the
+    // `audio.wav`, which Pointo records from the bundle's start, `video_offset_ms` before the
     // video's.
     let wav = bundle
         .audio
@@ -299,7 +299,7 @@ pub fn export(
         ink: &ink,
     };
     let plan_path =
-        std::env::temp_dir().join(format!("scrawl-export-{}.json", crate::make_bundle_id()));
+        std::env::temp_dir().join(format!("pointo-export-{}.json", crate::make_bundle_id()));
     std::fs::write(&plan_path, serde_json::to_vec(&plan)?)?;
     let result = run_helper(&plan_path, options.background, progress);
     let _ = std::fs::remove_file(&plan_path);
@@ -337,7 +337,7 @@ fn wav_duration_ms(path: &Path) -> Result<u64> {
     Ok(u64::from(reader.duration()) * 1_000 / u64::from(spec.sample_rate))
 }
 
-/// Runs `scrawl-helper export PLAN`, reading its JSON lines: `{"progress": f}` and a final
+/// Runs `pointo-helper export PLAN`, reading its JSON lines: `{"progress": f}` and a final
 /// `{"done": {...}}`.
 fn run_helper(plan: &Path, background: bool, progress: &mut dyn FnMut(f32)) -> Result<Done> {
     let helper = crate::helper::path()?;
@@ -355,7 +355,7 @@ fn run_helper(plan: &Path, background: bool, progress: &mut dyn FnMut(f32)) -> R
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .context("Could not start scrawl-helper")?;
+        .context("Could not start pointo-helper")?;
     let stdout = child.stdout.take().context("No helper stdout")?;
     let mut stderr = child.stderr.take().context("No helper stderr")?;
     let errors = std::thread::spawn(move || {
@@ -380,10 +380,10 @@ fn run_helper(plan: &Path, background: bool, progress: &mut dyn FnMut(f32)) -> R
     if !status.success() {
         bail!("{}", message.trim());
     }
-    done.context("scrawl-helper finished without a result")
+    done.context("pointo-helper finished without a result")
 }
 
-/// What `scrawl export` prints.
+/// What `pointo export` prints.
 pub fn describe(exported: &Exported) -> String {
     format!(
         "{} · {}×{} @ {} fps · {} · {:.1} MB{}{}",
@@ -455,9 +455,9 @@ mod tests {
 
     #[test]
     fn default_output_lands_in_movies_scrawl() {
-        let path = default_output(Path::new("/x/scrawl-17-9.scrawl"));
+        let path = default_output(Path::new("/x/pointo-17-9.pointo"));
         assert!(
-            path.ends_with("Movies/Scrawl/scrawl-17-9.mp4"),
+            path.ends_with("Movies/Pointo/pointo-17-9.mp4"),
             "{}",
             path.display()
         );

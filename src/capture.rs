@@ -118,7 +118,7 @@ pub struct ScreenRecording {
     pub video_offset_ms: u64,
 }
 
-/// Live UI events emitted by the global input monitor to drive Scrawl's HUD & Review windows.
+/// Live UI events emitted by the global input monitor to drive Pointo's HUD & Review windows.
 #[derive(Clone, Debug)]
 pub enum LiveOverlayEvent {
     /// ⌥⇧S (or the configured shortcut) went down; `shortcut::Shortcut` decides what it means.
@@ -132,7 +132,7 @@ pub enum LiveOverlayEvent {
     Onboarding(crate::onboarding::Event),
     /// The Settings window: an action, fresh permission states, or the helper exiting.
     Settings(crate::settings::Event),
-    /// A ScrawlKit recording was ingested from an iPhone and compiled into a `.scrawl` bundle.
+    /// A ScrawlKit recording was ingested from an iPhone and compiled into a `.pointo` bundle.
     IngestedBundle {
         dir: PathBuf,
         bundle: Box<crate::model::ScrawlBundle>,
@@ -159,7 +159,7 @@ impl Default for ShortcutConfig {
     }
 }
 
-/// Scrawl's two global shortcuts.
+/// Pointo's two global shortcuts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShortcutKind {
@@ -201,7 +201,7 @@ impl ShortcutKind {
         }
     }
 
-    /// Whether it can be turned off. Record can't: it's the way into Scrawl.
+    /// Whether it can be turned off. Record can't: it's the way into Pointo.
     pub fn can_unset(self) -> bool {
         self == Self::Paste
     }
@@ -350,7 +350,7 @@ pub fn scrawl_log(msg: impl AsRef<str>) {
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(dir.join("scrawl.log"))
+        .open(dir.join("pointo.log"))
     {
         let _ = f.write_all(line.as_bytes());
     }
@@ -395,7 +395,7 @@ pub fn is_capture_shortcut(
     )
 }
 
-/// `is_capture_shortcut` for any of Scrawl's shortcuts; `layout_code` is the default key on the
+/// `is_capture_shortcut` for any of Pointo's shortcuts; `layout_code` is the default key on the
 /// active layout.
 #[allow(clippy::too_many_arguments)]
 pub fn shortcut_matches(
@@ -562,7 +562,7 @@ pub fn capture_size(target: &TargetInfo, long_edge: f64) -> (u32, u32) {
 pub(crate) struct Sampler {
     pub target: TargetInfo,
     pub video_output_path: Option<PathBuf>,
-    /// Scrawl's own windows to leave out of the recording.
+    /// Pointo's own windows to leave out of the recording.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub excluded_window_ids: Arc<Mutex<Vec<u32>>>,
     pub started_at: Instant,
@@ -602,7 +602,7 @@ impl ScreenCaptureSession {
         let thread_offset = Arc::clone(&video_offset_ms);
         let sampler_target = target;
         let sampler_thread = thread::Builder::new()
-            .name("scrawl-frame-sampler".into())
+            .name("pointo-frame-sampler".into())
             .spawn(move || {
                 platform::run_sampler(Sampler {
                     target: sampler_target,
@@ -691,7 +691,7 @@ pub struct SharedCaptureTelemetry {
     /// The record shortcut (`crate::settings` loads and saves it).
     pub shortcut: Mutex<ShortcutConfig>,
     pub paste_shortcut: Mutex<ShortcutConfig>,
-    /// Settings is recording a new shortcut: none of Scrawl's fire (`pause_shortcuts`).
+    /// Settings is recording a new shortcut: none of Pointo's fire (`pause_shortcuts`).
     pub shortcuts_paused: AtomicBool,
     pub started_at: Mutex<Instant>,
     pub picker_started_at: Mutex<Instant>,
@@ -707,10 +707,10 @@ pub struct SharedCaptureTelemetry {
     /// a snapshot right away.
     pub window_log_request: Arc<AtomicBool>,
     pub ui_sender: flume::Sender<LiveOverlayEvent>,
-    /// Scrawl's windows that let clicks through (the ink overlay), skipped when deciding whether
-    /// a click landed on Scrawl itself.
+    /// Pointo's windows that let clicks through (the ink overlay), skipped when deciding whether
+    /// a click landed on Pointo itself.
     pub passthrough_window_ids: Mutex<Vec<u32>>,
-    /// The `scrawl-helper` whose window is what's being recorded (the iPhone mirror): its clicks
+    /// The `pointo-helper` whose window is what's being recorded (the iPhone mirror): its clicks
     /// count, unlike those on other helper windows (Settings, onboarding). 0 when none.
     capture_source_pid: AtomicI32,
     /// The last `on_scrawl_window` answer (when, where, what), reused for a burst of scrolls.
@@ -1151,7 +1151,7 @@ impl SharedCaptureTelemetry {
             .store(i32::try_from(pid).unwrap_or(0), Ordering::Release);
     }
 
-    /// Whether the topmost window at a global point is Scrawl's own or a `scrawl-helper`'s other
+    /// Whether the topmost window at a global point is Pointo's own or a `pointo-helper`'s other
     /// than the capture source (ignoring the click-through ink overlay). Asked once per press, and
     /// for scrolls, which come in bursts at one point, at most every 250 ms.
     fn on_scrawl_window(&self, x: f64, y: f64) -> bool {
@@ -1290,7 +1290,7 @@ impl SharedCaptureTelemetry {
 }
 
 /// Clicks from the mouse buttons' polled state, while the mouse monitor (or hook) is missing: a
-/// press starts a click (unless it lands on Scrawl's own window), a release ends it. A ⇧-press may
+/// press starts a click (unless it lands on Pointo's own window), a release ends it. A ⇧-press may
 /// be a pin, as in the mouse monitor's handler.
 fn poll_clicks(
     telemetry: &SharedCaptureTelemetry,
@@ -1466,8 +1466,8 @@ pub fn is_frontmost_terminal() -> bool {
     .any(|needle| a.contains(needle) || b.contains(needle))
 }
 
-/// Writes all bundle artifacts (`scrawl.json`, `summary.md`, `contact-sheet.png`, `frames/frame-XX.png`)
-/// into a new or specified `.scrawl` bundle directory.
+/// Writes all bundle artifacts (`pointo.json`, `summary.md`, `contact-sheet.png`, `frames/frame-XX.png`)
+/// into a new or specified `.pointo` bundle directory.
 pub fn write_bundle_artifacts(
     out_dir: &Path,
     bundle: &crate::model::ScrawlBundle,
@@ -1502,7 +1502,7 @@ pub fn write_bundle_artifacts(
     })?;
 
     let manifest_bytes = serde_json::to_vec_pretty(bundle)?;
-    std::fs::write(out_dir.join("scrawl.json"), manifest_bytes)?;
+    std::fs::write(out_dir.join("pointo.json"), manifest_bytes)?;
     std::fs::write(out_dir.join("summary.md"), summary_md.as_bytes())?;
 
     Ok(())
@@ -1552,8 +1552,8 @@ mod tests {
         std::fs::remove_file(path).unwrap();
     }
 
-    /// Clicks on `scrawl-helper`'s windows (the SwiftUI capsule, Settings, onboarding) are
-    /// Scrawl's own, except on the iPhone mirror, which is what's being recorded.
+    /// Clicks on `pointo-helper`'s windows (the SwiftUI capsule, Settings, onboarding) are
+    /// Pointo's own, except on the iPhone mirror, which is what's being recorded.
     #[test]
     fn helper_windows_are_scrawl_s_except_the_capture_source() {
         let (sender, _receiver) = flume::unbounded();
@@ -1646,7 +1646,7 @@ mod tests {
             false,
             not_scrawl,
         );
-        // Then the stop button, which is Scrawl's own.
+        // Then the stop button, which is Pointo's own.
         let stop = (860.0, 20.0);
         poll_clicks(&telemetry, &mut prev, [true, false], stop, false, |_, _| {
             true
@@ -1949,7 +1949,7 @@ mod tests {
     fn shift_clicks_drop_pins_from_polled_buttons_too() {
         let telemetry = session(1000.0, 1000.0);
         let mut prev = [false; 2];
-        // ⇧-clicks at a point, the second on Scrawl's own window.
+        // ⇧-clicks at a point, the second on Pointo's own window.
         for (at, on_scrawl) in [((250.0, 750.0), false), ((400.0, 400.0), true)] {
             for buttons in [[true, false], [false, false]] {
                 poll_clicks(&telemetry, &mut prev, buttons, at, true, |_, _| on_scrawl);

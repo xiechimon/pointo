@@ -10,9 +10,9 @@ import { join, resolve } from "node:path";
 // `perf/screen-guard.sh` refuses on the Studio, so run it on the MacBook Pro under `/tmp/pro-gui.lock`.
 // One process: warmup + seven starts, matching repeated captures in the menu-bar app.
 // Build separately so compiler/cache state never enters the timing.
-const binary = resolve(process.env.SCRAWL_BIN ?? "target/debug/scrawl");
+const binary = resolve(process.env.SCRAWL_BIN ?? "target/debug/pointo");
 const quickStop = process.argv.includes("--quick-stop");
-const root = await mkdtemp(join(tmpdir(), "scrawl-start-"));
+const root = await mkdtemp(join(tmpdir(), "pointo-start-"));
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
 const summarize = (xs: number[]) => {
   const mid = median(xs);

@@ -4,8 +4,8 @@ import Carbon.HIToolbox
 import Combine
 import SwiftUI
 
-// `scrawl-helper settings [--pane P] [--icon PNG] [--render DIR]`: the Settings window.
-// Scrawl decides everything (`src/settings.rs`) and sends what to show as JSON lines on stdin:
+// `pointo-helper settings [--pane P] [--icon PNG] [--render DIR]`: the Settings window.
+// Pointo decides everything (`src/settings.rs`) and sends what to show as JSON lines on stdin:
 //   {"type":"state","version":"0.3.2","login":{"on":false,"available":true,"needsApproval":false},
 //    "autoSend":true,"shortcuts":[{"kind":"record","title":"Record","label":"⌥⇧S","key":"S",
 //    "shift":true,"control":false,"option":true,"command":false,"isDefault":true,
@@ -134,7 +134,7 @@ struct SettingsPermission: Decodable, Equatable, Identifiable {
 
 /// Where new captures go: `~`-relative, and whether it was chosen here (Reset shows).
 struct SettingsCapturesDir: Decodable, Equatable {
-  var path = "~/Library/Application Support/scrawl/captures"
+  var path = "~/Library/Application Support/pointo/captures"
   var custom = false
 }
 
@@ -143,7 +143,7 @@ struct SettingsCommandLine: Decodable, Equatable {
   /// "install", "uninstall", or none.
   var button: String? = "install"
   var enabled = true
-  var caption = "Links scrawl into /opt/homebrew/bin, so agents and your terminal can run it."
+  var caption = "Links pointo into /opt/homebrew/bin, so agents and your terminal can run it."
   var error = false
 }
 
@@ -167,7 +167,7 @@ struct SettingsState: Decodable, Equatable {
     .map { SettingsPermission(permission: $0, required: ["screen-recording", "microphone", "accessibility"].contains($0)) }
   var updates = true
   var commandLine = SettingsCommandLine()
-  var skillCommand = "bunx skills add kitlangton/scrawl"
+  var skillCommand = "bunx skills add xiechimon/pointo"
 
   var pasteLabel: String { shortcuts.first { $0.kind == "paste" }?.label ?? "⌥⇧V" }
   var recording: String? { shortcuts.first(where: \.recording)?.kind }
@@ -337,7 +337,7 @@ extension EnvironmentValues {
 
 enum SettingsMotion {
   static let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-  /// Switch knobs and captions answering Scrawl (bounce 0).
+  /// Switch knobs and captions answering Pointo (bounce 0).
   static let state: Animation = reduce ? .easeOut(duration: 0.15) : .spring(duration: 0.25, bounce: 0)
   /// A caption replaced in place: a little blur with the fade, the old one leaving sooner.
   static let replace: AnyTransition = {
@@ -607,7 +607,7 @@ struct SettingsCaption: View {
 // MARK: Input level
 
 /// The level of the microphone recordings will use, only while the Recording pane is on screen
-/// and only once Microphone is allowed (Scrawl sends `meter` then). Its own object, so the level
+/// and only once Microphone is allowed (Pointo sends `meter` then). Its own object, so the level
 /// redraws the meter and nothing else.
 final class MicMeter: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
   /// 0…1, rising at once and falling at `release` a tick, like a level meter.
@@ -616,7 +616,7 @@ final class MicMeter: NSObject, ObservableObject, AVCaptureAudioDataOutputSample
   private var session: AVCaptureSession?
   private var output: AVCaptureAudioDataOutput?
   private var timer: Timer?
-  private let queue = DispatchQueue(label: "dev.kitlangton.scrawl.helper.meter")
+  private let queue = DispatchQueue(label: "dev.xiechimon.pointo.helper.meter")
   private static let floor: Float = -50
   private static let release: Float = 0.035
 
@@ -828,7 +828,7 @@ struct SettingsView: View {
         item(.permissions)
         item(.agents)
       }
-      section("Scrawl")
+      section("Pointo")
       item(.about)
       Spacer()
     }
@@ -929,9 +929,9 @@ struct SettingsView: View {
         }
       }
       if state.login.needsApproval {
-        SettingsCaption(text: "Allow Scrawl in System Settings › General › Login Items.")
+        SettingsCaption(text: "Allow Pointo in System Settings › General › Login Items.")
       } else if !state.login.available {
-        SettingsCaption(text: "Launch at login works in the installed Scrawl.app.")
+        SettingsCaption(text: "Launch at login works in the installed Pointo.app.")
       }
       ForEach(state.shortcuts) { shortcut in
         Color.clear.frame(height: 14)
@@ -1065,7 +1065,7 @@ struct SettingsView: View {
     let optional = state.permissions.filter { !$0.required }
     return VStack(spacing: 0) {
       SettingsGroup { permissionRows(required) }
-      SettingsCaption(text: "Scrawl needs these three to record.")
+      SettingsCaption(text: "Pointo needs these three to record.")
       SettingsHeader("When you use them")
       SettingsGroup { permissionRows(optional) }
     }
@@ -1108,7 +1108,7 @@ struct SettingsView: View {
         .animation(SettingsMotion.state, value: cli)
       SettingsHeader("Agent skill")
       SettingsGroup { CopyLine(text: state.skillCommand) }
-      SettingsCaption(text: "Run it in a terminal. It teaches Claude Code, OpenCode, Codex and other agents to read your captures and use scrawl.")
+      SettingsCaption(text: "Run it in a terminal. It teaches Claude Code, OpenCode, Codex and other agents to read your captures and use pointo.")
     }
   }
 
@@ -1121,7 +1121,7 @@ struct SettingsView: View {
             Image(nsImage: icon).resizable().interpolation(.high).frame(width: 40, height: 40)
           }
           VStack(alignment: .leading, spacing: 1) {
-            Text("Scrawl").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text)
+            Text("Pointo").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text)
             Text("Version \(state.version)").font(.system(size: 12).monospacedDigit()).foregroundStyle(theme.secondary)
           }
           Spacer()
@@ -1131,13 +1131,13 @@ struct SettingsView: View {
         .frame(height: 64)
       }
       if !state.updates {
-        SettingsCaption(text: "Updates work in the installed Scrawl.app.")
+        SettingsCaption(text: "Updates work in the installed Pointo.app.")
       }
       SettingsHeader("Links")
       SettingsGroup {
-        link("Website", "scrawl.kitlangton.com", "https://scrawl.kitlangton.com")
+        link("Website", "xiechimon.github.io/pointo", "https://xiechimon.github.io/pointo")
         SettingsSeparator()
-        link("Source", "github.com/kitlangton/scrawl", "https://github.com/kitlangton/scrawl")
+        link("Source", "github.com/xiechimon/pointo", "https://github.com/xiechimon/pointo")
         SettingsSeparator()
         SettingsRow(title: "Welcome tour") {
           SettingsButton(title: "Show") { model.act("tour") }
@@ -1208,7 +1208,7 @@ struct PermissionLine: View {
       Spacer(minLength: 8)
       ZStack(alignment: .trailing) {
         if row.granted && row.relaunch {
-          SettingsButton(title: "Reopen Scrawl") { model.act("reopen") }
+          SettingsButton(title: "Reopen Pointo") { model.act("reopen") }
         } else if row.granted {
           HStack(spacing: 5) {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.positive)
@@ -1351,13 +1351,13 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       defer: false
     )
     // A toolbar makes the title bar as tall as the pane titles, so the traffic lights share their line.
-    let toolbar = NSToolbar(identifier: "scrawl-settings")
+    let toolbar = NSToolbar(identifier: "pointo-settings")
     toolbar.showsBaselineSeparator = false
     window.toolbar = toolbar
     window.toolbarStyle = .unified
     window.titlebarAppearsTransparent = true
     window.titleVisibility = .hidden
-    window.title = "Scrawl Settings"
+    window.title = "Pointo Settings"
     window.isMovableByWindowBackground = true
     window.isReleasedWhenClosed = false
     window.delegate = self
@@ -1615,7 +1615,7 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var languageUnsupported = ready
     languageUnsupported.transcriber.appleLocale = "xx-XX"
     var command = base
-    command.transcriber = SettingsTranscriber(engine: "command", command: "whisper-scrawl")
+    command.transcriber = SettingsTranscriber(engine: "command", command: "whisper-pointo")
     var missing = base
     missing.permissions[0].status = "granted"
     missing.permissions[0].relaunch = true
@@ -1624,25 +1624,25 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var noUpdates = base
     noUpdates.updates = false
     var storageCustom = base
-    storageCustom.capturesDir = SettingsCapturesDir(path: "~/Documents/Scrawl Captures", custom: true)
+    storageCustom.capturesDir = SettingsCapturesDir(path: "~/Documents/Pointo Captures", custom: true)
     var cliInstalled = base
     cliInstalled.commandLine = SettingsCommandLine(
-      path: "/opt/homebrew/bin/scrawl", button: "uninstall",
-      caption: "Agents and your terminal can run scrawl to read captures, zoom into a moment and export video.")
+      path: "/opt/homebrew/bin/pointo", button: "uninstall",
+      caption: "Agents and your terminal can run pointo to read captures, zoom into a moment and export video.")
     var cliLocal = base
     cliLocal.commandLine = SettingsCommandLine(
-      path: "~/.local/bin/scrawl", button: "uninstall",
-      caption: "If your shell can't find scrawl, add ~/.local/bin to your PATH.")
+      path: "~/.local/bin/pointo", button: "uninstall",
+      caption: "If your shell can't find pointo, add ~/.local/bin to your PATH.")
     var cliHomebrew = base
     cliHomebrew.commandLine = SettingsCommandLine(
-      path: "/opt/homebrew/bin/scrawl", button: nil,
-      caption: "Installed with Homebrew. Agents and your terminal can run scrawl to read captures, zoom into a moment and export video.")
+      path: "/opt/homebrew/bin/pointo", button: nil,
+      caption: "Installed with Homebrew. Agents and your terminal can run pointo to read captures, zoom into a moment and export video.")
     var cliTaken = base
     cliTaken.commandLine = SettingsCommandLine(
-      button: nil, caption: "/usr/local/bin/scrawl is another program, so Scrawl leaves it alone.", error: true)
+      button: nil, caption: "/usr/local/bin/pointo is another program, so Pointo leaves it alone.", error: true)
     var cliDev = base
     cliDev.commandLine = SettingsCommandLine(
-      enabled: false, caption: "The command-line tool works in the installed Scrawl.app.")
+      enabled: false, caption: "The command-line tool works in the installed Pointo.app.")
     var micChosen = base
     micChosen.microphone = SettingsMicrophone(selected: devices[1].id, value: "Shure MV7", options: micOptions, note: nil, meter: devices[1].id)
     var micMissing = base
