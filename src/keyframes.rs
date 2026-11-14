@@ -435,7 +435,7 @@ pub fn said_per_keyframe(
         }
         let open = text[index].ends_with(['(', '[', '“']);
         let cjk_tight = match (text[index].chars().last(), unit.chars().next()) {
-            (Some(last), Some(first)) => !crate::hex::spaced(last, first),
+            (Some(last), Some(first)) => !crate::speech_text::spaced(last, first),
             _ => false,
         };
         if !text[index].is_empty() && !attached && !open && !cjk_tight {
@@ -919,7 +919,7 @@ fn scene_candidate(frame: usize, span: (u64, u64), diff: f32) -> Candidate {
 mod tests {
     #[test]
     fn chinese_keyframe_words_are_joined_without_spaces_and_clauses_end_at_full_stops() {
-        let (segments, words) = crate::hex::spread_words("你看这个按钮。打开 Settings 页面", 0, 2_000);
+        let (segments, words) = crate::speech_text::spread_words("你看这个按钮。打开 Settings 页面", 0, 2_000);
         let transcript = TranscriptData {
             segments,
             words,

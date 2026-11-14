@@ -1,6 +1,5 @@
 //! The Windows side of `pointo-helper`: the same calls as `src/helper.rs`, answered in process.
-//! Movies go through Media Foundation (`win::media`), transcription through `transcribe.cpp`
-//! with Hex's model or Pointo's own copy of it (`win::speech`), and permissions through the privacy settings
+//! Movies go through Media Foundation (`win::media`) and permissions through the privacy settings
 //! (`win::privacy`). There is no cabled-iPhone mirror on Windows.
 
 use std::path::{Path, PathBuf};
@@ -8,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 use serde::Deserialize;
 
-use crate::model::{RgbaFrame, TranscriptData};
+use crate::model::RgbaFrame;
 
 /// There is no helper executable on Windows; its work happens in process.
 pub fn path() -> Result<PathBuf> {
@@ -34,36 +33,6 @@ pub fn permissions()
 /// Cabled iPhones need AVFoundation's screen capture devices, which only macOS has.
 pub fn devices() -> Result<Vec<PhoneDevice>> {
     Ok(Vec::new())
-}
-
-/// One line of macOS's `pointo-helper speech-model [--install]`.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
-pub struct SpeechModelLine {
-    pub status: String,
-    #[serde(default)]
-    pub engine: Option<String>,
-    #[serde(default)]
-    pub locale: Option<String>,
-    #[serde(default)]
-    pub locales: Option<Vec<String>>,
-    #[serde(default)]
-    pub progress: Option<f64>,
-    #[serde(default)]
-    pub error: Option<String>,
-}
-
-/// Windows transcribes with Parakeet (`win::speech`): Hex's installed model, else Pointo's own
-/// copy, downloaded and checked here.
-pub fn install_speech_model(
-    _stop: &dyn Fn() -> bool,
-    line: impl FnMut(SpeechModelLine),
-) -> Result<()> {
-    crate::local_asr::install(line)
-}
-
-/// On-device transcription with measured word timings (Parakeet through `transcribe.cpp`).
-pub fn transcribe(audio: &Path) -> Result<TranscriptData> {
-    crate::local_asr::transcribe(audio)
 }
 
 #[derive(Debug, Deserialize)]

@@ -7,7 +7,7 @@
 //! `install` downloads once in the background and checks against its SHA-256: first from
 //! hf-mirror.com (reachable from mainland China), then from huggingface.co.
 //!
-//! Like the Hex client it transcribes each speech island on its own. Qwen3-ASR gives no word
+//! It transcribes each speech island on its own. Qwen3-ASR gives no word
 //! times, so each island's words are spread across it by length (`TranscriptData::estimated`):
 //! they land in the right island but not on the right syllable, so spoken cues never cut
 //! keyframes from them.
@@ -18,7 +18,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use transcribe_cpp::{Model, RunOptions, TimestampKind};
 
-use crate::helper::SpeechModelLine;
+use crate::speech_model::ModelLine;
 use crate::model::{TranscriptData, TranscriptSegment, WordTiming};
 
 const KHZ: u64 = 16;
@@ -95,7 +95,7 @@ pub fn installed_models() -> Vec<PathBuf> {
         .into_iter()
         .filter(|path| is_qwen(path))
         .collect();
-    for support in crate::hex::support_dirs() {
+    for support in crate::speech_text::support_dirs() {
         models.extend(
             verified_in(&support.join("models"))
                 .into_iter()
@@ -112,10 +112,10 @@ fn model_name(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// The language to ask for: Settings › Recording › Language (`appleLocale`, `zh-CN` → `zh`), or
+/// The language to ask for: Settings › Recording › Language (`language`, `zh-CN` → `zh`), or
 /// `None` to let the model tell (Mandarin, Cantonese and English mixed in one recording).
 pub fn language() -> Option<String> {
-    crate::handoff::apple_locale().and_then(|locale| language_from_locale(&locale))
+    crate::handoff::language().and_then(|locale| language_from_locale(&locale))
 }
 
 fn language_from_locale(locale: &str) -> Option<String> {
@@ -134,11 +134,7 @@ pub fn transcribe(audio: &Path) -> Result<TranscriptData> {
         };
         return Ok(TranscriptData {
             source: "offline".into(),
-            missing: Some(crate::speech_model::missing(
-                why,
-                "zh",
-                status.error.as_deref(),
-            )),
+            missing: Some(crate::speech_model::missing(why, status.error.as_deref())),
             ..Default::default()
         });
     };
@@ -151,7 +147,7 @@ pub fn transcribe(audio: &Path) -> Result<TranscriptData> {
 /// Transcribes 16 kHz mono `samples` with the model at `path`.
 pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData> {
     let duration_ms = samples.len() as u64 / KHZ;
-    let mut clips = crate::hex::plan_clips(&crate::audio::speech_islands(samples), duration_ms);
+    let mut clips = crate::speech_text::plan_clips(&crate::audio::speech_islands(samples), duration_ms);
     if clips.is_empty() && duration_ms >= 480 {
         clips.push((0, duration_ms));
     }
@@ -202,7 +198,7 @@ pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData
             .collect();
         if words.is_empty() {
             // No word times from this model: spread the text over the clip, and say so.
-            let (segments, words) = crate::hex::spread_words(&text, start, end);
+            let (segments, words) = crate::speech_text::spread_words(&text, start, end);
             transcript.estimated = true;
             transcript.segments.extend(segments);
             transcript.words.extend(words);
@@ -216,7 +212,7 @@ pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData
         }
         texts.push(text);
     }
-    transcript.text = crate::hex::join_tokens(texts.iter().map(String::as_str));
+    transcript.text = crate::speech_text::join_tokens(texts.iter().map(String::as_str));
     Ok(transcript)
 }
 
@@ -239,12 +235,9 @@ fn init_backends() -> Result<()> {
 /// Makes sure a model is on disk: `installed` when Pointo's or Hex's is there, else downloads
 /// `QWEN3_ASR` into `own_models_dir()`, reporting progress, and keeps it only if its SHA-256
 /// matches.
-pub fn install(mut line: impl FnMut(SpeechModelLine)) -> Result<()> {
-    let report = |status: &str, progress: Option<f64>, error: Option<String>| SpeechModelLine {
+pub fn install(mut line: impl FnMut(ModelLine)) -> Result<()> {
+    let report = |status: &str, progress: Option<f64>, error: Option<String>| ModelLine {
         status: status.into(),
-        engine: Some(ENGINE_TITLE.into()),
-        locale: Some(language().unwrap_or_else(|| "auto".into())),
-        locales: None,
         progress,
         error,
     };

@@ -4,7 +4,7 @@
 //! and its `0600` mode (it holds the ingest token).
 //!
 //! Panes: General (launch at login, sending dev-site captures, the two shortcuts), Recording
-//! (transcriber, video export), Storage (how long recordings are kept), Permissions (the
+//! (language, video export), Storage (how long recordings are kept), Permissions (the
 //! onboarding checklist, to fix things later), Agents (`pointo` on PATH, the skill's install
 //! command) and About.
 //!
@@ -826,23 +826,12 @@ fn microphone_view(
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriberView {
-    /// What recordings use now: "qwen", "apple", "hex" or "command".
+    /// What recordings use now: "qwen" or "command".
     pub engine: &'static str,
-    pub hex_title: &'static str,
-    pub hex_enabled: bool,
+    /// The spoken language Qwen3-ASR is asked for: a language id or "auto".
     pub language: String,
-    pub apple_locale: String,
-    pub models: Vec<ModelView>,
-    /// The program's file name while `transcribeCommand` is usable (read, never run); Command
-    /// is offered only then.
+    /// The program's file name while `transcribeCommand` is the engine and usable.
     pub command: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct ModelView {
-    pub id: String,
-    pub title: String,
-    pub chosen: bool,
 }
 
 /// Settings › General › Project folder: the folder every capture goes to (`"project"`).
@@ -980,9 +969,8 @@ fn shortcut_view(
 pub enum Action {
     /// A settings control: `launchAtLogin`, `autoSend`, `videoExport`, `lowerPlayback` (bool),
     /// `project` (an absolute folder, "" or null for Automatic),
-    /// `playbackLevel` (u8), `microphone` ("default" or a device id), `transcriber`
-    /// ("apple"/"hex"/"command"), `hexModel` (an id), `hexLanguage` (a code), `appleLocale`
-    /// (a locale id or "auto"), `retention` (a preset id).
+    /// `playbackLevel` (u8), `microphone` ("default" or a device id), `language` (a language id
+    /// or "auto"), `retention` (a preset id).
     Set {
         key: String,
         value: serde_json::Value,
@@ -1035,8 +1023,6 @@ pub enum Effect {
     CheckForUpdates,
     /// The captures folder may have changed size.
     Measure,
-    /// The Apple Speech language changed.
-    SpeechModel,
     Relaunch,
     Tour,
     Close,
@@ -1228,30 +1214,17 @@ impl Panel {
                     crate::capture::scrawl_log(format!("Saving microphone failed: {error:#}"));
                 }
             }
-            ("transcriber", serde_json::Value::String(name)) => {
-                if let Some(engine) = crate::transcribe::Engine::parse(name) {
-                    write("transcriber", engine.name().into());
-                }
-            }
-            ("hexModel", serde_json::Value::String(model)) if !model.trim().is_empty() => {
-                // Picking a Hex model is choosing Hex.
-                write("hexModel", model.trim().into());
-                write("transcriber", "hex".into());
-            }
-            ("hexLanguage", serde_json::Value::String(language)) => {
-                if let Some(language) = crate::hex::language_code(language) {
-                    write("hexLanguage", language.into());
-                }
-            }
-            ("appleLocale", serde_json::Value::String(locale)) => {
-                let locale = locale.trim();
-                if locale.is_empty() || locale.eq_ignore_ascii_case("auto") {
-                    write("appleLocale", serde_json::Value::Null);
-                    return Effect::SpeechModel;
-                }
-                if let Some(locale) = crate::speech_model::locale_id(locale) {
-                    write("appleLocale", locale.into());
-                    return Effect::SpeechModel;
+            ("language", serde_json::Value::String(language)) => {
+                let language = language.trim();
+                let saved = if language.is_empty() || language.eq_ignore_ascii_case("auto") {
+                    Some(None)
+                } else {
+                    crate::speech_model::language_id(language).map(Some)
+                };
+                if let Some(language) = saved
+                    && let Err(error) = crate::handoff::set_language_in(&path, language.as_deref())
+                {
+                    crate::capture::scrawl_log(format!("Saving language failed: {error:#}"));
                 }
             }
             // The folder every capture goes to, from an open panel; "" or null goes back to
@@ -1328,15 +1301,15 @@ impl Panel {
     pub fn view(&self, host: &dyn Host) -> View {
         let config = crate::handoff::load_config_from(&host.config_path());
         let shortcuts = host.shortcuts();
-        let hex = crate::hex::cached_status();
         let engine = config
             .transcriber
             .as_deref()
             .and_then(crate::transcribe::Engine::parse)
             .unwrap_or_default();
-        let menu = crate::transcribe::menu_state(engine, hex.as_ref(), config.hex_model.as_deref());
-        let command = crate::command_transcriber::Program::load_from(&host.config_path())
-            .ok()
+        // The program's file name (read, never run) while it's the engine and usable.
+        let command = (engine == crate::transcribe::Engine::Command)
+            .then(|| crate::command_transcriber::Program::load_from(&host.config_path()).ok())
+            .flatten()
             .map(|program| program.name());
         let policy = crate::retention::Policy::load_from(&host.config_path());
         let login = login_item();
@@ -1349,7 +1322,6 @@ impl Panel {
                 Permission::Microphone,
                 Permission::Accessibility,
                 Permission::Camera,
-                Permission::SpeechRecognition,
             ]
         };
         View {
@@ -1385,22 +1357,8 @@ impl Panel {
             lower_playback: config.lower_playback.unwrap_or(false),
             playback_level: config.recording_volume(),
             transcriber: TranscriberView {
-                engine: match engine {
-                    crate::transcribe::Engine::Command if command.is_some() => "command",
-                    _ if menu.hex_checked => "hex",
-                    crate::transcribe::Engine::Apple => "apple",
-                    _ => "qwen",
-                },
-                hex_title: menu.hex_title,
-                hex_enabled: menu.hex_enabled,
-                language: crate::handoff::hex_language_from(&config),
-                apple_locale: crate::handoff::apple_locale_from(&config)
-                    .unwrap_or_else(|| "auto".into()),
-                models: menu
-                    .models
-                    .into_iter()
-                    .map(|(id, title, chosen)| ModelView { id, title, chosen })
-                    .collect(),
+                engine: if command.is_some() { "command" } else { "qwen" },
+                language: crate::handoff::language_from(&config).unwrap_or_else(|| "auto".into()),
                 command,
             },
             video_export: config.video_export.unwrap_or(false),
@@ -1419,7 +1377,6 @@ impl Panel {
             captures_dir: CapturesDirView::new(&config),
             permissions: order
                 .iter()
-                .filter(|p| p.asked(self.grants.as_ref()))
                 .map(|&permission| PermissionView {
                     permission,
                     status: self.status(permission),
@@ -1504,7 +1461,7 @@ pub enum Event {
     Grants(Grants),
     CapturesSize(u64),
     Microphones(crate::mic::Inputs),
-    /// Something outside the window may have changed (Hex, the login item): redraw.
+    /// Something outside the window may have changed (the login item): redraw.
     Tick,
     Exited,
 }
@@ -1552,10 +1509,8 @@ impl Session {
         std::thread::spawn(move || {
             let mut n = 0_u32;
             while alive.load(Ordering::Acquire) {
-                // Hex and the size on open (`hex::watch` keeps Hex fresh) and every 30 s; the
-                // grants and the login item every second.
+                // The size on open and every 30 s; the grants and the login item every second.
                 if n % 30 == 0 {
-                    crate::hex::refresh_in_background();
                     let size =
                         crate::retention::captures_size(&crate::handoff::default_captures_dir());
                     poll(Event::CapturesSize(size));
@@ -1698,10 +1653,6 @@ impl Session {
                 });
                 Effect::None
             }
-            Effect::SpeechModel => {
-                crate::speech_model::restart();
-                Effect::None
-            }
             other => other,
         };
         self.sync(host);
@@ -1715,11 +1666,8 @@ impl Session {
     pub fn sync(&mut self, host: &dyn Host) {
         let mut view = serde_json::to_value(self.panel.view(host)).unwrap_or_default();
         view["type"] = "state".into();
-        // Switched to Qwen3-ASR or Apple Speech: get its model now, not at the first capture.
         let speech = crate::speech_model::current();
-        if (view["transcriber"]["engine"] == "qwen" || view["transcriber"]["engine"] == "apple")
-            && speech.state == crate::speech_model::State::Unknown
-        {
+        if speech.state == crate::speech_model::State::Unknown {
             crate::speech_model::ensure();
         }
         view["transcriber"]["speech"] = serde_json::to_value(speech).unwrap_or_default();
@@ -2349,12 +2297,10 @@ mod tests {
         assert_eq!(Panel::default().view(&host).playback_level, 35);
         set(&mut panel, &mut host, "autoSend", false.into());
         set(&mut panel, &mut host, "videoExport", true.into());
-        set(&mut panel, &mut host, "transcriber", "hex".into());
         assert_eq!(
             set(&mut panel, &mut host, "retention", "month".into()),
             Effect::Measure
         );
-        set(&mut panel, &mut host, "transcriber", "nonsense".into());
         let view = panel.view(&host);
         assert!(!view.auto_send && view.video_export);
         assert_eq!(view.retention.preset, Some("month"));
@@ -2367,47 +2313,24 @@ mod tests {
             )
         );
         let config = read_json(&host.path);
-        assert_eq!(config["transcriber"], "hex");
         assert_eq!(config["ingestToken"], "secret");
-        set(&mut panel, &mut host, "hexModel", "parakeet".into());
-        assert_eq!(read_json(&host.path)["hexModel"], "parakeet");
-        assert_eq!(panel.view(&host).transcriber.language, "en");
-        set(&mut panel, &mut host, "hexLanguage", " NL ".into());
-        assert_eq!(panel.view(&host).transcriber.language, "nl");
-        set(
-            &mut panel,
-            &mut host,
-            "hexLanguage",
-            "nl&language=en".into(),
-        );
-        assert_eq!(read_json(&host.path)["hexLanguage"], "nl");
-        set(&mut panel, &mut host, "hexLanguage", "auto".into());
         assert_eq!(panel.view(&host).transcriber.language, "auto");
-        set(&mut panel, &mut host, "hexLanguage", "".into());
-        assert_eq!(panel.view(&host).transcriber.language, "en");
-        assert_eq!(panel.view(&host).transcriber.apple_locale, "auto");
-        assert_eq!(
-            set(&mut panel, &mut host, "appleLocale", "zh-TW".into()),
-            Effect::SpeechModel
-        );
-        assert_eq!(read_json(&host.path)["appleLocale"], "zh-TW");
-        assert_eq!(panel.view(&host).transcriber.apple_locale, "zh-TW");
-        assert_eq!(
-            set(
-                &mut panel,
-                &mut host,
-                "appleLocale",
-                "zh-TW --install".into()
-            ),
-            Effect::None
-        );
-        assert_eq!(read_json(&host.path)["appleLocale"], "zh-TW");
-        assert_eq!(
-            set(&mut panel, &mut host, "appleLocale", "auto".into()),
-            Effect::SpeechModel
-        );
-        assert!(read_json(&host.path).get("appleLocale").is_none());
-        assert_eq!(panel.view(&host).transcriber.apple_locale, "auto");
+        set(&mut panel, &mut host, "language", "zh-CN".into());
+        assert_eq!(read_json(&host.path)["language"], "zh-CN");
+        assert_eq!(panel.view(&host).transcriber.language, "zh-CN");
+        set(&mut panel, &mut host, "language", "zh-CN --install".into());
+        assert_eq!(read_json(&host.path)["language"], "zh-CN");
+        set(&mut panel, &mut host, "language", "auto".into());
+        assert!(read_json(&host.path).get("language").is_none());
+        assert_eq!(panel.view(&host).transcriber.language, "auto");
+        // A language saved by an older Pointo (`appleLocale`) shows, and saving replaces it.
+        std::fs::write(&host.path, r#"{"appleLocale":"yue","ingestToken":"secret"}"#).unwrap();
+        assert_eq!(panel.view(&host).transcriber.language, "yue");
+        set(&mut panel, &mut host, "language", "en-US".into());
+        let config = read_json(&host.path);
+        assert_eq!(config["language"], "en-US");
+        assert!(config.get("appleLocale").is_none());
+        assert_eq!(config["ingestToken"], "secret");
         set(&mut panel, &mut host, "retention", "forever".into());
         // "Forever" says it all; no caption.
         assert_eq!(panel.view(&host).retention.note, "");
@@ -2594,30 +2517,33 @@ mod tests {
     #[cfg(unix)]
     fn command_shows_only_while_it_is_configured() {
         let dir = TempDir::new("command");
-        let mut host = fake(&dir);
-        let mut panel = Panel::default();
+        let host = fake(&dir);
+        let panel = Panel::default();
         std::fs::write(&host.path, r#"{"transcriber":"command"}"#).unwrap();
         let view = panel.view(&host).transcriber;
         assert_eq!((view.engine, view.command), ("qwen", None));
 
         std::fs::write(
             &host.path,
-            r#"{"transcriber":"apple","transcribeCommand":["/opt/stt/whisper-pointo","{audio}"]}"#,
+            r#"{"transcriber":"command","transcribeCommand":["/opt/stt/whisper-pointo","{audio}"]}"#,
         )
         .unwrap();
         let view = panel.view(&host).transcriber;
-        assert_eq!(view.engine, "apple");
+        assert_eq!(view.engine, "command");
         assert_eq!(view.command.as_deref(), Some("whisper-pointo"));
 
-        panel.on(
-            Action::Set {
-                key: "transcriber".into(),
-                value: "command".into(),
-            },
-            &mut host,
-        );
-        assert_eq!(read_json(&host.path)["transcriber"], "command");
-        assert_eq!(panel.view(&host).transcriber.engine, "command");
+        // Apple Speech and Hex are gone: those settings mean Qwen3-ASR, whatever else is set.
+        for old in ["apple", "hex"] {
+            std::fs::write(
+                &host.path,
+                format!(
+                    r#"{{"transcriber":"{old}","transcribeCommand":["/opt/stt/whisper-pointo","{{audio}}"]}}"#
+                ),
+            )
+            .unwrap();
+            let view = panel.view(&host).transcriber;
+            assert_eq!((view.engine, view.command), ("qwen", None), "{old}");
+        }
     }
 
     #[test]

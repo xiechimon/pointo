@@ -1,9 +1,6 @@
-//! Apple's on-device speech model. A fresh Mac doesn't have it, and each app has to reserve it
-//! for itself (`AssetInventory`, attributed to `pointo-helper`), so Pointo checks and installs
-//! it in the background at launch (`pointo-helper speech-model --install`) instead of during the
-//! first capture. Onboarding and Settings show how that's going (`view`). On macOS 15 there's
-//! nothing to download: the check is for the Speech Recognition permission (`NeedsPermission`,
-//! asked for in onboarding) and Dictation's on-device model.
+//! The Qwen3-ASR model on disk. A fresh Mac or PC doesn't have it, so Pointo checks and downloads
+//! it in the background at launch (`local_asr::install`) instead of during the first capture.
+//! Onboarding and Settings show how that's going (`current`).
 //!
 //! A capture that finishes without a model says so in its summary (`TranscriptData::missing`,
 //! from `missing`). When the reason can pass (still downloading, a failed download), the bundle
@@ -12,30 +9,22 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde::Serialize;
 
 use crate::model::MissingTranscript;
 
-/// A locale id such as `zh-TW` (`_` becomes `-`), or `None` for Automatic (`auto`, blank) and
-/// anything that isn't shaped like one. The helper matches it against the supported locales.
-pub fn locale_id(value: &str) -> Option<String> {
+/// A language id such as `zh-TW` (`_` becomes `-`), or `None` for Automatic (`auto`, blank) and
+/// anything that isn't shaped like one. Qwen3-ASR reads the part before the first `-`.
+pub fn language_id(value: &str) -> Option<String> {
     let value = value.trim();
     let shaped = value.starts_with(|c: char| c.is_ascii_alphabetic())
         && value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
     (shaped && !value.eq_ignore_ascii_case("auto")).then(|| value.replace('_', "-"))
-}
-
-/// `--locale ID` for the helper's `transcribe`, `transcribe-stream` and `speech-model` when
-/// Settings › Recording › Language (`appleLocale`) isn't Automatic.
-pub fn locale_args() -> Vec<std::ffi::OsString> {
-    crate::handoff::apple_locale()
-        .map(|id| vec!["--locale".into(), id.into()])
-        .unwrap_or_default()
 }
 
 /// Marks a bundle that should be transcribed again once the model is installed.
@@ -51,17 +40,12 @@ const RETRY_AFTER: [Duration; 3] = [
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum State {
-    /// Not checked yet (or the configured transcriber is Hex).
+    /// Not checked yet.
     #[default]
     Unknown,
     Checking,
     Downloading,
     Ready,
-    /// No Apple speech model for this Mac and language.
-    Unavailable,
-    /// macOS 15: Speech Recognition isn't allowed yet (onboarding asks for it). Checked again
-    /// once it is (`note_grants`).
-    NeedsPermission,
     Failed,
 }
 
@@ -70,18 +54,18 @@ pub enum State {
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub state: State,
-    /// `SpeechTranscriber`, `DictationTranscriber` on Macs without SpeechTranscriber, or
-    /// `SFSpeechRecognizer` on macOS 15.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub engine: Option<String>,
-    /// `en_US`; the helper window shows its name.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub locale: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub locales: Vec<String>,
     /// 0…1 while downloading.
     pub progress: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// One report from `local_asr::install`.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ModelLine {
+    /// `downloading`, `installed` or `failed`.
+    pub status: String,
+    pub progress: Option<f64>,
     pub error: Option<String>,
 }
 
@@ -89,77 +73,37 @@ pub struct Status {
 struct Worker {
     status: Status,
     running: bool,
-    enabled: bool,
-    generation: u64,
 }
 
 impl Worker {
-    fn request(&mut self, restart: bool, enabled: bool) -> Option<u64> {
-        self.enabled = enabled;
-        if restart {
-            self.generation += 1;
-            self.status = Status {
-                locales: std::mem::take(&mut self.status.locales),
-                ..Default::default()
-            };
-        }
-        if !self.enabled
-            || self.running
-            || matches!(self.status.state, State::Ready | State::Unavailable)
-        {
-            return None;
-        }
-        self.running = true;
-        Some(self.generation)
-    }
-
-    fn apply(&mut self, generation: u64, line: &crate::helper::SpeechModelLine) -> bool {
-        if self.stale(generation) {
+    /// Whether a new check should start now.
+    fn request(&mut self) -> bool {
+        if self.running || self.status.state == State::Ready {
             return false;
         }
+        self.running = true;
+        true
+    }
+
+    fn apply(&mut self, line: &ModelLine) {
         let s = &mut self.status;
-        s.engine = line.engine.clone().or(s.engine.take());
-        s.locale = line.locale.clone().or(s.locale.take());
-        if let Some(locales) = &line.locales {
-            s.locales = locales.clone();
-        }
         s.state = match line.status.as_str() {
             "installed" => State::Ready,
-            "unsupported" => State::Unavailable,
-            "permission" => State::NeedsPermission,
             "failed" => State::Failed,
             _ => State::Downloading,
         };
         s.progress = line.progress.unwrap_or(s.progress);
         s.error = line.error.clone();
-        true
-    }
-
-    fn finish(&mut self, generation: u64) -> Option<u64> {
-        if self.enabled && self.stale(generation) {
-            return Some(self.generation);
-        }
-        self.running = false;
-        None
-    }
-
-    fn stale(&self, generation: u64) -> bool {
-        generation != self.generation
     }
 }
 
 static WORKER: Mutex<Worker> = Mutex::new(Worker {
     status: Status {
         state: State::Unknown,
-        engine: None,
-        locale: None,
-        locales: Vec::new(),
         progress: 0.0,
         error: None,
     },
     running: false,
-    enabled: false,
-    generation: 0,
 });
 
 fn lock() -> MutexGuard<'static, Worker> {
@@ -172,71 +116,35 @@ pub fn current() -> Status {
     lock().status.clone()
 }
 
-/// Checks the model in the background and installs it if it's missing, unless the transcriber
-/// is Hex (whose users don't need it) or a check is already running. Cheap to call again.
+/// Checks the model in the background and downloads it if it's missing, unless a check is
+/// already running or it's ready. Cheap to call again.
 pub fn ensure() {
-    start(false);
-}
-
-/// Checks the selected language again, superseding any earlier check or download.
-pub fn restart() {
-    start(true);
-}
-
-fn start(restart: bool) {
-    // Qwen3-ASR is downloaded when it's the engine; Apple's model when Apple Speech is.
-    let enabled = matches!(
-        crate::transcribe::Engine::configured(),
-        crate::transcribe::Engine::Qwen | crate::transcribe::Engine::Apple
-    );
-    if !restart && !enabled {
+    let mut worker = lock();
+    if !worker.request() {
         return;
     }
-    let mut worker = lock();
-    let Some(mut generation) = worker.request(restart, enabled) else {
-        return;
-    };
     let spawned = std::thread::Builder::new()
         .name("pointo-speech-model".into())
-        .spawn(move || {
-            loop {
-                work(generation);
-                match lock().finish(generation) {
-                    Some(next) => generation = next,
-                    None => break,
-                }
-            }
+        .spawn(|| {
+            work();
+            lock().running = false;
         });
     if spawned.is_err() {
         worker.running = false;
     }
 }
 
-fn work(generation: u64) {
+fn work() {
     for attempt in 0..=RETRY_AFTER.len() {
         {
             let mut worker = lock();
-            if worker.stale(generation) {
-                return;
-            }
             if worker.status.state != State::Downloading {
                 worker.status.state = State::Checking;
             }
         }
-        let report = |line: crate::helper::SpeechModelLine| {
-            lock().apply(generation, &line);
-        };
-        let result = if crate::transcribe::Engine::configured() == crate::transcribe::Engine::Apple
-        {
-            crate::helper::install_speech_model(&|| lock().stale(generation), report)
-        } else {
-            crate::local_asr::install(report)
-        };
+        let result = crate::local_asr::install(|line| lock().apply(&line));
         let status = {
             let mut worker = lock();
-            if worker.stale(generation) {
-                return;
-            }
             if let Err(error) = result {
                 worker.status.state = State::Failed;
                 worker.status.error = Some(format!("{error:#}"));
@@ -244,55 +152,27 @@ fn work(generation: u64) {
             worker.status.clone()
         };
         crate::capture::scrawl_log(format!(
-            "speech model: {:?} {} {}{}",
+            "speech model: {:?}{}",
             status.state,
-            status.engine.as_deref().unwrap_or("?"),
-            status.locale.as_deref().unwrap_or("?"),
             status
                 .error
                 .as_ref()
                 .map(|e| format!(" ({e})"))
                 .unwrap_or_default()
         ));
-        match status.state {
-            State::Ready => {
-                if !lock().stale(generation) {
-                    transcribe_pending(&crate::handoff::default_captures_dir());
-                }
-                return;
-            }
-            State::Unavailable | State::NeedsPermission => return,
-            _ => {}
+        if status.state == State::Ready {
+            transcribe_pending(&crate::handoff::default_captures_dir());
+            return;
         }
         if let Some(wait) = RETRY_AFTER.get(attempt) {
-            let deadline = Instant::now() + *wait;
-            while let Some(left) = deadline.checked_duration_since(Instant::now()) {
-                if lock().stale(generation) {
-                    return;
-                }
-                std::thread::sleep(left.min(Duration::from_secs(1)));
-            }
+            std::thread::sleep(*wait);
         }
     }
 }
 
-/// Speech Recognition was just allowed (macOS 15): check the model again now.
-pub fn note_grants(grants: &crate::onboarding::Grants) {
-    if current().state == State::NeedsPermission
-        && grants.granted(crate::onboarding::Permission::SpeechRecognition)
-    {
-        ensure();
-    }
-}
-
-/// The plain sentence for a capture without a transcript, from the helper's `missing`.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-pub fn missing(why: &str, locale: &str, error: Option<&str>) -> MissingTranscript {
-    let model = if crate::transcribe::Engine::configured() == crate::transcribe::Engine::Apple {
-        format!("Apple's speech model ({locale})")
-    } else {
-        format!("The {} speech model", crate::local_asr::ENGINE_TITLE)
-    };
+/// The plain sentence for a capture without a transcript, for `why` (`downloading` or `failed`).
+pub fn missing(why: &str, error: Option<&str>) -> MissingTranscript {
+    let model = format!("The {} speech model", crate::local_asr::ENGINE_TITLE);
     match why {
         "downloading" => MissingTranscript {
             reason: format!(
@@ -300,26 +180,6 @@ pub fn missing(why: &str, locale: &str, error: Option<&str>) -> MissingTranscrip
                  transcript to this bundle when the download finishes."
             ),
             retry: true,
-        },
-        "permission" => MissingTranscript {
-            reason: "Speech Recognition is off for Pointo. The audio is saved, and Pointo adds \
-                     the transcript to this bundle once it's on (Pointo Settings › Permissions)."
-                .to_owned(),
-            retry: true,
-        },
-        "dictation" => MissingTranscript {
-            reason: "Dictation's on-device model isn't on this Mac. Turn on Dictation in System \
-                     Settings › Keyboard, and Pointo adds the transcript to this bundle once it's \
-                     there."
-                .to_owned(),
-            retry: true,
-        },
-        "unsupported" => MissingTranscript {
-            reason: format!(
-                "this Mac has no Apple speech model for {locale}. Hex can transcribe instead \
-                 (Pointo Settings › Recording)."
-            ),
-            retry: false,
         },
         _ => MissingTranscript {
             reason: format!(
@@ -374,28 +234,14 @@ fn transcribe_one(dir: &Path) {
     }
 }
 
-/// Transcribes a bundle's `audio.wav` with Apple Speech and rewrites its transcript, each
-/// keyframe's words, `pointo.json` and `summary.md`. Returns `false` (and keeps the marker)
-/// while there's still no model.
-/// Which engine transcribes a bundle again: the one whose model it was waiting for. That's Apple
-/// Speech when it's the configured engine (macOS), else the local Qwen3-ASR model (also the
-/// fallback for Hex and Command).
-fn redo_engine(configured: crate::transcribe::Engine) -> crate::transcribe::Engine {
-    use crate::transcribe::Engine;
-    match configured {
-        Engine::Apple if cfg!(target_os = "macos") => Engine::Apple,
-        _ => Engine::Qwen,
-    }
-}
-
+/// Transcribes a bundle's `audio.wav` with Qwen3-ASR (the model it was waiting for) and rewrites
+/// its transcript, each keyframe's words, `pointo.json` and `summary.md`. Returns `false` (and
+/// keeps the marker) while there's still no model.
 pub fn transcribe_again(dir: &Path) -> Result<bool> {
     let (dir, mut bundle) = crate::handoff::load_bundle(dir)?;
     let wav = dir.join(bundle.audio.as_deref().unwrap_or("audio.wav"));
     anyhow::ensure!(wav.is_file(), "the bundle has no audio.wav any more");
-    let transcript = match redo_engine(crate::transcribe::Engine::configured()) {
-        crate::transcribe::Engine::Apple => crate::helper::transcribe(&wav)?,
-        _ => crate::local_asr::transcribe(&wav)?,
-    };
+    let transcript = crate::local_asr::transcribe(&wav)?;
     if transcript
         .missing
         .as_ref()
@@ -425,145 +271,60 @@ pub fn transcribe_again(dir: &Path) -> Result<bool> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_bundle_is_transcribed_again_by_the_engine_whose_model_it_waited_for() {
-        use crate::transcribe::Engine;
-        assert_eq!(redo_engine(Engine::Qwen), Engine::Qwen);
-        assert_eq!(redo_engine(Engine::Hex), Engine::Qwen);
-        assert_eq!(redo_engine(Engine::Command), Engine::Qwen);
-        let apple = if cfg!(target_os = "macos") { Engine::Apple } else { Engine::Qwen };
-        assert_eq!(redo_engine(Engine::Apple), apple);
-    }
-
-    fn line(status: &str) -> crate::helper::SpeechModelLine {
-        crate::helper::SpeechModelLine {
+    fn line(status: &str) -> ModelLine {
+        ModelLine {
             status: status.into(),
             ..Default::default()
         }
     }
 
     #[test]
-    fn a_restart_can_cancel_without_requesting_more_work() {
+    fn a_check_runs_once_at_a_time_and_stops_when_the_model_is_ready() {
         let mut w = Worker::default();
-        assert_eq!(w.request(true, false), None);
-        assert!(!w.running);
-        let g0 = w.request(false, true).unwrap();
-        assert!(w.apply(g0, &line("downloading")));
-        assert_eq!(w.request(true, false), None);
-        assert!(w.stale(g0));
-        assert_eq!(w.status.state, State::Unknown);
-        assert!(!w.apply(g0, &line("installed")));
-        assert_eq!(w.finish(g0), None);
-        assert!(!w.running);
-        let g1 = w.request(false, true).unwrap();
-        assert_ne!(g0, g1);
-        assert!(w.apply(g1, &line("installed")));
-    }
-
-    #[test]
-    fn a_restart_while_running_is_never_lost() {
-        let mut w = Worker::default();
-        let g0 = w.request(false, true).unwrap();
-        assert_eq!(w.request(true, true), None);
-        assert!(!w.apply(g0, &line("installed")));
-        assert_eq!(w.status.state, State::Unknown);
-        let g1 = w.finish(g0).expect("runs again for the new language");
-        assert!(w.apply(g1, &line("installed")));
-        assert_eq!(w.status.state, State::Ready);
-        assert_eq!(w.finish(g1), None);
-        assert!(!w.running);
-        assert_eq!(w.request(false, true), None);
-        assert!(w.request(true, true).is_some());
-    }
-
-    #[test]
-    fn restarting_between_the_last_attempt_and_going_idle_still_runs() {
-        let mut w = Worker::default();
-        let g0 = w.request(false, true).unwrap();
-        assert!(w.apply(g0, &line("installed")));
-        assert_eq!(w.request(true, true), None);
-        assert!(w.finish(g0).is_some());
-    }
-
-    #[test]
-    fn a_b_c_changes_only_publish_the_latest() {
-        let mut w = Worker::default();
-        let g0 = w.request(false, true).unwrap();
-        assert_eq!(w.request(true, true), None);
-        let g1 = w.generation;
-        assert_eq!(w.request(true, true), None);
-        let g2 = w.generation;
-        assert!(w.stale(g0));
-        assert!(w.stale(g1));
-        assert!(!w.stale(g2));
-        assert!(!w.apply(g0, &line("installed")));
-        assert!(!w.apply(g1, &line("failed")));
-        assert_eq!(w.status.state, State::Unknown);
-        assert_eq!(w.finish(g0), Some(g2));
-        assert!(w.apply(g2, &line("installed")));
-        assert_eq!(w.finish(g2), None);
-        assert!(!w.running);
-        assert_eq!(w.request(false, true), None);
-    }
-
-    #[test]
-    fn locales_survive_a_restart() {
-        let mut w = Worker::default();
-        let g0 = w.request(false, true).unwrap();
+        assert!(w.request());
+        assert!(!w.request(), "already running");
+        w.apply(&line("downloading"));
+        assert_eq!(w.status.state, State::Downloading);
+        w.running = false;
+        assert!(w.request(), "a failed or interrupted check can start again");
         let mut failed = line("failed");
-        failed.engine = Some("SpeechTranscriber".into());
-        failed.locale = Some("en_US".into());
-        failed.locales = Some(vec!["en-US".into(), "zh-TW".into()]);
-        failed.progress = Some(0.5);
-        failed.error = Some("download failed".into());
-        assert!(w.apply(g0, &failed));
-        let locales = w.status.locales.clone();
-        assert_eq!(w.request(true, true), None);
-        assert_eq!(
-            w.status,
-            Status {
-                locales: locales.clone(),
-                ..Default::default()
-            }
-        );
-        let g1 = w.finish(g0).unwrap();
-        assert!(w.apply(g1, &line("installed")));
-        assert_eq!(w.status.locales, locales);
+        failed.error = Some("offline".into());
+        w.apply(&failed);
+        assert_eq!(w.status.state, State::Failed);
+        assert_eq!(w.status.error.as_deref(), Some("offline"));
+        w.apply(&line("installed"));
+        assert_eq!(w.status.state, State::Ready);
+        assert_eq!(w.status.error, None);
+        w.running = false;
+        assert!(!w.request(), "nothing to do once it's ready");
     }
 
     #[test]
-    fn locale_ids_are_plain_ids_and_auto_is_none() {
-        assert_eq!(locale_id(" zh-TW ").as_deref(), Some("zh-TW"));
-        assert_eq!(locale_id("zh_Hant_TW").as_deref(), Some("zh-Hant-TW"));
-        assert_eq!(locale_id("yue-CN").as_deref(), Some("yue-CN"));
+    fn progress_survives_lines_without_one() {
+        let mut w = Worker::default();
+        let mut half = line("downloading");
+        half.progress = Some(0.5);
+        w.apply(&half);
+        w.apply(&line("downloading"));
+        assert_eq!(w.status.progress, 0.5);
+    }
+
+    #[test]
+    fn language_ids_are_plain_ids_and_auto_is_none() {
+        assert_eq!(language_id(" zh-CN ").as_deref(), Some("zh-CN"));
+        assert_eq!(language_id("zh_Hant_TW").as_deref(), Some("zh-Hant-TW"));
+        assert_eq!(language_id("yue").as_deref(), Some("yue"));
         for automatic_or_bad in ["", "auto", "AUTO", "zh-TW --install", "../x", "-zh", "中文"] {
-            assert_eq!(locale_id(automatic_or_bad), None, "{automatic_or_bad:?}");
+            assert_eq!(language_id(automatic_or_bad), None, "{automatic_or_bad:?}");
         }
     }
 
     #[test]
-    fn a_download_in_progress_will_be_retried_but_a_missing_language_will_not() {
-        let downloading = missing("downloading", "en_US", None);
+    fn a_download_in_progress_and_a_failed_one_are_both_retried() {
+        let downloading = missing("downloading", None);
         assert!(downloading.retry);
         assert!(downloading.reason.contains("still downloading"));
-        let unsupported = missing("unsupported", "xx_XX", None);
-        assert!(!unsupported.retry);
-        assert!(
-            unsupported
-                .reason
-                .contains("no Apple speech model for xx_XX")
-        );
-        let failed = missing("failed", "en_US", Some("asset unavailable"));
-        assert!(failed.retry && failed.reason.contains("(asset unavailable)"));
-        let dictation = missing("dictation", "en_US", None);
-        assert!(dictation.retry && dictation.reason.contains("Turn on Dictation"));
-        // macOS 15 without Speech Recognition: transcribed again once it's allowed.
-        let off = missing("permission", "en_US", Some("Speech Recognition is off"));
-        assert!(
-            off.retry
-                && off
-                    .reason
-                    .starts_with("Speech Recognition is off for Pointo.")
-        );
+        let failed = missing("failed", Some("no space left"));
+        assert!(failed.retry && failed.reason.contains("(no space left)"));
     }
 }

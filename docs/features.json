@@ -185,16 +185,6 @@
       "docs": ["docs/onboarding-and-settings.md"]
     },
     {
-      "id": "live-transcribe",
-      "group": "record",
-      "name": "Transcribe while recording",
-      "says": "Streams the microphone to Apple Speech during the capture, so finishing waits only for the last words.",
-      "status": "experiment:liveTranscribe",
-      "platforms": ["mac"],
-      "added": "2026-10-19",
-      "docs": ["README.md#transcribing-while-recording-experiment", "docs/keyframes-and-text.md"]
-    },
-    {
       "id": "straight-line",
       "group": "record",
       "name": "Straight lines",
@@ -341,7 +331,7 @@
       "says": "Saying “now”, “here”, “look” or “watch” cuts a keyframe when that screen differs from the ones already chosen.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "note": "Needs measured word times, so not from a Hex transcript.",
+      "note": "Needs measured word times, so not from an estimated-time transcript (Qwen3-ASR, a command that gives none).",
       "docs": ["README.md#transcription"]
     },
     {
@@ -374,41 +364,18 @@
       "pr": 56
     },
     {
-      "id": "apple-speech",
-      "group": "agent",
-      "name": "Apple Speech",
-      "says": "On-device transcription with word times: SpeechAnalyzer on macOS 26, SFSpeechRecognizer on macOS 15.",
-      "status": "stable@0.3.4",
-      "platforms": ["mac"],
-      "note": "An alternative to Qwen3-ASR on macOS.",
-      "config": [
-        { "key": "transcriber", "value": "\"qwen\" | \"apple\" | \"hex\" | \"command\"", "does": "Which engine transcribes" },
-        { "key": "appleLocale", "value": "\"zh-TW\"", "does": "Apple Speech language; absent follows the Mac" }
-      ],
-      "docs": ["README.md#transcription"]
-    },
-    {
       "id": "qwen-asr",
       "group": "agent",
       "name": "Qwen3-ASR on device",
-      "says": "The default transcriber: Qwen3-ASR 0.6B through transcribe.cpp (Mandarin, Cantonese, English, code-switching). Uses Hex's copy, or downloads Pointo's own (850 MB, hf-mirror.com first) at first launch.",
+      "says": "The only transcriber Pointo offers: Qwen3-ASR 0.6B through transcribe.cpp (Mandarin, Cantonese, English, code-switching). Reuses a copy Hex already installed, or downloads Pointo's own (850 MB, hf-mirror.com first) at first launch.",
       "status": "main",
       "platforms": ["mac", "windows"],
-      "docs": ["docs/keyframes-and-text.md"]
-    },
-    {
-      "id": "hex",
-      "group": "agent",
-      "name": "Hex",
-      "says": "Transcribes with whichever model a running Hex has ready; falls back to Apple Speech if Hex fails.",
-      "status": "stable@0.3.4",
-      "platforms": ["mac"],
-      "note": "Hex's local API is Mac only.",
+      "note": "Replaces Apple Speech, Hex and live transcription; old \"apple\" and \"hex\" settings mean Qwen3-ASR.",
       "config": [
-        { "key": "hexModel", "value": "\"parakeet_v3\"", "does": "Hex model to use" },
-        { "key": "hexLanguage", "value": "\"en\" | \"nl\" | \"auto\"", "does": "Language sent to Hex" }
+        { "key": "transcriber", "value": "\"qwen\" | \"command\"", "does": "Which engine transcribes; qwen is the default" },
+        { "key": "language", "value": "\"zh-CN\" | \"yue\" | \"en-US\" | \"auto\"", "does": "Spoken language; absent or auto lets the model tell. Older configs call it appleLocale" }
       ],
-      "docs": ["README.md#apple-or-hex"]
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "command-transcriber",
@@ -833,7 +800,7 @@
       "id": "macos",
       "group": "platforms",
       "name": "macOS",
-      "says": "Apple silicon, macOS 15 or later; live transcription and Liquid Glass need macOS 26.",
+      "says": "Apple silicon, macOS 15 or later; Liquid Glass needs macOS 26.",
       "status": "stable@0.3.4",
       "platforms": ["mac"],
       "docs": ["README.md#install"]

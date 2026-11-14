@@ -366,7 +366,7 @@ pub struct Config {
     /// Feature flag: shows **Export Last Capture as Video…** in the menu (default off).
     #[serde(default)]
     pub video_export: Option<bool>,
-    /// `"apple"` (default), `"hex"` or `"command"`: which engine transcribes recordings
+    /// `"qwen"` (default) or `"command"` (`"apple"` and `"hex"` mean `"qwen"`): which engine transcribes recordings
     /// (`transcribe`). The command's own keys are read by `transcribe_command`, not here, so a
     /// malformed one can't reset this struct.
     #[serde(default)]
@@ -376,16 +376,10 @@ pub struct Config {
     pub lower_playback: Option<bool>,
     #[serde(default)]
     pub playback_level: Option<u8>,
-    /// The Hex model to use when `transcriber` is `"hex"` (default: the first ready one of
-    /// `hex::PREFERRED_MODELS`).
-    #[serde(default)]
-    pub hex_model: Option<String>,
-    /// Hex language code (`"en"` by default, `"auto"` for model language detection).
-    #[serde(default)]
-    pub hex_language: Option<String>,
-    /// Apple Speech locale (BCP-47, e.g. "zh-TW"); missing means the Mac's own language.
-    #[serde(default)]
-    pub apple_locale: Option<String>,
+    /// The spoken language for Qwen3-ASR (`"zh-CN"`, `"yue"`, `"en-US"`, `"auto"`); missing means
+    /// the model tells. Configs written before Pointo dropped Apple Speech call it `appleLocale`.
+    #[serde(default, alias = "appleLocale")]
+    pub language: Option<String>,
     /// Whether to use the native Metal recording pill instead of GPUI's `HudPillWindow` (default `true`).
     #[serde(default)]
     pub native_pill: Option<bool>,
@@ -475,10 +469,6 @@ fn log_config_once(message: String) {
 /// More of what Pointo already knows in the summary: marks, shortcuts, drags and windows inline
 /// at their time, numbered marks on shared frames, where a screen changed.
 pub const AGENT_CONTEXT: &str = "agentContext";
-
-/// Transcribe Mac recordings while they record, so finishing only waits for the last words
-/// (`live_transcribe`).
-pub const LIVE_TRANSCRIBE: &str = "liveTranscribe";
 
 static EXPERIMENT_OVERRIDES: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
@@ -714,37 +704,29 @@ pub fn transcriber() -> Option<String> {
     config().transcriber
 }
 
-/// The configured Hex model id (`hexModel`), if any.
-pub fn hex_model() -> Option<String> {
-    config()
-        .hex_model
-        .map(|model| model.trim().to_owned())
-        .filter(|model| !model.is_empty())
+/// The configured spoken language (`language`, or `appleLocale` in older configs), or `None`
+/// when the model should tell.
+pub fn language() -> Option<String> {
+    language_from(&config())
 }
 
-/// The configured Hex language, defaulting to the previous English behavior.
-pub fn hex_language() -> String {
-    hex_language_from(&config())
-}
-
-pub fn hex_language_from(config: &Config) -> String {
+pub fn language_from(config: &Config) -> Option<String> {
     config
-        .hex_language
+        .language
         .as_deref()
-        .and_then(crate::hex::language_code)
-        .unwrap_or_else(|| crate::hex::DEFAULT_LANGUAGE.into())
+        .and_then(crate::speech_model::language_id)
 }
 
-/// The configured Apple Speech locale, or the Mac's own language when unset.
-pub fn apple_locale() -> Option<String> {
-    apple_locale_from(&config())
-}
-
-pub fn apple_locale_from(config: &Config) -> Option<String> {
-    config
-        .apple_locale
-        .as_deref()
-        .and_then(crate::speech_model::locale_id)
+/// Saves the spoken language (`None` is Automatic) under `language`, dropping `appleLocale` from
+/// configs that still have it.
+pub fn set_language_in(path: &Path, language: Option<&str>) -> Result<()> {
+    const LEGACY_KEY: &str = "appleLocale";
+    set_config_value_in(
+        path,
+        "language",
+        language.map_or(serde_json::Value::Null, Into::into),
+    )?;
+    set_config_value_in(path, LEGACY_KEY, serde_json::Value::Null)
 }
 
 /// The command transcriber's program (`transcribeCommand`, `transcribeTimeoutSeconds`), read
@@ -1150,28 +1132,45 @@ mod tests {
     }
 
     #[test]
-    fn apple_locale_round_trips_and_keeps_other_keys() {
+    fn language_round_trips_and_keeps_other_keys() {
         let fixture = Fixture::new();
         let path = fixture.0.join("config.json");
         fs::write(&path, br#"{"ingestToken":"abc","autoSend":false}"#).unwrap();
         let config = load_config_from(&path);
-        assert_eq!(apple_locale_from(&config), None);
+        assert_eq!(language_from(&config), None);
         assert_eq!(config.auto_send, Some(false));
 
         for (value, expected) in [
-            ("zh-TW".into(), Some("zh-TW")),
-            ("bad value".into(), None),
-            (5.into(), None),
-            (serde_json::Value::Null, None),
+            (Some("zh-CN"), Some("zh-CN")),
+            (Some("bad value"), None),
+            (None, None),
         ] {
-            set_config_value_in(&path, "appleLocale", value).unwrap();
+            set_language_in(&path, value).unwrap();
             let config = load_config_from(&path);
-            assert_eq!(apple_locale_from(&config).as_deref(), expected);
+            assert_eq!(language_from(&config).as_deref(), expected);
             assert_eq!(config.ingest_token.as_deref(), Some("abc"));
             assert_eq!(config.auto_send, Some(false));
         }
         let raw: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert!(raw.get("language").is_none());
+    }
+
+    #[test]
+    fn an_old_apple_locale_is_the_language_until_one_is_saved() {
+        let fixture = Fixture::new();
+        let path = fixture.0.join("config.json");
+        fs::write(&path, br#"{"appleLocale":"yue","autoSend":false}"#).unwrap();
+        assert_eq!(language_from(&load_config_from(&path)).as_deref(), Some("yue"));
+        set_language_in(&path, Some("en-US")).unwrap();
+        let raw: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(raw["language"], "en-US");
         assert!(raw.get("appleLocale").is_none());
+        assert_eq!(language_from(&load_config_from(&path)).as_deref(), Some("en-US"));
+        // Both keys present (hand-edited): the config still loads and keeps its other keys.
+        fs::write(&path, br#"{"appleLocale":"yue","language":"zh-CN","autoSend":false}"#).unwrap();
+        let config = load_config_from(&path);
+        assert_eq!(config.auto_send, Some(false));
+        assert!(language_from(&config).is_some());
     }
 
     #[test]
@@ -1180,15 +1179,10 @@ mod tests {
         let path = fixture.0.join("config.json");
         fs::write(&path, br#"{"ingestToken":"abc","autoSend":false}"#).unwrap();
         let config = load_config_from(&path);
-        assert_eq!((&config.transcriber, &config.hex_model), (&None, &None));
-        assert_eq!(hex_language_from(&config), "en");
-        set_config_value_in(&path, "transcriber", "hex".into()).unwrap();
-        set_config_value_in(&path, "hexModel", "parakeet_v3".into()).unwrap();
-        set_config_value_in(&path, "hexLanguage", "nl".into()).unwrap();
+        assert_eq!(config.transcriber, None);
+        set_config_value_in(&path, "transcriber", "command".into()).unwrap();
         let config = load_config_from(&path);
-        assert_eq!(config.transcriber.as_deref(), Some("hex"));
-        assert_eq!(config.hex_model.as_deref(), Some("parakeet_v3"));
-        assert_eq!(hex_language_from(&config), "nl");
+        assert_eq!(config.transcriber.as_deref(), Some("command"));
         assert_eq!(config.ingest_token.as_deref(), Some("abc"));
         assert_eq!(config.auto_send, Some(false));
         #[cfg(unix)]
