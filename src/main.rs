@@ -48,6 +48,7 @@ mod shortcut;
 mod sketch;
 #[cfg(target_os = "macos")]
 mod sparkle;
+mod local_asr;
 mod speech_model;
 mod transcribe;
 mod ui;
@@ -105,6 +106,7 @@ fn hex_status() {
     let next = |hex_model: Option<&str>| match (preferred, hex_model, &command) {
         (transcribe::Engine::Command, _, Ok(program)) => format!("Command ({})", program.name()),
         (transcribe::Engine::Hex, Some(model), _) => format!("Hex ({model})"),
+        (transcribe::Engine::Apple, _, _) => transcribe::APPLE_ENGINE_TITLE.to_owned(),
         _ => transcribe::LOCAL_ENGINE_TITLE.to_owned(),
     };
     let configured = handoff::hex_model();

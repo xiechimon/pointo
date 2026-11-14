@@ -2118,7 +2118,7 @@ mod tests {
         };
         let summary = summary_markdown(&silent, std::path::Path::new("/recordings/test"));
         assert!(summary.contains("No transcript: "));
-        assert!(summary.contains("(en_US) was still downloading. The audio is saved"));
+        assert!(summary.contains("Qwen3-ASR speech model was still downloading. The audio is saved"));
 
         // A phone bundle: device header, a flagged keyframe, and app events under the keyframe
         // that was on screen when they happened.

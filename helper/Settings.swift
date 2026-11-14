@@ -943,7 +943,9 @@ struct SettingsView: View {
   private var recording: some View {
     let t = state.transcriber
     let language = SettingsTranscriber.languageMenu(saved: t.appleLocale, speech: t.speech)
-    var engines: [(id: String, title: String, enabled: Bool)] = [("apple", "Apple Speech", true)]
+    var engines: [(id: String, title: String, enabled: Bool)] = [("qwen", "Qwen3-ASR（本机）", true), ("apple", "Apple Speech", true)]
+    let qwenLanguages: [(id: String, title: String, enabled: Bool)] = [("auto", "自动识别", true), ("zh-CN", "普通话", true), ("yue", "粤语", true), ("en-US", "English", true)]
+    let qwenLanguage = qwenLanguages.first { $0.id == t.appleLocale } ?? qwenLanguages[0]
     engines.append(("hex", t.hexTitle, t.hexEnabled))
     if let command = t.command { engines.append(("command", "Command (\(command))", true)) }
     let chosenModel = t.models.first(where: \.chosen)
@@ -967,8 +969,16 @@ struct SettingsView: View {
       Color.clear.frame(height: 20)
       SettingsGroup {
         SettingsRow(title: "Transcription") {
-          SettingsPopup(value: engines.first { $0.id == t.engine }?.title ?? "Apple Speech", options: engines, selected: t.engine) {
+          SettingsPopup(value: engines.first { $0.id == t.engine }?.title ?? "Qwen3-ASR（本机）", options: engines, selected: t.engine) {
             model.set("transcriber", $0)
+          }
+        }
+        if t.engine == "qwen" {
+          SettingsSeparator()
+          SettingsRow(title: "语言") {
+            SettingsPopup(value: qwenLanguage.title, options: qwenLanguages, selected: qwenLanguage.id) {
+              model.set("appleLocale", $0)
+            }
           }
         }
         if t.engine == "apple" {
@@ -994,7 +1004,9 @@ struct SettingsView: View {
           HexLanguageField(model: model, language: t.language)
         }
       }
-      SettingsCaption(text: t.engine == "command"
+      SettingsCaption(text: t.engine == "qwen"
+        ? "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型。"
+        : t.engine == "command"
         ? "Command runs transcribeCommand from config.json. If it fails, that recording uses Apple Speech."
         : t.hexEnabled || t.engine == "hex"
         ? "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."
@@ -1002,7 +1014,7 @@ struct SettingsView: View {
       if t.engine == "apple", let note = language.note {
         SettingsCaption(text: note)
       }
-      if t.engine == "apple", t.speech?.notReady == true, let line = t.speech?.line {
+      if t.engine == "apple" || t.engine == "qwen", t.speech?.notReady == true, let line = t.speech?.line {
         SettingsCaption(text: line)
       }
       SettingsHeader("Experimental")

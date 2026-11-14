@@ -1146,9 +1146,9 @@ impl SettingsWindow {
     fn recording_pane(&self, theme: Theme, state: &ViewState, cx: &mut Context<Self>) -> Div {
         let t = &state.transcriber;
         let hex = t.engine == "hex";
-        let local = crate::transcribe::LOCAL_ENGINE_TITLE;
+        let local = format!("{}（本机）", crate::transcribe::LOCAL_ENGINE_TITLE);
         let engines = vec![
-            ("apple".to_owned(), local.to_owned(), true),
+            ("qwen".to_owned(), local.clone(), true),
             ("hex".to_owned(), t.hex_title.clone(), t.hex_enabled),
         ];
         let chosen = t.models.iter().find(|m| m.chosen);
@@ -1160,7 +1160,7 @@ impl SettingsWindow {
                 popup(
                     theme,
                     "settings-transcriber",
-                    if hex { "Hex" } else { local },
+                    if hex { "Hex" } else { &local },
                 )
                 .on_click(cx.listener({
                     let selected = t.engine.clone();
@@ -1206,10 +1206,10 @@ impl SettingsWindow {
         }
         let note = match (WINDOWS, t.hex_enabled || hex) {
             (true, true) => {
-                "Parakeet runs on this PC and times each word. Hex uses a model you have in Hex, and its word times are estimates."
+                "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说。Hex 使用你在 Hex 里装好的模型。"
             }
             (true, false) => {
-                "Parakeet runs on this PC and times each word. Pointo downloads its 730 MB model once, unless Hex already has it. Hex shows up here while Hex is running."
+                "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型；Hex 运行时也会出现在这里。"
             }
             (false, true) => {
                 "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."

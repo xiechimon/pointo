@@ -501,13 +501,77 @@ pub fn plan_clips(islands: &[(u64, u64)], duration_ms: u64) -> Vec<(u64, u64)> {
 
 fn ends_sentence(word: &str) -> bool {
     word.trim_end_matches(['"', '\'', '”', '’', ')', ']'])
-        .ends_with(['.', '!', '?', ';', ':'])
+        .ends_with(['.', '!', '?', ';', ':', '。', '！', '？', '；'])
+}
+
+/// Han, kana, hangul and their punctuation: written without spaces between words.
+fn is_cjk(c: char) -> bool {
+    matches!(c as u32,
+        0x2E80..=0x2FDF | 0x3000..=0x303F | 0x3040..=0x30FF | 0x3100..=0x312F | 0x3190..=0x31FF
+        | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF
+        | 0xFE30..=0xFE4F | 0xFF00..=0xFF65 | 0x20000..=0x2FA1F)
+}
+
+/// Punctuation that belongs to the word before it.
+fn is_cjk_punctuation(c: char) -> bool {
+    matches!(c, '，' | '。' | '！' | '？' | '；' | '：' | '、' | '）' | '」' | '』' | '》' | '”' | '’' | '…')
+}
+
+/// The words of `text`: whitespace-separated runs, with every CJK character its own word and
+/// CJK punctuation kept on the word before it.
+fn tokens(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for run in text.split_whitespace() {
+        let mut latin = String::new();
+        for c in run.chars() {
+            if is_cjk_punctuation(c) {
+                if !latin.is_empty() {
+                    out.push(std::mem::take(&mut latin));
+                }
+                match out.last_mut() {
+                    Some(last) => last.push(c),
+                    None => out.push(c.to_string()),
+                }
+            } else if is_cjk(c) {
+                if !latin.is_empty() {
+                    out.push(std::mem::take(&mut latin));
+                }
+                out.push(c.to_string());
+            } else {
+                latin.push(c);
+            }
+        }
+        if !latin.is_empty() {
+            out.push(latin);
+        }
+    }
+    out
+}
+
+/// Joins words (or transcript pieces) the way the language writes them: no space between two CJK
+/// characters or beside CJK punctuation, a space everywhere else (`打开 Settings 页面`).
+pub fn join_tokens<'a>(tokens: impl IntoIterator<Item = &'a str>) -> String {
+    let mut text = String::new();
+    for token in tokens {
+        let (Some(last), Some(first)) = (text.chars().last(), token.chars().next()) else {
+            text.push_str(token);
+            continue;
+        };
+        let tight = (is_cjk(last) && is_cjk(first))
+            || is_cjk_punctuation(last)
+            || is_cjk_punctuation(first);
+        if !tight {
+            text.push(' ');
+        }
+        text.push_str(token);
+    }
+    text
 }
 
 /// Spreads `text` over `start..end`, each word's share weighted by its length. Words tile the
 /// span exactly (no gaps, no overlap), so the first begins at `start` and the last ends at `end`.
 pub fn spread_words(text: &str, start: u64, end: u64) -> (Vec<TranscriptSegment>, Vec<WordTiming>) {
-    let tokens: Vec<&str> = text.split_whitespace().collect();
+    let tokens = tokens(text);
     let end = end.max(start);
     let total: u128 = tokens
         .iter()
@@ -524,18 +588,14 @@ pub fn spread_words(text: &str, start: u64, end: u64) -> (Vec<TranscriptSegment>
         words.push(WordTiming {
             t0,
             t1: at(weight),
-            text: (*token).to_owned(),
+            text: token.clone(),
         });
         if ends_sentence(token) || index + 1 == tokens.len() {
             let phrase = &words[segment_start..];
             segments.push(TranscriptSegment {
                 t0: phrase[0].t0,
                 t1: phrase[phrase.len() - 1].t1,
-                text: phrase
-                    .iter()
-                    .map(|word| word.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                text: join_tokens(phrase.iter().map(|word| word.text.as_str())),
             });
             segment_start = words.len();
         }
@@ -593,7 +653,7 @@ pub fn transcribe_clips(
         rejected == 0 || rejected < clips.len(),
         "Hex refused every clip"
     );
-    transcript.text = texts.join(" ");
+    transcript.text = join_tokens(texts.iter().map(String::as_str));
     Ok(transcript)
 }
 
@@ -618,6 +678,25 @@ pub fn transcribe_audio(
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn chinese_is_split_into_sentences_and_joined_without_spaces() {
+        let (segments, words) = spread_words("你好世界。我们走吧", 0, 900);
+        let texts: Vec<&str> = segments.iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(texts, ["你好世界。", "我们走吧"]);
+        // Eight words: the full stop rides on 界.
+        assert_eq!(words.len(), 8);
+        assert_eq!((words[0].t0, words[7].t1), (0, 900));
+    }
+
+    #[test]
+    fn mixed_chinese_and_english_keep_spaces_only_between_latin_words() {
+        let (segments, _) = spread_words("打开 Settings 页面，点 Save 按钮", 0, 1000);
+        let joined: Vec<&str> = segments.iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(joined, ["打开 Settings 页面，点 Save 按钮"]);
+        let (segments, _) = spread_words("open the Settings page. then save", 0, 1000);
+        assert_eq!(segments[0].text, "open the Settings page.");
+    }
     use super::*;
     use std::io::{BufRead, BufReader};
     use std::net::TcpListener;

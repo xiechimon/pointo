@@ -103,8 +103,8 @@ jobs:
 
       - name: Downloads and runs the speech model
         env:
-          SCRAWL_TEST_MODEL_DIR: ${{ runner.temp }}\speech-model
-        run: cargo test ${{ env.BUILD }} win::speech -- --ignored --nocapture
+          POINTO_TEST_MODEL_DIR: ${{ runner.temp }}\speech-model
+        run: cargo test ${{ env.BUILD }} local_asr::tests::downloads_and_runs_qwen -- --exact --ignored --nocapture
 
       # The runner has AVX-512; Intel SDE runs the model again as a Lunar Lake CPU (AVX2 and
       # AVX-VNNI, no AVX-512), the one that crashed in #58. ggml then loads the alderlake backend.
@@ -113,8 +113,8 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         env:
-          SCRAWL_TEST_MODEL_DIR: ${{ runner.temp }}\speech-model
-          SCRAWL_TEST_NO_AVX512: "1"
+          POINTO_TEST_MODEL_DIR: ${{ runner.temp }}\speech-model
+          POINTO_TEST_NO_AVX512: "1"
         run: |
           $test = cargo test ${{ env.BUILD }} --bin pointo --no-run --message-format=json |
             ForEach-Object { $_ | ConvertFrom-Json } |
@@ -122,7 +122,7 @@ jobs:
             Select-Object -ExpandProperty executable -First 1
           "test binary: $test"
           $sde = Get-ChildItem $env:SDE_PATH -Recurse -Filter sde.exe | Select-Object -First 1
-          & $sde.FullName -lnl -- $test win::speech::tests::downloads_and_runs_parakeet --exact --ignored --nocapture
+          & $sde.FullName -lnl -- $test local_asr::tests::downloads_and_runs_qwen --exact --ignored --nocapture
           if ($LASTEXITCODE -ne 0) { throw "failed under SDE -lnl (exit $LASTEXITCODE)" }
 
       - name: Package

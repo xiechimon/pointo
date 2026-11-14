@@ -827,7 +827,7 @@ fn microphone_view(
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriberView {
-    /// What recordings use now: "apple", "hex" or "command".
+    /// What recordings use now: "qwen", "apple", "hex" or "command".
     pub engine: &'static str,
     pub hex_title: &'static str,
     pub hex_enabled: bool,
@@ -1354,7 +1354,8 @@ impl Panel {
                 engine: match engine {
                     crate::transcribe::Engine::Command if command.is_some() => "command",
                     _ if menu.hex_checked => "hex",
-                    _ => "apple",
+                    crate::transcribe::Engine::Apple => "apple",
+                    _ => "qwen",
                 },
                 hex_title: menu.hex_title,
                 hex_enabled: menu.hex_enabled,
@@ -1680,9 +1681,9 @@ impl Session {
     pub fn sync(&mut self, host: &dyn Host) {
         let mut view = serde_json::to_value(self.panel.view(host)).unwrap_or_default();
         view["type"] = "state".into();
-        // Switched from Hex to Apple Speech: get its model now, not at the first capture.
+        // Switched to Qwen3-ASR or Apple Speech: get its model now, not at the first capture.
         let speech = crate::speech_model::current();
-        if view["transcriber"]["engine"] == "apple"
+        if (view["transcriber"]["engine"] == "qwen" || view["transcriber"]["engine"] == "apple")
             && speech.state == crate::speech_model::State::Unknown
         {
             crate::speech_model::ensure();
@@ -2524,7 +2525,7 @@ mod tests {
         let mut panel = Panel::default();
         std::fs::write(&host.path, r#"{"transcriber":"command"}"#).unwrap();
         let view = panel.view(&host).transcriber;
-        assert_eq!((view.engine, view.command), ("apple", None));
+        assert_eq!((view.engine, view.command), ("qwen", None));
 
         std::fs::write(
             &host.path,

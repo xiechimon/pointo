@@ -184,7 +184,11 @@ pub fn restart() {
 }
 
 fn start(restart: bool) {
-    let enabled = crate::transcribe::Engine::configured() != crate::transcribe::Engine::Hex;
+    // Qwen3-ASR is downloaded when it's the engine; Apple's model when Apple Speech is.
+    let enabled = matches!(
+        crate::transcribe::Engine::configured(),
+        crate::transcribe::Engine::Qwen | crate::transcribe::Engine::Apple
+    );
     if !restart && !enabled {
         return;
     }
@@ -219,9 +223,15 @@ fn work(generation: u64) {
                 worker.status.state = State::Checking;
             }
         }
-        let result = crate::helper::install_speech_model(&|| lock().stale(generation), |line| {
+        let report = |line: crate::helper::SpeechModelLine| {
             lock().apply(generation, &line);
-        });
+        };
+        let result = if crate::transcribe::Engine::configured() == crate::transcribe::Engine::Apple
+        {
+            crate::helper::install_speech_model(&|| lock().stale(generation), report)
+        } else {
+            crate::local_asr::install(report)
+        };
         let status = {
             let mut worker = lock();
             if worker.stale(generation) {
@@ -278,10 +288,10 @@ pub fn note_grants(grants: &crate::onboarding::Grants) {
 /// The plain sentence for a capture without a transcript, from the helper's `missing`.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn missing(why: &str, locale: &str, error: Option<&str>) -> MissingTranscript {
-    let model = if cfg!(target_os = "windows") {
-        format!("The Parakeet speech model ({locale})")
-    } else {
+    let model = if crate::transcribe::Engine::configured() == crate::transcribe::Engine::Apple {
         format!("Apple's speech model ({locale})")
+    } else {
+        format!("The {} speech model", crate::local_asr::ENGINE_TITLE)
     };
     match why {
         "downloading" => MissingTranscript {

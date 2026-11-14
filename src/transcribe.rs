@@ -1,8 +1,9 @@
-//! Transcription: Apple's SpeechAnalyzer through `pointo-helper` (measured word and segment
-//! timings), Hex when `"transcriber": "hex"` is set and Hex is connected (`crate::hex`; word
-//! times estimated), or a program of the user's when `"transcriber": "command"`
-//! (`crate::command_transcriber`). Any Hex or command trouble falls back to Apple for that
-//! recording.
+//! Transcription: Qwen3-ASR on this computer by default (`crate::local_asr`, Mandarin, Cantonese
+//! and English; word times estimated). Alternatives: Apple's SpeechAnalyzer through
+//! `pointo-helper` on macOS (`"transcriber": "apple"`, measured word timings), Hex when
+//! `"transcriber": "hex"` is set and Hex is connected (`crate::hex`), or a program of the user's
+//! when `"transcriber": "command"` (`crate::command_transcriber`). Any trouble with those falls
+//! back to Qwen3-ASR for that recording.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -15,6 +16,7 @@ use crate::model::TranscriptData;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Engine {
     #[default]
+    Qwen,
     Apple,
     Hex,
     Command,
@@ -23,7 +25,10 @@ pub enum Engine {
 impl Engine {
     pub fn parse(name: &str) -> Option<Self> {
         match name.trim().to_ascii_lowercase().as_str() {
-            "apple" => Some(Self::Apple),
+            "qwen" => Some(Self::Qwen),
+            "apple" if cfg!(target_os = "macos") => Some(Self::Apple),
+            // Windows' local engine used to be called "apple" in the config.
+            "apple" => Some(Self::Qwen),
             "hex" => Some(Self::Hex),
             "command" => Some(Self::Command),
             _ => None,
@@ -32,13 +37,14 @@ impl Engine {
 
     pub fn name(self) -> &'static str {
         match self {
+            Self::Qwen => "qwen",
             Self::Apple => "apple",
             Self::Hex => "hex",
             Self::Command => "command",
         }
     }
 
-    /// The configured engine: `"transcriber"` in the config file, Apple when missing or unknown.
+    /// The configured engine: `"transcriber"` in the config file, Qwen3-ASR when missing or unknown.
     pub fn configured() -> Self {
         crate::handoff::transcriber()
             .as_deref()
@@ -52,17 +58,16 @@ impl Engine {
             1 => Self::Apple,
             2 => Self::Hex,
             3 => Self::Command,
+            4 => Self::Qwen,
             _ => Self::configured(),
         }
     }
 }
 
-/// The on-device engine's name in menus: Apple's SpeechAnalyzer on macOS; on Windows, Parakeet
-/// through `transcribe.cpp` (`crate::win::speech`). Both are `Engine::Apple` in the config.
-#[cfg(target_os = "macos")]
-pub const LOCAL_ENGINE_TITLE: &str = "Apple Speech";
-#[cfg(not(target_os = "macos"))]
-pub const LOCAL_ENGINE_TITLE: &str = "Parakeet (on this PC)";
+/// The default engine's name in menus and logs.
+pub const LOCAL_ENGINE_TITLE: &str = crate::local_asr::ENGINE_TITLE;
+/// Apple's SpeechAnalyzer, the macOS alternative.
+pub const APPLE_ENGINE_TITLE: &str = "Apple Speech";
 
 static OVERRIDE: AtomicU8 = AtomicU8::new(0);
 static LOGGED_NOT_CONNECTED: std::sync::Once = std::sync::Once::new();
@@ -124,6 +129,7 @@ pub fn set_override(engine: Engine) {
             Engine::Apple => 1,
             Engine::Hex => 2,
             Engine::Command => 3,
+            Engine::Qwen => 4,
         },
         Ordering::Relaxed,
     );
@@ -142,14 +148,14 @@ pub fn transcribe(wav: Option<&Path>, audio: Option<&RecordedAudio>) -> Transcri
     run(
         engine,
         || match engine {
-            Engine::Apple => Ok(None),
+            Engine::Qwen => Ok(None),
+            Engine::Apple => Ok(live
+                .and_then(|live| finish_live(live, audio))
+                .or_else(|| apple(wav))),
             Engine::Hex => try_hex(audio),
             Engine::Command => try_command(wav, audio),
         },
-        || {
-            live.and_then(|live| finish_live(live, audio))
-                .unwrap_or_else(|| apple(wav))
-        },
+        || local(wav),
     )
 }
 
@@ -178,16 +184,17 @@ fn finish_live(
     }
 }
 
-/// The preferred engine when it isn't Apple, with Apple as the answer to anything it can't do.
-/// `other` returns `Ok(None)` when that engine isn't there at all (Hex not connected or without a
-/// ready model, no usable `transcribeCommand`).
+/// The preferred engine when it isn't the local model, with the local model as the answer to
+/// anything it can't do. `other` returns `Ok(None)` when that engine isn't there at all (no Apple
+/// speech model, Hex not connected or without a ready model, no usable `transcribeCommand`).
 fn run(
     engine: Engine,
     other: impl FnOnce() -> Result<Option<TranscriptData>>,
-    apple: impl FnOnce() -> TranscriptData,
+    local: impl FnOnce() -> TranscriptData,
 ) -> TranscriptData {
     let name = match engine {
-        Engine::Apple => return apple(),
+        Engine::Qwen => return local(),
+        Engine::Apple => APPLE_ENGINE_TITLE,
         Engine::Hex => "Hex",
         Engine::Command => "Command",
     };
@@ -198,7 +205,7 @@ fn run(
             "{name} transcription failed, using {LOCAL_ENGINE_TITLE}: {error:#}"
         )),
     }
-    apple()
+    local()
 }
 
 /// Runs `transcribeCommand`. Its errors are fixed reasons (`command_transcriber::Failure`),
@@ -243,8 +250,33 @@ fn try_hex(audio: &RecordedAudio) -> Result<Option<TranscriptData>> {
     crate::hex::transcribe_audio(&client, &model, &crate::handoff::hex_language(), audio).map(Some)
 }
 
-fn apple(wav: &Path) -> TranscriptData {
-    let transcript = crate::helper::transcribe(wav).unwrap_or_else(|error| {
+/// Apple's SpeechAnalyzer (macOS), or `None` when it can't transcribe this recording.
+#[cfg(target_os = "macos")]
+fn apple(wav: &Path) -> Option<TranscriptData> {
+    match crate::helper::transcribe(wav) {
+        Ok(transcript) if transcript.missing.is_none() => Some(transcript),
+        Ok(transcript) => {
+            if let Some(missing) = transcript.missing {
+                crate::capture::scrawl_log(format!("{APPLE_ENGINE_TITLE}: {}", missing.reason));
+            }
+            None
+        }
+        Err(error) => {
+            crate::capture::scrawl_log(format!("{APPLE_ENGINE_TITLE} failed: {error:#}"));
+            None
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn apple(_wav: &Path) -> Option<TranscriptData> {
+    None
+}
+
+/// Qwen3-ASR on this computer. Without a model yet (still downloading), the bundle is marked to
+/// be transcribed again once it's there.
+fn local(wav: &Path) -> TranscriptData {
+    let transcript = crate::local_asr::transcribe(wav).unwrap_or_else(|error| {
         crate::capture::scrawl_log(format!("{LOCAL_ENGINE_TITLE} failed: {error:#}"));
         TranscriptData {
             source: "offline".into(),
@@ -277,45 +309,49 @@ mod tests {
 
     #[test]
     fn engine_names_parse_and_unknown_is_not_an_engine() {
+        assert_eq!(Engine::parse("qwen"), Some(Engine::Qwen));
         assert_eq!(Engine::parse("hex"), Some(Engine::Hex));
-        assert_eq!(Engine::parse(" Apple "), Some(Engine::Apple));
         assert_eq!(Engine::parse("Command"), Some(Engine::Command));
         assert_eq!(Engine::parse("whisper"), None);
-        assert_eq!(Engine::default(), Engine::Apple);
+        assert_eq!(Engine::default(), Engine::Qwen);
+        // Windows has no Apple speech: an old "apple" setting means the local model there.
+        let apple = if cfg!(target_os = "macos") { Engine::Apple } else { Engine::Qwen };
+        assert_eq!(Engine::parse("apple"), Some(apple));
     }
 
     #[test]
-    fn apple_preference_never_asks_another_engine() {
+    fn the_local_model_never_asks_another_engine() {
         let result = run(
-            Engine::Apple,
+            Engine::Qwen,
             || panic!("no other engine may be asked"),
-            || named("speech-analyzer"),
+            || named("qwen:Qwen3-ASR-0.6B-Q8_0"),
         );
-        assert_eq!(result.source, "speech-analyzer");
+        assert_eq!(result.source, "qwen:Qwen3-ASR-0.6B-Q8_0");
     }
 
     #[test]
     fn the_preferred_engine_is_used_when_it_answers() {
         for (engine, source) in [
+            (Engine::Apple, "speech-analyzer"),
             (Engine::Hex, "hex:parakeet_v3"),
             (Engine::Command, "command:whisper-pointo"),
         ] {
             let result = run(
                 engine,
                 || Ok(Some(named(source))),
-                || panic!("Apple must not be asked"),
+                || panic!("the local model must not be asked"),
             );
             assert_eq!(result.source, source);
         }
     }
 
     #[test]
-    fn an_unavailable_or_failing_engine_falls_back_to_apple() {
-        for engine in [Engine::Hex, Engine::Command] {
-            let apple = || named("speech-analyzer");
-            assert_eq!(run(engine, || Ok(None), apple).source, "speech-analyzer");
-            let failed = run(engine, || Err(anyhow::anyhow!("took too long")), apple);
-            assert_eq!(failed.source, "speech-analyzer");
+    fn an_unavailable_or_failing_engine_falls_back_to_the_local_model() {
+        for engine in [Engine::Apple, Engine::Hex, Engine::Command] {
+            let local = || named("qwen:Qwen3-ASR-0.6B-Q8_0");
+            assert_eq!(run(engine, || Ok(None), local).source, "qwen:Qwen3-ASR-0.6B-Q8_0");
+            let failed = run(engine, || Err(anyhow::anyhow!("took too long")), local);
+            assert_eq!(failed.source, "qwen:Qwen3-ASR-0.6B-Q8_0");
         }
     }
 

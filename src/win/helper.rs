@@ -58,12 +58,12 @@ pub fn install_speech_model(
     _stop: &dyn Fn() -> bool,
     line: impl FnMut(SpeechModelLine),
 ) -> Result<()> {
-    crate::win::speech::install(line)
+    crate::local_asr::install(line)
 }
 
 /// On-device transcription with measured word timings (Parakeet through `transcribe.cpp`).
 pub fn transcribe(audio: &Path) -> Result<TranscriptData> {
-    crate::win::speech::transcribe(audio)
+    crate::local_asr::transcribe(audio)
 }
 
 #[derive(Debug, Deserialize)]

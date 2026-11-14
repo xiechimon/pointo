@@ -18,6 +18,9 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+sha2 = "0.10.9"
+# On-device transcription (Qwen3-ASR by default) with ggml's Metal backend.
+transcribe-cpp = { version = "=0.2.4" }
 block2 = "0.6.2"
 core-foundation = "0.10.0"
 core-graphics = "0.24.0"
