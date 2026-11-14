@@ -137,16 +137,18 @@ cp -f "${DIST_DIR}/${DMG_NAME}" "${DIST_DIR}/${LATEST_DMG}"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${APP_BUNDLE}" "${DIST_DIR}/${ZIP_NAME}"
 cp -f "${DIST_DIR}/${ZIP_NAME}" "${UPDATES_DIR}/${ZIP_NAME}"
 
-# Sparkle's EdDSA key for Pointo lives in the login keychain (account "pointo", made once with
-# `generate_keys --account pointo`); its public half is SPARKLE_PUBLIC_KEY above.
-if security find-generic-password -s 'https://sparkle-project.org' -a pointo -w >/dev/null 2>&1; then
-  security find-generic-password -s 'https://sparkle-project.org' -a pointo -w \
-    | "${SPARKLE_DIR}/bin/generate_appcast" \
-      --ed-key-file - \
-      --download-url-prefix "https://github.com/${REPO_SLUG}/releases/download/v${VERSION}/" \
-      "${UPDATES_DIR}"
+# Sparkle's EdDSA private key for Pointo: made once with `generate_keys --account pointo`, then
+# exported with `generate_keys --account pointo -x "$SPARKLE_KEY_FILE"` (mode 600, never in the
+# repo). Reading it from the keychain instead would stop at a keychain password prompt. Its public
+# half is SPARKLE_PUBLIC_KEY above.
+SPARKLE_KEY_FILE="${POINTO_SPARKLE_KEY_FILE:-${HOME}/.local/share/pointo-release/sparkle-ed25519.key}"
+if [[ -f "${SPARKLE_KEY_FILE}" ]]; then
+  "${SPARKLE_DIR}/bin/generate_appcast" \
+    --ed-key-file "${SPARKLE_KEY_FILE}" \
+    --download-url-prefix "https://github.com/${REPO_SLUG}/releases/download/v${VERSION}/" \
+    "${UPDATES_DIR}"
 else
-  echo "warning: no Sparkle key (account pointo) in the keychain; appcast not updated" >&2
+  echo "warning: no Sparkle key at ${SPARKLE_KEY_FILE}; appcast not updated" >&2
 fi
 
 echo "Prepared ${DIST_DIR}/${DMG_NAME} and ${DIST_DIR}/${ZIP_NAME}"
