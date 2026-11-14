@@ -70,17 +70,14 @@ impl<'a> Pick<'a> {
         }
     }
 
-    /// "AirPods Pro isn't connected. Using MacBook Pro Microphone." for a missing device.
+    /// "AirPods Pro 未连接，正在使用 MacBook Pro Microphone。" for a missing device.
     pub fn note(&self) -> Option<String> {
         let Pick::Missing { wanted, using } = self else {
             return None;
         };
         Some(match using {
-            Some(using) => format!("{} isn't connected. Using {}.", wanted.name, using.name),
-            None => format!(
-                "{} isn't connected, and there's no other microphone.",
-                wanted.name
-            ),
+            Some(using) => format!("{} 未连接，正在使用 {}。", wanted.name, using.name),
+            None => format!("{} 未连接，也没有其他麦克风。", wanted.name),
         })
     }
 }
@@ -151,9 +148,9 @@ pub fn note_pick(pick: &Pick) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     match (pick, pick.note()) {
-        (Pick::Missing { wanted, .. }, Some(note)) => {
+        (Pick::Missing { wanted, .. }, Some(_)) => {
             if warned.as_deref() != Some(wanted.id.as_str()) {
-                crate::capture::scrawl_log(format!("Microphone: {note}"));
+                crate::capture::scrawl_log(format!("Microphone: {} isn't connected", wanted.name));
                 *warned = Some(wanted.id.clone());
             }
         }
@@ -336,14 +333,14 @@ mod tests {
         assert_eq!(pick.device(), Some(built_in));
         assert_eq!(
             pick.note().unwrap(),
-            "AirPods Pro isn't connected. Using MacBook Pro Microphone."
+            "AirPods Pro 未连接，正在使用 MacBook Pro Microphone。"
         );
 
         let none = Inputs::default();
         assert_eq!(Pick::new(None, &none).device(), None);
         assert_eq!(
             Pick::new(Some(&wanted), &none).note().unwrap(),
-            "AirPods Pro isn't connected, and there's no other microphone."
+            "AirPods Pro 未连接，也没有其他麦克风。"
         );
     }
 

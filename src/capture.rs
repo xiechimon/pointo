@@ -196,8 +196,8 @@ impl ShortcutKind {
 
     pub fn name(self) -> &'static str {
         match self {
-            Self::Record => "Record",
-            Self::Paste => "Paste last capture",
+            Self::Record => "录制",
+            Self::Paste => "粘贴最近一次录制",
         }
     }
 

@@ -91,7 +91,7 @@ pub fn menu_state(
 ) -> MenuState {
     let Some(status) = status else {
         return MenuState {
-            hex_title: "Hex (not running)",
+            hex_title: "Hex（未运行）",
             hex_enabled: false,
             hex_checked: false,
             models: Vec::new(),
@@ -115,7 +115,7 @@ pub fn menu_state(
         .collect();
     let ready = chosen.is_some();
     MenuState {
-        hex_title: if ready { "Hex" } else { "Hex (no model ready)" },
+        hex_title: if ready { "Hex" } else { "Hex（没有可用模型）" },
         hex_enabled: ready,
         hex_checked: ready && preferred == Engine::Hex,
         models,
@@ -371,7 +371,7 @@ mod tests {
 
         let away = menu_state(Engine::Hex, None, None);
         assert!(!away.hex_checked && !away.hex_enabled);
-        assert_eq!(away.hex_title, "Hex (not running)");
+        assert_eq!(away.hex_title, "Hex（未运行）");
 
         let up = status(vec![
             ready("parakeet_v3", "Parakeet v3"),
@@ -397,7 +397,7 @@ mod tests {
         }]);
         let none = menu_state(Engine::Hex, Some(&empty), None);
         assert!(!none.hex_checked && !none.hex_enabled && none.models.is_empty());
-        assert_eq!(none.hex_title, "Hex (no model ready)");
+        assert_eq!(none.hex_title, "Hex（没有可用模型）");
     }
 
     #[test]

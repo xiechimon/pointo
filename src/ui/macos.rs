@@ -22,8 +22,8 @@ use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 use super::{ISLAND_H, LaserOverlay, MenuAction, PILL_WINDOW_H, PILL_WINDOW_W, motion};
 use crate::capture::SharedCaptureTelemetry;
 
-/// Where the file browser is called in buttons ("Show in Finder").
-pub(super) const FILE_MANAGER: &str = "Finder";
+/// Where the file browser is called in buttons ("在访达中显示").
+pub(super) const FILE_MANAGER: &str = "访达";
 /// The review header's leading inset, clear of the traffic lights.
 pub(super) const HEADER_LEAD: f32 = 78.0;
 pub(super) const HEADER_TRAIL: f32 = 16.0;
@@ -476,7 +476,7 @@ const RECORD_MENU_TAG: isize = 0x5c4d;
 /// "Record Screen" with the record shortcut as it is now (Settings can change it).
 fn record_menu_title() -> String {
     format!(
-        "Record Screen  {}",
+        "录制屏幕  {}",
         crate::settings::Shortcuts::load().record.label
     )
 }
@@ -504,7 +504,7 @@ fn rebuild_inbox_menu_items(menu: &NSMenu, target: &ScrawlMenuTarget) {
     let has_section_header: bool = unsafe {
         msg_send![objc2::class!(NSMenuItem), respondsToSelector: sel!(sectionHeaderWithTitle:)]
     };
-    let title = NSString::from_str("From iPhone");
+    let title = NSString::from_str("来自 iPhone");
     rows.push(if has_section_header {
         NSMenuItem::sectionHeaderWithTitle(&title, mtm)
     } else {
@@ -623,21 +623,21 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setTag(RECORD_MENU_TAG);
     }
-    add("Choose What to Record…", sel!(chooseTarget:));
+    add("选择录制内容…", sel!(chooseTarget:));
     menu.addItem(&NSMenuItem::separatorItem(mtm));
-    add("Open Latest Capture", sel!(openLatest:));
-    add("Export Last Capture as Video…", sel!(exportVideo:));
+    add("打开最近的录制", sel!(openLatest:));
+    add("导出为视频…", sel!(exportVideo:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setTag(EXPORT_VIDEO_MENU_TAG);
         item.setHidden(!crate::handoff::video_export());
     }
     menu.addItem(&NSMenuItem::separatorItem(mtm));
-    add("Settings…", sel!(openSettings:));
+    add("设置…", sel!(openSettings:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setKeyEquivalent(&NSString::from_str(","));
     }
-    add("Check for Updates…", sel!(checkForUpdates:));
-    add("Quit Pointo", sel!(quitApp:));
+    add("检查更新…", sel!(checkForUpdates:));
+    add("退出 Pointo", sel!(quitApp:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setKeyEquivalent(&NSString::from_str("q"));
     }

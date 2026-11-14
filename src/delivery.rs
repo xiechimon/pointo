@@ -34,11 +34,11 @@ pub enum Delivery {
 }
 
 impl Delivery {
-    /// The HUD's line for it; `saved` says what happened locally ("Copied to clipboard").
+    /// The HUD's line for it; `saved` says what happened locally ("已复制到剪贴板").
     pub fn status(&self, saved: &str) -> String {
         match self {
-            Self::Sent { title } => format!("Sent to {title}"),
-            Self::Queued { title, .. } => format!("{saved} · will retry sending to {title}"),
+            Self::Sent { title } => format!("已发送到 {title}"),
+            Self::Queued { title, .. } => format!("{saved} · 稍后重试发送到 {title}"),
             Self::Saved => saved.to_owned(),
         }
     }
