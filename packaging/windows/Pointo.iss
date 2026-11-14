@@ -43,6 +43,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
 OutputBaseFilename=Pointo-{#AppVersion}-windows-x64-setup
 SetupIconFile={#RepoDir}\assets\Pointo.ico
+WizardImageFile={#RepoDir}\packaging\windows\wizard-large.bmp
+WizardSmallImageFile={#RepoDir}\packaging\windows\wizard-small.bmp
 UninstallDisplayIcon={app}\pointo.exe
 UninstallDisplayName=Pointo
 WizardStyle=modern
@@ -67,7 +69,7 @@ zh.LaunchPointo=启动 Pointo
 zh.DesktopIcon=在桌面创建快捷方式
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:DesktopIcon}"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:DesktopIcon}"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
