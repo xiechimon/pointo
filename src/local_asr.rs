@@ -7,7 +7,8 @@
 //! `install` downloads once in the background and checks against its SHA-256: first from
 //! hf-mirror.com (reachable from mainland China), then from huggingface.co.
 //!
-//! It transcribes each speech island on its own. Qwen3-ASR gives no word
+//! It transcribes clips of speech (islands joined across pauses under 2 s, up to 30 s or what the
+//! model takes) on their own. Qwen3-ASR gives no word
 //! times, so each island's words are spread across it by length (`TranscriptData::estimated`):
 //! they land in the right island but not on the right syllable, so spoken cues never cut
 //! keyframes from them.
@@ -19,6 +20,7 @@ use anyhow::{Context, Result, bail};
 use transcribe_cpp::{Model, RunOptions, TimestampKind};
 
 use crate::speech_model::ModelLine;
+use crate::speech_text::ClipLimits;
 use crate::model::{TranscriptData, TranscriptSegment, WordTiming};
 
 const KHZ: u64 = 16;
@@ -147,10 +149,7 @@ pub fn transcribe(audio: &Path) -> Result<TranscriptData> {
 /// Transcribes 16 kHz mono `samples` with the model at `path`.
 pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData> {
     let duration_ms = samples.len() as u64 / KHZ;
-    let mut clips = crate::speech_text::plan_clips(&crate::audio::speech_islands(samples), duration_ms);
-    if clips.is_empty() && duration_ms >= 480 {
-        clips.push((0, duration_ms));
-    }
+    let islands = crate::audio::speech_islands(samples);
     let name = model_name(path);
     let mut transcript = TranscriptData {
         source: format!("qwen:{name}"),
@@ -158,12 +157,21 @@ pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData
         estimated: false,
         ..Default::default()
     };
-    if clips.is_empty() {
+    if duration_ms < 480
+        && crate::speech_text::plan_clips(&islands, duration_ms, ClipLimits::QWEN).is_empty()
+    {
         return Ok(transcript);
     }
 
     init_backends()?;
     let model = Model::load(path).with_context(|| format!("Could not load {}", path.display()))?;
+    // Clips as long as the model takes (`max_audio_ms`, at most 30 s), so a sentence isn't cut
+    // at every pause and closed with a full stop.
+    let limits = ClipLimits::for_model(model.capabilities().max_audio_ms, CLIP_PAD_MS);
+    let mut clips = crate::speech_text::plan_clips(&islands, duration_ms, limits);
+    if clips.is_empty() {
+        clips.push((0, duration_ms));
+    }
     let mut session = model.session()?;
     // The richest timing the model has: word times where it can (Parakeet, Whisper), plain text
     // from Qwen3-ASR, whose words are then spread over each clip.
@@ -172,8 +180,9 @@ pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData
         language: language(),
         ..Default::default()
     };
-    let mut texts = Vec::new();
-    for (start, end) in clips {
+    // (start, end, text, words from the model)
+    let mut done: Vec<(u64, u64, String, Vec<WordTiming>)> = Vec::new();
+    for &(start, end) in &clips {
         let from_ms = start.saturating_sub(CLIP_PAD_MS);
         let from = (from_ms * KHZ) as usize;
         let to = (((end + CLIP_PAD_MS) * KHZ) as usize).min(samples.len());
@@ -196,21 +205,36 @@ pub fn transcribe_samples(path: &Path, samples: &[f32]) -> Result<TranscriptData
                 text: word.text.trim().to_owned(),
             })
             .collect();
+        done.push((start, end, text, words));
+    }
+    let mut texts = Vec::new();
+    for i in 0..done.len() {
+        let (start, end, text, words) = &done[i];
         if words.is_empty() {
-            // No word times from this model: spread the text over the clip, and say so.
-            let (segments, words) = crate::speech_text::spread_words(&text, start, end);
+            // No word times from this model: a fragment that goes on in the next clip loses its
+            // full stop, then the text is spread over the clip, and we say so.
+            let next = done.get(i + 1);
+            let cut_mid_speech =
+                next.is_some_and(|next| next.0.saturating_sub(*end) < limits.merge_gap_ms);
+            let text = crate::speech_text::soften_clip_end(
+                text,
+                next.map(|next| next.2.as_str()),
+                cut_mid_speech,
+            );
+            let (segments, words) = crate::speech_text::spread_words(&text, *start, *end);
             transcript.estimated = true;
             transcript.segments.extend(segments);
             transcript.words.extend(words);
+            texts.push(text);
         } else {
             transcript.segments.push(TranscriptSegment {
                 t0: words[0].t0,
                 t1: words[words.len() - 1].t1,
                 text: text.clone(),
             });
-            transcript.words.extend(words);
+            transcript.words.extend(words.iter().cloned());
+            texts.push(text.clone());
         }
-        texts.push(text);
     }
     transcript.text = crate::speech_text::join_tokens(texts.iter().map(String::as_str));
     Ok(transcript)
@@ -478,6 +502,20 @@ mod tests {
 
     /// Runs the real model on a recording: `POINTO_TEST_QWEN=<model.gguf> POINTO_TEST_WAV=<16 kHz
     /// wav> cargo test runs_qwen -- --ignored --nocapture`.
+    /// What the real model says it takes (`POINTO_TEST_QWEN=<model.gguf>`): 30 s clips must fit.
+    #[test]
+    #[ignore]
+    fn qwen_takes_the_clip_length_pointo_plans() {
+        let model = PathBuf::from(std::env::var_os("POINTO_TEST_QWEN").expect("POINTO_TEST_QWEN"));
+        init_backends().unwrap();
+        let model = Model::load(&model).unwrap();
+        let max = model.capabilities().max_audio_ms;
+        eprintln!("qwen max_audio_ms = {max}");
+        let limits = ClipLimits::for_model(max, CLIP_PAD_MS);
+        assert!(max == 0 || limits.max_clip_ms + 2 * CLIP_PAD_MS <= max as u64);
+        assert!(max == 0 || max as u64 >= 10_000, "{max}");
+    }
+
     #[test]
     #[ignore]
     fn runs_qwen_on_a_recording() {

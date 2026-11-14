@@ -890,20 +890,30 @@ pub fn summary_markdown_with(
                 Some(said) => {
                     let action_marker = if flag {
                         " ⚑".to_owned()
-                    } else if frame.reason == KeyframeReason::Click {
-                        let compact = frame
-                            .event
-                            .split(" (")
-                            .next()
-                            .unwrap_or(&frame.event)
-                            .trim();
-                        if compact.is_empty() {
+                    } else {
+                        let mut parts: Vec<String> = Vec::new();
+                        if frame.reason == KeyframeReason::Click {
+                            let compact = frame
+                                .event
+                                .split(" (")
+                                .next()
+                                .unwrap_or(&frame.event)
+                                .trim();
+                            if !compact.is_empty() {
+                                parts.push(compact.to_owned());
+                            }
+                        }
+                        // Every mark on this keyframe, so the words aren't read without them.
+                        parts.extend(
+                            marks_on(frame, &bundle.marks)
+                                .into_iter()
+                                .map(|mark| describe_mark(mark)),
+                        );
+                        if parts.is_empty() {
                             String::new()
                         } else {
-                            format!(" [{compact}]")
+                            format!(" [{}]", parts.join("; "))
                         }
-                    } else {
-                        String::new()
                     };
                     out.push_str(&format!(
                         "- #{} ({clock}){screen_marker}{action_marker} “{said}”\n",
@@ -2101,8 +2111,28 @@ mod tests {
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/test"));
         assert!(summary.starts_with("[pointo 0:14 · App “Window” · /recordings/test]"));
         assert!(summary.contains("Note: Simplify it."));
-        assert!(summary.contains("- #1 (0:05) “This row is too dense.”"));
+        assert!(summary.contains("- #1 (0:05) [tapped x 0.50, y 0.50] “This row is too dense.”"));
         assert!(!summary.contains("No transcript"));
+
+        // Every mark on a keyframe is described next to its words, with what it was drawn on.
+        let mut two = bundle.clone();
+        let mut second = two.marks[0].clone();
+        second.id = "m2".into();
+        second.shape = Shape::Circle;
+        second.box_norm = [0.47, 0.40, 0.57, 0.44];
+        second.on = Some("button “Area”".into());
+        second.description = describe_mark(&second);
+        two.marks[0].on = Some("Settings".into());
+        two.marks[0].description = describe_mark(&two.marks[0]);
+        two.marks.push(second);
+        two.keyframes[0].event = "tapped; circled".into();
+        let summary = summary_markdown_with(&two, std::path::Path::new("/recordings/test"), false);
+        assert!(
+            summary.contains(
+                "- #1 (0:05) [tapped x 0.50, y 0.50 over “Settings”; circled region x 0.47–0.57, y 0.40–0.44 over button “Area”] “This row is too dense.”"
+            ),
+            "{summary}"
+        );
 
         // Audio but no speech model yet: the summary says so instead of staying quiet.
         let mut silent = bundle.clone();
@@ -2172,7 +2202,7 @@ mod tests {
                 "[pointo 0:14 · iPhone · dev.example.App (42) · /recordings/phone]\n\
                  {LOOK_AT_IMAGES}\n\
                  \x20 · 0:01 app: launched\n\
-                 - #1 (0:05) “This row is too dense.”\n\
+                 - #1 (0:05) [tapped x 0.50, y 0.50] “This row is too dense.”\n\
                  \x20 · 0:06 app: rest started\n\
                  - #2 (0:09) ⚑ flagged this moment\n\
                  \x20 · 0:09 app: Done tapped\n"
