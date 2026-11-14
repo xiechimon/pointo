@@ -274,12 +274,12 @@ const ORANGE: Tint = (0xff9e4d, 0xf2701f);
 
 fn pane_title(pane: Pane) -> &'static str {
     match pane {
-        Pane::General => "General",
-        Pane::Recording => "Recording",
-        Pane::Storage => "Storage",
-        Pane::Permissions => "Permissions",
-        Pane::Agents => "Agents",
-        Pane::About => "About",
+        Pane::General => "通用",
+        Pane::Recording => "录制",
+        Pane::Storage => "存储",
+        Pane::Permissions => "权限",
+        Pane::Agents => "AI 代理",
+        Pane::About => "关于",
     }
 }
 
@@ -334,7 +334,7 @@ fn open(request: Request, cx: &mut App) {
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
-                title: Some("Pointo Settings".into()),
+                title: Some("Pointo 设置".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(20.0), px(20.0))),
             }),
@@ -814,7 +814,7 @@ impl SettingsWindow {
                     .flex()
                     .flex_col()
                     .child(self.item(theme, Pane::General, cx))
-                    .child(section("Settings"))
+                    .child(section("设置"))
                     .child(
                         div()
                             .flex()
@@ -923,7 +923,7 @@ impl SettingsWindow {
             vec![
                 row(
                     theme,
-                    "Launch at login",
+                    "登录时启动",
                     state.login.available,
                     switch(theme, "settings-login", login_on, state.login.available).when(
                         state.login.available,
@@ -937,7 +937,7 @@ impl SettingsWindow {
                 .into_any_element(),
                 row(
                     theme,
-                    "Send captures to the detected project",
+                    "把录制发送到识别出的项目",
                     true,
                     switch(theme, "settings-auto-send", auto_send, true).on_click(
                         cx.listener(move |view, _, _, _| view.set("autoSend", (!auto_send).into())),
@@ -946,7 +946,7 @@ impl SettingsWindow {
                 .into_any_element(),
                 row(
                     theme,
-                    "Project folder",
+                    "项目文件夹",
                     true,
                     div()
                         .flex()
@@ -956,16 +956,16 @@ impl SettingsWindow {
                             div()
                                 .text_size(px(14.0))
                                 .text_color(theme.secondary())
-                                .child(project.clone().unwrap_or_else(|| "Automatic".to_owned())),
+                                .child(project.clone().unwrap_or_else(|| "自动".to_owned())),
                         )
                         .child(
-                            button(theme, "settings-project-choose", "Choose…", true).on_click(
+                            button(theme, "settings-project-choose", "选择…", true).on_click(
                                 cx.listener(|_, _, _, cx| {
                                     let chosen = cx.prompt_for_paths(gpui::PathPromptOptions {
                                         files: false,
                                         directories: true,
                                         multiple: false,
-                                        prompt: Some("Choose".into()),
+                                        prompt: Some("选择".into()),
                                     });
                                     cx.spawn(async move |view, cx| {
                                         if let Ok(Ok(Some(paths))) = chosen.await
@@ -983,7 +983,7 @@ impl SettingsWindow {
                         )
                         .when(project.is_some(), |d| {
                             d.child(
-                                button(theme, "settings-project-clear", "Clear", true).on_click(
+                                button(theme, "settings-project-clear", "清除", true).on_click(
                                     cx.listener(|view, _, _, _| {
                                         view.set("project", serde_json::Value::Null);
                                     }),
@@ -998,16 +998,16 @@ impl SettingsWindow {
             column = column.child(caption(
                 theme,
                 if WINDOWS {
-                    "Turn Pointo on in Settings › Apps › Startup."
+                    "请在 设置 › 应用 › 启动 里打开 Pointo。"
                 } else {
-                    "Allow Pointo in System Settings › General › Login Items."
+                    "请在 系统设置 › 通用 › 登录项 里允许 Pointo。"
                 },
                 false,
             ));
         } else if !state.login.available {
             column = column.child(caption(
                 theme,
-                "Launch at login works in the installed Pointo.app.",
+                "登录时启动只在已安装的 Pointo.app 里可用。",
                 false,
             ));
         }
@@ -1027,17 +1027,17 @@ impl SettingsWindow {
         let clear_shown = shortcut.clearable && !off && !recording;
         let caption_text = if recording && shortcut.clearable {
             format!(
-                "Press the new shortcut. Esc cancels, {} turns it off.",
+                "按下新的快捷键。Esc 取消，{} 关闭快捷键。",
                 if WINDOWS { "Backspace" } else { "Delete" }
             )
         } else if recording {
-            "Press the new shortcut. Esc cancels.".to_owned()
+            "按下新的快捷键。Esc 取消。".to_owned()
         } else if let Some(error) = &shortcut.error {
             error.clone()
         } else if kind == ShortcutKind::Paste {
-            "Pastes the last capture into the app in front.".to_owned()
+            "把最近一次录制粘贴到当前窗口的应用里。".to_owned()
         } else {
-            "Records the screen. Press again to finish.".to_owned()
+            "开始录制屏幕，再按一次结束。".to_owned()
         };
         let key = if recording {
             "…".to_owned()
@@ -1053,7 +1053,7 @@ impl SettingsWindow {
                 .justify_center()
                 .text_size(px(14.0))
                 .text_color(theme.secondary())
-                .child("Set shortcut")
+                .child("设置快捷键")
         } else if WINDOWS {
             div()
                 .flex()
@@ -1212,7 +1212,7 @@ impl SettingsWindow {
         let mut rows = vec![
             row(
                 theme,
-                "Transcription",
+                "语音转写",
                 true,
                 popup(
                     theme,
@@ -1244,12 +1244,12 @@ impl SettingsWindow {
             rows.push(
                 row(
                     theme,
-                    "Hex model",
+                    "Hex 模型",
                     true,
                     popup(
                         theme,
                         "settings-hex-model",
-                        chosen.map_or("Choose", |m| m.title.as_str()),
+                        chosen.map_or("选择", |m| m.title.as_str()),
                     )
                     .on_click(cx.listener(
                         move |view, event: &ClickEvent, _, cx| {
@@ -1269,28 +1269,28 @@ impl SettingsWindow {
                 "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型；Hex 运行时也会出现在这里。"
             }
             (false, true) => {
-                "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."
+                "Apple Speech 会标出每个词的时间。Hex 使用你在 Hex 里装好的模型，词的时间是估算的。"
             }
             (false, false) => {
-                "Apple Speech runs on this Mac and times each word. Hex shows up here while Hex is running."
+                "Apple Speech 在这台 Mac 上运行，会标出每个词的时间。Hex 运行时也会出现在这里。"
             }
         };
         let speech = match t.speech.state.as_str() {
             _ if !WINDOWS || hex => None,
             "downloading" => Some((
                 format!(
-                    "Downloading the speech model: {:.0}%",
+                    "正在下载语音模型：{:.0}%",
                     (t.speech.progress * 100.0).clamp(0.0, 100.0)
                 ),
                 false,
             )),
             "failed" => Some((
                 format!(
-                    "The speech model couldn't be downloaded{}. Pointo tries again in a few minutes.",
+                    "语音模型下载失败{}。Pointo 几分钟后会再试。",
                     t.speech
                         .error
                         .as_deref()
-                        .map(|e| format!(" ({e})"))
+                        .map(|e| format!("（{e}）"))
                         .unwrap_or_default()
                 ),
                 true,
@@ -1306,13 +1306,13 @@ impl SettingsWindow {
             .when_some(speech, |pane, (text, error)| {
                 pane.child(caption(theme, &text, error))
             })
-            .child(header(theme, "Experimental"))
+            .child(header(theme, "实验功能"))
             .child(group(
                 theme,
                 vec![
                     row(
                         theme,
-                        "Video export",
+                        "视频导出",
                         true,
                         switch(theme, "settings-video-export", video, true).on_click(cx.listener(
                             move |view, _, _, _| {
@@ -1325,7 +1325,7 @@ impl SettingsWindow {
             ))
             .child(caption(
                 theme,
-                "Adds Export Last Capture as Video… to the menu.",
+                "在菜单里加入“导出为视频…”。",
                 false,
             ))
     }
@@ -1336,7 +1336,7 @@ impl SettingsWindow {
             .options
             .iter()
             .find(|o| Some(&o.id) == r.preset.as_ref())
-            .map_or("Custom", |o| o.label.as_str());
+            .map_or("自定义", |o| o.label.as_str());
         let options: Vec<(String, String, bool)> = r
             .options
             .iter()
@@ -1344,9 +1344,9 @@ impl SettingsWindow {
             .collect();
         let selected = r.preset.clone();
         let show = if WINDOWS {
-            "Show in File Explorer"
+            "在文件资源管理器中显示"
         } else {
-            "Show in Finder"
+            "在访达中显示"
         };
         div()
             .flex()
@@ -1356,7 +1356,7 @@ impl SettingsWindow {
                 vec![
                     row(
                         theme,
-                        "Keep recordings",
+                        "保留录制",
                         true,
                         popup(theme, "settings-retention", current).on_click(cx.listener(
                             move |view, event: &ClickEvent, _, cx| {
@@ -1376,13 +1376,13 @@ impl SettingsWindow {
             .when(!r.note.is_empty(), |d| {
                 d.child(caption(theme, &r.note, false))
             })
-            .child(header(theme, "Captures"))
+            .child(header(theme, "录制"))
             .child(group(
                 theme,
                 vec![
                     row(
                         theme,
-                        "Captures folder",
+                        "录制文件夹",
                         true,
                         div()
                             .flex()
@@ -1396,7 +1396,7 @@ impl SettingsWindow {
                                         state
                                             .captures_size
                                             .clone()
-                                            .unwrap_or_else(|| "Measuring…".to_owned()),
+                                            .unwrap_or_else(|| "正在计算…".to_owned()),
                                     ),
                             )
                             .child(
@@ -1426,9 +1426,9 @@ impl SettingsWindow {
             column = column.child(group(theme, required_rows)).child(caption(
                 theme,
                 if WINDOWS {
-                    "Pointo needs the microphone to hear you. Recording the screen, clicks and shortcuts need no permission on Windows."
+                    "Pointo 需要麦克风来听你说话。在 Windows 上，录制屏幕、点击和快捷键不需要权限。"
                 } else {
-                    "Pointo needs these three to record."
+                    "Pointo 需要这三项权限才能录制。"
                 },
                 false,
             ));
@@ -1436,7 +1436,7 @@ impl SettingsWindow {
         if !optional.is_empty() {
             let optional_rows = self.permission_lines(theme, &optional, &paste, cx);
             column = column
-                .child(header(theme, "When you use them"))
+                .child(header(theme, "用到时再开"))
                 .child(group(theme, optional_rows));
         }
         column
@@ -1467,41 +1467,41 @@ impl SettingsWindow {
         let permission = row.permission;
         let (name, why, path, tint) = match permission {
             Permission::ScreenRecording => (
-                "Screen Recording",
-                "To see your screen".to_owned(),
+                "屏幕与系统录音",
+                "用来看到你的屏幕".to_owned(),
                 crate::icons::SCREEN,
                 (0x9e80ff, 0x7052eb),
             ),
             Permission::Microphone => (
-                "Microphone",
-                "To hear you".to_owned(),
+                "麦克风",
+                "用来听到你说话".to_owned(),
                 crate::icons::MIC,
                 ORANGE,
             ),
             Permission::InputMonitoring => (
-                "Input Monitoring",
-                "To see clicks and shortcuts".to_owned(),
+                "输入监控",
+                "用来看到点击和快捷键".to_owned(),
                 crate::icons::CLICK,
                 GREY,
             ),
             Permission::Accessibility => (
-                "Accessibility",
+                "辅助功能",
                 format!(
-                    "To press {} when you use {paste}",
+                    "用 {paste} 时替你按下 {}",
                     crate::capture::system_paste_label()
                 ),
                 crate::icons::PERSON,
                 BLUE,
             ),
             Permission::Camera => (
-                "Camera",
-                "To show a cabled iPhone".to_owned(),
+                "摄像头",
+                "用来显示数据线连接的 iPhone".to_owned(),
                 crate::icons::IPHONE,
                 GREEN,
             ),
             Permission::SpeechRecognition => (
-                "Speech Recognition",
-                "To write down what you say".to_owned(),
+                "语音识别",
+                "用来把你说的话转成文字".to_owned(),
                 crate::icons::MIC,
                 ORANGE,
             ),
@@ -1509,7 +1509,7 @@ impl SettingsWindow {
         let granted = row.status == Status::Granted;
         let id = SharedString::from(format!("settings-grant-{permission:?}"));
         let trailing: AnyElement = if granted && row.relaunch {
-            button(theme, id, "Reopen Pointo", true)
+            button(theme, id, "重新打开 Pointo", true)
                 .on_click(cx.listener(|view, _, _, _| view.act(Action::Reopen)))
                 .into_any_element()
         } else if granted {
@@ -1521,13 +1521,13 @@ impl SettingsWindow {
                 .font_weight(FontWeight::MEDIUM)
                 .text_color(theme.secondary())
                 .child(icon(crate::icons::CHECK_CIRCLE, 14.0, theme.positive()))
-                .child("Allowed")
+                .child("已允许")
                 .into_any_element()
         } else {
             let title = if row.requested || row.status == Status::Denied {
-                "Open Settings"
+                "打开设置"
             } else {
-                "Allow"
+                "允许"
             };
             button(theme, id, title, true)
                 .on_click(cx.listener(move |view, _, _, _| view.act(Action::Grant { permission })))
@@ -1584,7 +1584,7 @@ impl SettingsWindow {
                 button(
                     theme,
                     "settings-copy-skill",
-                    if self.copied { "Copied" } else { "Copy" },
+                    if self.copied { "已复制" } else { "复制" },
                     true,
                 )
                 .on_click(cx.listener(move |view, _, _, cx| {
@@ -1608,11 +1608,11 @@ impl SettingsWindow {
         div()
             .flex()
             .flex_col()
-            .child(header(theme, "Agent skill"))
+            .child(header(theme, "AI 代理技能"))
             .child(group(theme, vec![line]))
             .child(caption(
                 theme,
-                "Run it in a terminal. It teaches Claude Code, Codex, Cursor and other agents to read your captures and use pointo.",
+                "在终端里运行它，Claude Code、Codex、Cursor 等 AI 代理就会学会读取你的录制并使用 pointo。",
                 false,
             ))
     }
@@ -1670,14 +1670,14 @@ impl SettingsWindow {
                                 div()
                                     .text_size(px(12.0))
                                     .text_color(theme.secondary())
-                                    .child(format!("Version {}", state.version)),
+                                    .child(format!("版本 {}", state.version)),
                             ),
                     )
                     .child(
                         button(
                             theme,
                             "settings-updates",
-                            "Check for Updates…",
+                            "检查更新…",
                             state.updates,
                         )
                         .when(state.updates, |d| {
@@ -1692,32 +1692,32 @@ impl SettingsWindow {
         if !state.updates {
             column = column.child(caption(
                 theme,
-                "Updates work in the installed Pointo.app.",
+                "更新只在已安装的 Pointo.app 里可用。",
                 false,
             ));
         }
-        column.child(header(theme, "Links")).child(group(
+        column.child(header(theme, "链接")).child(group(
             theme,
             vec![
                 link(
                     "settings-website",
-                    "Website",
+                    "网站",
                     "xiechimon.github.io/pointo",
                     "https://xiechimon.github.io/pointo",
                 )
                 .into_any_element(),
                 link(
                     "settings-source",
-                    "Source",
+                    "源代码",
                     "github.com/xiechimon/pointo",
                     "https://github.com/xiechimon/pointo",
                 )
                 .into_any_element(),
                 row(
                     theme,
-                    "Welcome tour",
+                    "欢迎导览",
                     true,
-                    button(theme, "settings-tour", "Show", true)
+                    button(theme, "settings-tour", "查看", true)
                         .on_click(cx.listener(|view, _, _, _| view.act(Action::Tour))),
                 )
                 .into_any_element(),

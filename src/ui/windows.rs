@@ -30,7 +30,7 @@ use crate::capture::SharedCaptureTelemetry;
 use crate::win;
 
 /// Where the file browser is called in buttons ("Show in File Explorer").
-pub(super) const FILE_MANAGER: &str = "File Explorer";
+pub(super) const FILE_MANAGER: &str = "文件资源管理器";
 /// No traffic lights: the review header starts at the usual inset and ends at the caption
 /// buttons.
 pub(super) const HEADER_LEAD: f32 = 16.0;
@@ -620,7 +620,7 @@ fn tray_icon_image() -> Option<tray_icon::Icon> {
 /// "Record Screen" with the record shortcut as it is now (Settings can change it).
 fn record_title() -> String {
     format!(
-        "Record Screen\t{}",
+        "录制屏幕\t{}",
         crate::settings::Shortcuts::load().record.label
     )
 }
@@ -631,18 +631,18 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
 
     let menu = Menu::new();
     let toggle = MenuItem::with_id(ID_TOGGLE, record_title(), true, None);
-    let export = MenuItem::with_id(ID_EXPORT, "Export Last Capture as Video…", true, None);
+    let export = MenuItem::with_id(ID_EXPORT, "导出最近一次录制为视频…", true, None);
     let _ = menu.append(&toggle);
     let _ = menu.append(&MenuItem::with_id(
         ID_CHOOSE,
-        "Choose What to Record…",
+        "选择录制内容…",
         true,
         None,
     ));
     let _ = menu.append(&PredefinedMenuItem::separator());
     let _ = menu.append(&MenuItem::with_id(
         ID_OPEN_LATEST,
-        "Open Latest Capture",
+        "打开最近一次录制",
         true,
         None,
     ));
@@ -651,14 +651,14 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
         let _ = menu.append(&export);
     }
     let _ = menu.append(&PredefinedMenuItem::separator());
-    let _ = menu.append(&MenuItem::with_id(ID_SETTINGS, "Settings…", true, None));
+    let _ = menu.append(&MenuItem::with_id(ID_SETTINGS, "设置…", true, None));
     let _ = menu.append(&MenuItem::with_id(
         ID_UPDATES,
-        "Check for Updates…",
+        "检查更新…",
         true,
         None,
     ));
-    let _ = menu.append(&MenuItem::with_id(ID_QUIT, "Quit Pointo", true, None));
+    let _ = menu.append(&MenuItem::with_id(ID_QUIT, "退出 Pointo", true, None));
 
     MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
         if let Some(action) = menu_action(event.id()) {
@@ -736,7 +736,7 @@ fn refresh(tray: &mut Tray) {
     if inbox.len() > 0 {
         let now = crate::now_epoch_ms();
         let mut rows: Vec<Box<dyn IsMenuItem>> =
-            vec![Box::new(MenuItem::new("From iPhone", false, None))];
+            vec![Box::new(MenuItem::new("来自 iPhone", false, None))];
         for entry in inbox.entries() {
             rows.push(Box::new(MenuItem::with_id(
                 format!("{INBOX_PREFIX}{}", entry.dir.display()),
@@ -775,8 +775,8 @@ fn update_tooltip(tray: &Tray) {
     let text = match (&tray.status, tray.inbox) {
         (Some(status), _) => format!("Pointo — {status}"),
         (None, 0) => "Pointo".to_owned(),
-        (None, 1) => "Pointo — 1 capture from iPhone".to_owned(),
-        (None, n) => format!("Pointo — {n} captures from iPhone"),
+        (None, 1) => "Pointo — 1 段来自 iPhone 的录制".to_owned(),
+        (None, n) => format!("Pointo — {n} 段来自 iPhone 的录制"),
     };
     let _ = tray.icon.set_tooltip(Some(text));
 }

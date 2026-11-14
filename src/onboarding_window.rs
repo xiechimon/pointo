@@ -151,7 +151,7 @@ fn open(request: Request, cx: &mut App) {
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
-                title: Some("Welcome to Pointo".into()),
+                title: Some("欢迎使用 Pointo".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(14.0), px(14.0))),
             }),
@@ -321,7 +321,7 @@ fn set_visible(_window: Option<&mut Window>, _visible: bool) {}
 use crate::ui::ease_out_cubic;
 
 fn number_word(n: usize) -> String {
-    ["zero", "one", "two", "three", "four", "five"]
+    ["零", "一", "两", "三", "四", "五"]
         .get(n)
         .map_or_else(|| n.to_string(), |w| (*w).to_owned())
 }
@@ -598,9 +598,9 @@ impl OnboardingWindow {
     fn how_it_works(&self) -> Div {
         let (s, paste, shift) = self.labels();
         let pick = if cfg!(target_os = "windows") {
-            "a window or an area"
+            "窗口或区域"
         } else {
-            "a window, an area or your iPhone"
+            "窗口、区域或 iPhone"
         };
         let row = |keys: Div, text: String| {
             div()
@@ -638,7 +638,7 @@ impl OnboardingWindow {
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(rgb(TEXT))
                     .text_center()
-                    .child("How Pointo works"),
+                    .child("Pointo 怎么用"),
             )
             .child(
                 div()
@@ -652,21 +652,21 @@ impl OnboardingWindow {
                     .child(row(
                         keycaps(&s, false, 26.0),
                         format!(
-                            "Tap {s} to record the screen under your pointer, or hold it to pick {pick}."
+                            "轻按 {s} 录制指针所在的屏幕，或按住 {s} 选择{pick}。"
                         ),
                     ))
                     .child(divider())
                     .child(row(
                         keycap(&shift, true, 26.0),
                         format!(
-                            "Talk as you go, and hold {shift} and drag to draw in red. Pointo records your clicks too."
+                            "边操作边说话；按住 {shift} 拖动，就能用红笔画。Pointo 也会记录你的点击。"
                         ),
                     ))
                     .child(divider())
                     .child(row(
                         keycaps(&paste, false, 26.0),
                         format!(
-                            "Tap {s} again to finish. The capture is on your clipboard, ready to paste into your agent with {paste}."
+                            "再按一次 {s} 结束。录制已在剪贴板里，用 {paste} 就能粘贴给 AI 代理。"
                         ),
                     )),
             )
@@ -676,37 +676,37 @@ impl OnboardingWindow {
         let (glyph, name, why) = match row.permission {
             Permission::ScreenRecording => (
                 crate::icons::SCREEN,
-                "Screen & System Audio Recording",
-                "See your screen while you record".to_owned(),
+                "屏幕与系统录音",
+                "录制时看到你的屏幕".to_owned(),
             ),
             Permission::Microphone => (
                 crate::icons::MIC,
-                "Microphone",
-                "Hear what you say while you record".to_owned(),
+                "麦克风",
+                "录制时听到你说的话".to_owned(),
             ),
             Permission::InputMonitoring => (
                 crate::icons::CLICK,
-                "Input Monitoring",
-                "Notice your clicks and shortcuts in every app".to_owned(),
+                "输入监控",
+                "在所有应用里记录你的点击和快捷键".to_owned(),
             ),
             Permission::Accessibility => (
                 crate::icons::PERSON,
-                "Accessibility",
+                "辅助功能",
                 format!(
-                    "Press {} for you when you use {}",
+                    "用 {1} 时替你按下 {0}",
                     crate::capture::system_paste_label(),
                     crate::settings::paste_label()
                 ),
             ),
             Permission::Camera => (
                 crate::icons::IPHONE,
-                "Camera",
-                "Show and record a cabled iPhone".to_owned(),
+                "摄像头",
+                "显示并录制数据线连接的 iPhone".to_owned(),
             ),
             Permission::SpeechRecognition => (
                 crate::icons::MIC,
-                "Speech Recognition",
-                "Write down what you say, on this computer".to_owned(),
+                "语音识别",
+                "在这台电脑上把你说的话转成文字".to_owned(),
             ),
         };
         let granted = row.status == Status::Granted;
@@ -719,7 +719,7 @@ impl OnboardingWindow {
                 .items_center()
                 .gap(px(5.0))
                 .child(icon(crate::icons::REOPEN, 12.0, POSITIVE))
-                .child("On after reopen")
+                .child("重新打开后生效")
                 .into_any_element()
         } else if granted {
             div()
@@ -727,7 +727,7 @@ impl OnboardingWindow {
                 .items_center()
                 .gap(px(5.0))
                 .child(icon(crate::icons::CHECK_CIRCLE, 13.0, POSITIVE))
-                .child("Allowed")
+                .child("已允许")
                 .into_any_element()
         } else {
             let events = Arc::clone(&self.events);
@@ -740,9 +740,9 @@ impl OnboardingWindow {
             );
             // Windows has no prompt for desktop apps: the button always opens Settings.
             let title = if row.requested || denied || cfg!(target_os = "windows") {
-                "Open Settings"
+                "打开设置"
             } else {
-                "Allow"
+                "允许"
             };
             div()
                 .flex()
@@ -802,7 +802,7 @@ impl OnboardingWindow {
                                         .bg(rgba(0xffffff12))
                                         .text_size(px(10.0))
                                         .text_color(rgb(MUTED))
-                                        .child("Optional"),
+                                        .child("可选"),
                                 )
                             }),
                     )
@@ -825,24 +825,24 @@ impl OnboardingWindow {
         let note = if windows {
             ""
         } else {
-            "If macOS offers to Quit & Reopen Pointo, choose Later; Pointo reopens once when you're done."
+            "如果 macOS 提示“退出并重新打开 Pointo”，请选“稍后”；全部完成后 Pointo 会自己重新打开一次。"
         };
         let settings = if windows {
-            "Windows Settings"
+            "Windows 设置"
         } else {
-            "the macOS prompt or System Settings"
+            "macOS 的授权提示或系统设置"
         };
         let only = |p: Permission| rows.len() == 1 && rows[0].permission == p;
         let (title, body) = if state.fix && only(Permission::Camera) {
             (
-                "Camera, for your iPhone".to_owned(),
-                "macOS treats a cabled iPhone's screen as a camera, so Pointo needs Camera access to show and record it. Pick iPhone again once it's on.".to_owned(),
+                "摄像头，用于 iPhone".to_owned(),
+                "macOS 把数据线连接的 iPhone 屏幕当作摄像头，所以 Pointo 需要摄像头权限才能显示和录制。开启后请再选一次 iPhone。".to_owned(),
             )
         } else if state.fix && only(Permission::Accessibility) {
             (
-                format!("Accessibility, for {}", crate::settings::paste_label()),
+                format!("辅助功能，用于 {}", crate::settings::paste_label()),
                 format!(
-                    "{} pastes a capture into the app in front by pressing {} for you, and that needs Accessibility. Pressing {} yourself works without it.",
+                    "{} 会替你按下 {}，把录制粘贴到当前窗口的应用里，这需要辅助功能权限。你自己按 {} 则不需要。",
                     crate::settings::paste_label(),
                     crate::capture::system_paste_label(),
                     crate::capture::system_paste_label()
@@ -850,8 +850,8 @@ impl OnboardingWindow {
             )
         } else if state.fix {
             (
-                "Pointo can't record yet".to_owned(),
-                format!("Turn these on, then press {} again. {note}", self.shortcut)
+                "Pointo 还不能录制".to_owned(),
+                format!("请先打开这些权限，再按一次 {}。{note}", self.shortcut)
                     .trim_end()
                     .to_owned(),
             )
@@ -859,11 +859,10 @@ impl OnboardingWindow {
             let count = rows.iter().filter(|r| r.required).count();
             (
                 format!(
-                    "Pointo needs {} permission{}",
-                    number_word(count),
-                    if count == 1 { "" } else { "s" }
+                    "Pointo 需要{}项权限",
+                    number_word(count)
                 ),
-                format!("Each button opens {settings}. {note}")
+                format!("每个按钮都会打开{settings}。{note}")
                     .trim_end()
                     .to_owned(),
             )
@@ -909,22 +908,22 @@ impl OnboardingWindow {
 
     fn footer(&self, state: &ViewState, cx: &mut Context<Self>) -> Div {
         let primary: Option<(&str, &'static str, bool)> = match state.step {
-            Step::Welcome => Some(("Get Started", "continue", true)),
-            Step::HowItWorks => Some(("Continue", "continue", true)),
+            Step::Welcome => Some(("开始使用", "continue", true)),
+            Step::HowItWorks => Some(("继续", "continue", true)),
             Step::Permissions => Some((
-                if state.fix { "Done" } else { "Continue" },
+                if state.fix { "完成" } else { "继续" },
                 "continue",
                 state.ready,
             )),
-            Step::Done => Some(("Done", "continue", true)),
+            Step::Done => Some(("完成", "continue", true)),
             Step::TryIt => None,
         };
         let secondary: Option<(&str, &'static str)> = match state.step {
             Step::Permissions => {
-                Some((if state.fix { "Not now" } else { "Set up later" }, "later"))
+                Some((if state.fix { "暂不" } else { "稍后设置" }, "later"))
             }
-            Step::TryIt => Some(("Close", "continue")),
-            Step::Done => Some(("Open Settings", "settings")),
+            Step::TryIt => Some(("关闭", "continue")),
+            Step::Done => Some(("打开设置", "settings")),
             _ => None,
         };
         let show_dots = state.step != Step::Done && !state.fix;
@@ -968,7 +967,7 @@ impl OnboardingWindow {
                 .when(show_back, |d| {
                     d.child(
                         div().absolute().left_0().child(
-                            quiet_button("onboarding-back", "Back")
+                            quiet_button("onboarding-back", "返回")
                                 .on_click(cx.listener(|view, _, _, _| view.act("back"))),
                         ),
                     )
@@ -1054,17 +1053,17 @@ impl Render for OnboardingWindow {
         };
         let (s, paste, _) = self.labels();
         let tray = if cfg!(target_os = "windows") {
-            "system tray"
+            "系统托盘"
         } else {
-            "menu bar"
+            "菜单栏"
         };
         let page: AnyElement = match state.step {
             Step::Welcome => self
                 .centered(
                     self.welcome_art(phase),
                     200.0,
-                    "Welcome to Pointo",
-                    "Record your screen and your voice, draw on what matters, and paste it all into your agent.".into(),
+                    "欢迎使用 Pointo",
+                    "录下屏幕和你的声音，在重点处画上标记，再整个粘贴给 AI 代理。".into(),
                 )
                 .into_any_element(),
             Step::HowItWorks => self.how_it_works().into_any_element(),
@@ -1073,17 +1072,17 @@ impl Render for OnboardingWindow {
                 .centered(
                     self.try_art(phase),
                     164.0,
-                    "Make your first Pointo",
-                    format!("Tap {s} now. Talk, point at something, then tap {s} again."),
+                    "录第一段",
+                    format!("现在按一下 {s}。边说边指向某处，再按一下 {s} 结束。"),
                 )
                 .into_any_element(),
             Step::Done => self
                 .centered(
                     self.done_art(),
                     164.0,
-                    "It's on your clipboard",
+                    "已复制到剪贴板",
                     format!(
-                        "Press {paste} in your agent. Pointo stays in the {tray}; tap {s} whenever you want to show something."
+                        "在 AI 代理里按 {paste} 粘贴。Pointo 会留在{tray}里；想给它看什么，随时按 {s}。"
                     ),
                 )
                 .into_any_element(),
