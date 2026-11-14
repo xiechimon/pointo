@@ -27,7 +27,7 @@ Pointo 基于 [kitlangton/scrawl](https://github.com/kitlangton/scrawl)（MIT）
 **macOS**（Apple 芯片，macOS 15 及以上；macOS 26 上有 Liquid Glass 图标和更多系统效果）
 
 1. 下载 [Pointo-latest-arm64.dmg](https://github.com/xiechimon/pointo/releases/latest/download/Pointo-latest-arm64.dmg)，把 Pointo 拖进「应用程序」。
-2. 这个版本没有经过 Apple 公证，第一次打开时请在「应用程序」里 **右键 Pointo → 打开**，再点「打开」。也可以在终端运行：
+2. 这个版本没有经过 Apple 公证，第一次双击会被 macOS 拦下。打开 **系统设置 › 隐私与安全性**，在页面下方点 **仍要打开**，再确认一次（macOS 15 起右键「打开」已经不能放行）。也可以在终端运行一行命令直接放行：
 
    ```bash
    xattr -dr com.apple.quarantine /Applications/Pointo.app
