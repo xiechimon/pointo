@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://xiechimon.github.io/pointo/releases/Pointo-latest-arm64.dmg">下载 macOS 版</a> ·
-  <a href="https://xiechimon.github.io/pointo/releases/Pointo-latest-windows-x64.zip">下载 Windows 版</a> ·
+  <a href="https://xiechimon.github.io/pointo/releases/Pointo-latest-windows-x64-setup.exe">下载 Windows 版</a> ·
   <a href="https://xiechimon.github.io/pointo/">项目主页</a> ·
   <a href="https://github.com/xiechimon/pointo/releases/latest">全部版本（含 Windows 预览版）</a>
 </p>
@@ -39,7 +39,12 @@ Pointo 基于 [kitlangton/scrawl](https://github.com/kitlangton/scrawl)（MIT）
 
 之后的更新由 App 自己完成（设置 › 关于 › 检查更新）。
 
-**Windows**（预览版，Windows 10 2004 及以上，x64）：下载 [Pointo-latest-windows-x64.zip](https://xiechimon.github.io/pointo/releases/Pointo-latest-windows-x64.zip)（或到 [Releases](https://github.com/xiechimon/pointo/releases/latest)），解压后运行 `pointo.exe`。没有签名，Windows 提示「已保护你的电脑」时点 **更多信息 → 仍要运行**。
+**Windows**（预览版，Windows 10 2004 及以上，x64）
+
+1. 下载安装程序 [Pointo-latest-windows-x64-setup.exe](https://xiechimon.github.io/pointo/releases/Pointo-latest-windows-x64-setup.exe)（或到 [Releases](https://github.com/xiechimon/pointo/releases/latest)）并运行。安装程序没有签名，Windows 提示「已保护你的电脑」时点 **更多信息 → 仍要运行**。
+2. 安装向导是中文的，不需要管理员权限，会装到你自己的用户目录，并创建开始菜单快捷方式（桌面快捷方式可选）。
+3. 向导里有一步「语音模型」：勾选后会在安装时直接下载 Qwen3-ASR 模型（约 850 MB，带进度条，优先国内镜像，下载后校验完整性）。不勾也行，Pointo 第一次启动时会在后台自动下载。
+4. 卸载：在「设置 › 应用」里找到 Pointo 卸载即可。
 
 ## 怎么用
 

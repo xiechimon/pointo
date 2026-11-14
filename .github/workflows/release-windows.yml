@@ -133,46 +133,51 @@ jobs:
         shell: pwsh
         run: |
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-          $name = "Pointo-$version-windows-x64.zip"
           $dir = "dist\Pointo"
           New-Item -ItemType Directory -Force $dir | Out-Null
           Copy-Item $env:EXE "$dir\pointo.exe"
           Copy-Item target\x86_64-pc-windows-msvc\release\transcribe.dll, target\x86_64-pc-windows-msvc\release\ggml*.dll $dir
           Copy-Item runtime\*.dll $dir
           Copy-Item LICENSE "$dir\LICENSE.txt"
-          @"
-          Pointo $version for Windows (preview)
+          "version=$version" >> $env:GITHUB_OUTPUT
 
-          Run pointo.exe, keeping the DLLs beside it. Pointo lives in the notification area;
-          press Alt+Shift+S to record.
-
-          This build isn't signed yet, so Windows may say "Windows protected your PC".
-          Click More info, then Run anyway.
-
-          The first launch downloads the speech model (730 MB) in the background, unless Hex
-          already installed one. Captures made before it finishes get their transcript afterwards.
-
-          https://xiechimon.github.io/pointo
-          https://github.com/xiechimon/pointo
-          "@ | Set-Content -Encoding utf8 "$dir\README.txt"
-          Compress-Archive -Path $dir -DestinationPath "dist\$name" -Force
-          Get-ChildItem dist\$name | Format-Table Name, Length
+      # The installer (packaging/windows/Pointo.iss): per-user, Simplified Chinese, Start menu and
+      # desktop shortcuts, and an optional step that downloads the speech model with progress.
+      - name: Build the installer
+        id: installer
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup 6", "$env:ProgramFiles\Inno Setup 6" -Filter ISCC.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $iscc) { choco install innosetup -y --no-progress | Out-Null; $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup 6" -Filter ISCC.exe | Select-Object -First 1 }
+          & $iscc.FullName "/DAppVersion=${{ steps.package.outputs.version }}" "/DSourceDir=$PWD\dist\Pointo" "/DRepoDir=$PWD" "/DOutputDir=$PWD\dist" packaging\windows\Pointo.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+          $name = "Pointo-${{ steps.package.outputs.version }}-windows-x64-setup.exe"
+          Get-ChildItem "dist\$name" | Format-Table Name, Length
           (Get-FileHash "dist\$name" -Algorithm SHA256).Hash.ToLower() + "  $name" | Tee-Object "dist\$name.sha256"
           "name=$name" >> $env:GITHUB_OUTPUT
 
-      - name: Check the zip
+      - name: Check the installer
         shell: pwsh
         run: |
-          Expand-Archive "dist\${{ steps.package.outputs.name }}" -DestinationPath dist\check -Force
-          Get-ChildItem -Recurse dist\check | Format-Table FullName, Length
-          dist\check\Pointo\pointo.exe --version
+          $setup = "dist\${{ steps.installer.outputs.name }}"
+          $target = "$env:RUNNER_TEMP\pointo-install"
+          Start-Process $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$target" -Wait
+          Get-ChildItem $target | Format-Table Name, Length
+          & "$target\pointo.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "installed pointo.exe failed ($LASTEXITCODE)" }
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Pointo.lnk'
+          if (-not $lnk) { throw "no Start menu shortcut" }
+          $uninstaller = Get-ChildItem $target -Filter 'unins*.exe' | Select-Object -First 1
+          Start-Process $uninstaller.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep 3
+          if (Test-Path "$target\pointo.exe") { throw "uninstall left pointo.exe behind" }
 
       - uses: actions/upload-artifact@v5
         with:
-          name: ${{ steps.package.outputs.name }}
+          name: ${{ steps.installer.outputs.name }}
           path: |
-            dist/${{ steps.package.outputs.name }}
-            dist/${{ steps.package.outputs.name }}.sha256
+            dist/${{ steps.installer.outputs.name }}
+            dist/${{ steps.installer.outputs.name }}.sha256
 
       - name: Attach to the release
         if: env.TAG != ''
@@ -181,4 +186,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "Pointo ${TAG#v}" --notes "Release notes to follow."
-          gh release upload "$TAG" "dist/${{ steps.package.outputs.name }}" "dist/${{ steps.package.outputs.name }}.sha256" --clobber
+          gh release upload "$TAG" "dist/${{ steps.installer.outputs.name }}" "dist/${{ steps.installer.outputs.name }}.sha256" --clobber

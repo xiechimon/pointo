@@ -1255,7 +1255,7 @@ pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     let _ = std::thread::Builder::new()
         .name("pointo-ingest-http".into())
         .spawn(move || {
-            if let Err(err) = serve_http(DEFAULT_INGEST_PORT, http_cfg) {
+            if let Err(err) = serve_http(app_bind_host(), DEFAULT_INGEST_PORT, http_cfg) {
                 scrawl_log(format!("ingest server: {err:#}"));
             }
         });
@@ -1275,11 +1275,23 @@ pub fn run_ingest_server(port: u16, usb: bool) -> Result<()> {
     if usb {
         spawn_usb_poller(config.clone());
     }
-    serve_http(port, config)
+    serve_http("0.0.0.0", port, config)
 }
 
-fn serve_http(port: u16, config: IngestConfig) -> Result<()> {
-    let addr = format!("0.0.0.0:{port}");
+/// Where the app's own server listens. On Windows only this PC needs it (`/sdk.js` pages on
+/// localhost; Wi-Fi iPhone uploads are a Mac feature), and a loopback listener keeps Windows
+/// Firewall from asking "allow public and private networks?" at first launch. `pointo serve`
+/// still listens on every interface.
+fn app_bind_host() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "127.0.0.1"
+    } else {
+        "0.0.0.0"
+    }
+}
+
+fn serve_http(host: &str, port: u16, config: IngestConfig) -> Result<()> {
+    let addr = format!("{host}:{port}");
     let listener = std::net::TcpListener::bind(&addr)
         .with_context(|| format!("port {port} already in use"))?;
     scrawl_log(format!("ingest server listening on {addr}"));
@@ -1872,6 +1884,12 @@ fn poll_usb_app_containers(apps: &[String], config: &IngestConfig) -> Result<()>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_app_listens_on_loopback_on_windows_so_the_firewall_never_asks() {
+        let expected = if cfg!(target_os = "windows") { "127.0.0.1" } else { "0.0.0.0" };
+        assert_eq!(app_bind_host(), expected);
+    }
 
     fn touch(t: f64, id: i64, x: f64, y: f64, phase: &str) -> Touch {
         Touch {
