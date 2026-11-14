@@ -43,12 +43,12 @@ enum DemoScript {
 
   /// Spoken words (shown, never heard) with the time each one is said.
   static let sentences: [(shown: (Double, Double), words: [(String, Double)])] = [
-    ((1.2, 2.5), [("This", 1.25), ("button", 1.42), ("is", 1.62), ("cut", 1.75), ("off", 1.92)]),
-    ((2.6, 4.15), [("and", 2.7), ("too", 2.9), ("far", 3.08), ("right.", 3.28)]),
-    ((4.3, 5.9), [("Line", 4.35), ("it", 4.5), ("up", 4.62), ("with", 4.78), ("this.", 4.95)]),
+    ((1.2, 2.5), [("这个", 1.25), ("按钮", 1.42), ("被", 1.62), ("截掉", 1.75), ("了", 1.92)]),
+    ((2.6, 4.15), [("而且", 2.7), ("太", 2.9), ("靠", 3.08), ("右。", 3.28)]),
+    ((4.3, 5.9), [("和", 4.35), ("这里", 4.5), ("对", 4.78), ("齐。", 4.95)]),
   ]
-  static let transcript = "This button is cut off and too far right. Line it up with this."
-  static let replyText = "Moved the button back in line."
+  static let transcript = "这个按钮被截掉了，而且太靠右。和这里对齐。"
+  static let replyText = "已把按钮对齐。"
 }
 
 func clamp01(_ x: Double) -> Double { min(1, max(0, x)) }
@@ -273,21 +273,21 @@ struct DemoScene {
         let x = 11 + CGFloat(i) * 10
         page.fill(Path(ellipseIn: CGRect(x: x - 3.2, y: 11 - 3.2, width: 6.4, height: 6.4)), with: .color(color.opacity(0.9)))
       }
-      page.draw(Text("Checkout").font(.system(size: 9, weight: .medium)).foregroundColor(DemoInk.secondary), at: CGPoint(x: w / 2, y: 11))
+      page.draw(Text("结账").font(.system(size: 9, weight: .medium)).foregroundColor(DemoInk.secondary), at: CGPoint(x: w / 2, y: 11))
 
-      page.draw(Text("Order summary").font(.system(size: 11, weight: .semibold)).foregroundColor(DemoInk.text), at: CGPoint(x: 16, y: 40), anchor: .leading)
-      let rows: [(String, String, CGFloat)] = [("Notebook", "$24.00", 62), ("Shipping", "$4.00", 80)]
+      page.draw(Text("订单摘要").font(.system(size: 11, weight: .semibold)).foregroundColor(DemoInk.text), at: CGPoint(x: 16, y: 40), anchor: .leading)
+      let rows: [(String, String, CGFloat)] = [("笔记本", "¥24.00", 62), ("运费", "¥4.00", 80)]
       for (label, price, y) in rows {
         page.draw(Text(label).font(.system(size: 9.5)).foregroundColor(DemoInk.secondary), at: CGPoint(x: 16, y: y), anchor: .leading)
         page.draw(Text(price).font(.system(size: 9.5).monospacedDigit()).foregroundColor(DemoInk.secondary), at: CGPoint(x: 284, y: y), anchor: .trailing)
       }
       page.fill(Path(CGRect(x: 16, y: 92, width: 268, height: 0.5)), with: .color(.black.opacity(0.12)))
-      page.draw(Text("Total").font(.system(size: 10, weight: .semibold)).foregroundColor(DemoInk.text), at: CGPoint(x: 16, y: 106), anchor: .leading)
-      page.draw(Text("$28.00").font(.system(size: 10, weight: .semibold).monospacedDigit()).foregroundColor(DemoInk.text), at: CGPoint(x: 284, y: 106), anchor: .trailing)
+      page.draw(Text("合计").font(.system(size: 10, weight: .semibold)).foregroundColor(DemoInk.text), at: CGPoint(x: 16, y: 106), anchor: .leading)
+      page.draw(Text("¥28.00").font(.system(size: 10, weight: .semibold).monospacedDigit()).foregroundColor(DemoInk.text), at: CGPoint(x: 284, y: 106), anchor: .trailing)
 
       let button = mix(DemoGeo.buttonBroken, DemoGeo.buttonFixed, fixed)
       page.fill(Path(roundedRect: button, cornerRadius: 7, style: .continuous), with: .color(DemoInk.text))
-      page.draw(Text("Pay now").font(.system(size: 9.5, weight: .semibold)).foregroundColor(.white), at: CGPoint(x: button.midX, y: button.midY))
+      page.draw(Text("立即支付").font(.system(size: 9.5, weight: .semibold)).foregroundColor(.white), at: CGPoint(x: button.midX, y: button.midY))
     }
     ctx.stroke(window, with: .color(.black.opacity(0.25)), lineWidth: 0.5)
   }
@@ -302,7 +302,7 @@ struct DemoScene {
     }
     ctx.stroke(panel, with: .color(.white.opacity(0.09)), lineWidth: 0.5)
     ctx.fill(Path(ellipseIn: CGRect(x: g.minX + 11, y: g.minY + 9, width: 5, height: 5)), with: .color(Palette.positive.opacity(0.9)))
-    ctx.draw(Text("Agent").font(.system(size: 9.5, weight: .semibold)).foregroundColor(Palette.soft), at: CGPoint(x: g.minX + 21, y: g.minY + 11.5), anchor: .leading)
+    ctx.draw(Text("AI 代理").font(.system(size: 9.5, weight: .semibold)).foregroundColor(Palette.soft), at: CGPoint(x: g.minX + 21, y: g.minY + 11.5), anchor: .leading)
     ctx.fill(Path(CGRect(x: g.minX, y: g.minY + 23, width: g.width, height: 0.5)), with: .color(.white.opacity(0.07)))
 
     // The composer: a placeholder, then the pasted frame and words, which leave when sent.
@@ -314,9 +314,9 @@ struct DemoScene {
     // The placeholder is gone before the pasted words arrive, so the two never overlap.
     let pasted = ramp(t, s.fly + 0.48, s.fly + 0.63) * (1 - ramp(t, s.send, s.send + 0.12))
     let placeholder = 1 - ramp(t, s.fly + 0.28, s.fly + 0.4) * (1 - ramp(t, s.send + 0.3, s.send + 0.5))
-    ctx.draw(Text("Ask anything").font(.system(size: 8.5)).foregroundColor(Palette.muted.opacity(placeholder)), at: CGPoint(x: c.minX + 10, y: c.midY), anchor: .leading)
+    ctx.draw(Text("随便问点什么").font(.system(size: 8.5)).foregroundColor(Palette.muted.opacity(placeholder)), at: CGPoint(x: c.minX + 10, y: c.midY), anchor: .leading)
     if pasted > 0 {
-      ctx.draw(Text("This button is cut off and too…").font(.system(size: 8.5)).foregroundColor(Palette.text.opacity(pasted)),
+      ctx.draw(Text("这个按钮被截掉了，而且…").font(.system(size: 8.5)).foregroundColor(Palette.text.opacity(pasted)),
                at: CGPoint(x: DemoGeo.composerThumb.maxX + 6, y: c.midY), anchor: .leading)
     }
 
@@ -362,7 +362,7 @@ struct DemoScene {
       var line = Text("")
       for (i, (word, at)) in sentence.words.enumerated() {
         let said = 0.3 + 0.7 * ramp(t, at - 0.04, at + 0.08)
-        line = line + Text((i == 0 ? "" : " ") + word).foregroundColor(.white.opacity(said))
+        line = line + Text(word).foregroundColor(.white.opacity(said))
       }
       let resolved = ctx.resolve(line.font(.system(size: 9.5, weight: .medium)))
       let size = resolved.measure(in: CGSize(width: 400, height: 40))
@@ -491,7 +491,7 @@ struct DemoScene {
         check.addLine(to: CGPoint(x: slot.x - 0.9, y: slot.y + 2.5))
         check.addLine(to: CGPoint(x: slot.x + 3.4, y: slot.y - 2.4))
         layer.stroke(check, with: .color(Palette.positive), style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
-        layer.draw(Text("Copied").font(.system(size: 10, weight: .semibold)).foregroundColor(Palette.text), at: CGPoint(x: x0 + 27, y: cy), anchor: .leading)
+        layer.draw(Text("已复制").font(.system(size: 10, weight: .semibold)).foregroundColor(Palette.text), at: CGPoint(x: x0 + 27, y: cy), anchor: .leading)
       } else {
         let beat = (t - s.recordStart).truncatingRemainder(dividingBy: 1.6) / 1.6
         let halo = 7.5 * (0.4 + 0.6 * beat)
@@ -513,7 +513,7 @@ struct DemoScene {
         c.scaleBy(x: press, y: press)
         c.translateBy(x: -chip.midX, y: -chip.midY)
         c.fill(Path(roundedRect: chip, cornerRadius: 12, style: .continuous), with: .color(DemoInk.accent))
-        c.draw(Text(copied ? "Paste" : "Finish").font(.system(size: 9.5, weight: .semibold)).foregroundColor(Palette.text), at: CGPoint(x: chip.midX, y: chip.midY))
+        c.draw(Text(copied ? "粘贴" : "停止").font(.system(size: 9.5, weight: .semibold)).foregroundColor(Palette.text), at: CGPoint(x: chip.midX, y: chip.midY))
       }
     }
   }
@@ -588,15 +588,15 @@ struct DemoBeat {
 
 func demoBeats(shortcut: String, paste: String) -> [DemoBeat] {
   let s = DemoScript.self
-  let start = DemoBeat(start: 0, parts: [.text("Tap"), .keys(shortcut, lit: s.startKeys...(s.startKeys + 0.35)), .text("to start recording")])
+  let start = DemoBeat(start: 0, parts: [.text("按"), .keys(shortcut, lit: s.startKeys...(s.startKeys + 0.35)), .text("开始录制")])
   return [
     start,
-    DemoBeat(start: 1.1, parts: [.symbol("mic.fill"), .text("Talk as you go")]),
-    DemoBeat(start: 2.4, parts: [.text("Hold"), .keys("⇧", lit: 2.55...3.95), .text("and move the mouse to mark")]),
-    DemoBeat(start: 4.2, parts: [.symbol("cursorarrow.click"), .text("Click to point at something")]),
-    DemoBeat(start: 5.5, parts: [.text("Tap"), .keys(shortcut, lit: s.finishKeys...(s.finishKeys + 0.3)), .text("again to finish")]),
-    DemoBeat(start: 6.6, parts: [.text("Press"), .keys(paste, lit: s.pasteKeys...(s.pasteKeys + 0.3)), .text("to paste into your agent")]),
-    DemoBeat(start: 8.2, parts: [.text("Your agent sees your mark and reads what you said")]),
+    DemoBeat(start: 1.1, parts: [.symbol("mic.fill"), .text("边录边说")]),
+    DemoBeat(start: 2.4, parts: [.text("按住"), .keys("⇧", lit: 2.55...3.95), .text("并移动鼠标来标记")]),
+    DemoBeat(start: 4.2, parts: [.symbol("cursorarrow.click"), .text("点击来指向某处")]),
+    DemoBeat(start: 5.5, parts: [.text("再按"), .keys(shortcut, lit: s.finishKeys...(s.finishKeys + 0.3)), .text("结束录制")]),
+    DemoBeat(start: 6.6, parts: [.text("按"), .keys(paste, lit: s.pasteKeys...(s.pasteKeys + 0.3)), .text("粘贴给你的 AI 代理")]),
+    DemoBeat(start: 8.2, parts: [.text("AI 代理能看到你的标记，也能读到你说的话")]),
     DemoBeat(start: s.resetCaption, parts: start.parts),
   ]
 }
@@ -894,18 +894,18 @@ struct HowItWorksDemo: View {
 
   private var hint: some View {
     let text: String = if drawing {
-      "Let go of ⇧ to finish"
+      "松开 ⇧ 完成"
     } else if practiced && !strokes.isEmpty {
-      "That's a mark"
+      "这就是一个标记"
     } else if storyboard {
-      "Try it: hold ⇧ over the pictures and move the mouse"
+      "试试：按住 ⇧，在画面上移动鼠标"
     } else {
-      "Try it: hold ⇧ and move"
+      "试试：按住 ⇧ 并移动"
     }
     return ZStack(alignment: .leading) {
       Text(text)
         .font(.system(size: storyboard ? 11.5 : 11))
-        .foregroundStyle(text == "That's a mark" ? Palette.soft : Palette.muted)
+        .foregroundStyle(text == "这就是一个标记" ? Palette.soft : Palette.muted)
         .id(text)
         .transition(Motion.swap)
     }
@@ -920,10 +920,10 @@ struct DemoStoryboard: View {
 
   var body: some View {
     let frames: [(Double, String)] = [
-      (3.95, "Tap \(shortcut), talk, and hold ⇧ to mark"),
-      (5.0, "Click to point at something"),
-      (6.5, "Tap \(shortcut) again to finish"),
-      (9.4, "Press \(paste) to paste into your agent"),
+      (3.95, "按 \(shortcut)，边说边按住 ⇧ 标记"),
+      (5.0, "点击来指向某处"),
+      (6.5, "再按一次 \(shortcut) 结束录制"),
+      (9.4, "按 \(paste) 粘贴给你的 AI 代理"),
     ]
     let scale: CGFloat = 0.44
     let cell = CGSize(width: DemoGeo.size.width * scale, height: DemoGeo.size.height * scale)

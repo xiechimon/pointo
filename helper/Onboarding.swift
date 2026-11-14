@@ -111,23 +111,32 @@ struct SpeechStatus: Decodable, Equatable {
   var error: String?
 
   private var language: String {
-    locale.flatMap { Locale.current.localizedString(forIdentifier: $0) } ?? "your language"
+    locale.flatMap { Locale(identifier: "zh-Hans").localizedString(forIdentifier: $0) } ?? "你的语言"
   }
 
   private var percent: String { progress > 0 ? " \(Int(progress * 100))%" : "" }
-  var percentInParens: String { progress > 0 ? " (\(Int(progress * 100))%)" : "" }
+  var percentInParens: String { progress > 0 ? "（\(Int(progress * 100))%）" : "" }
+
+  /// The helper's own macOS 15 messages (`Recognizer.permissionProblem` / `dictationProblem` in
+  /// Media.swift stay English: they also reach summary.md through Rust), shown in Chinese here.
+  private static func chinese(_ message: String) -> String {
+    if message.hasPrefix("Turn on Dictation") { return "请在「系统设置 › 键盘」里打开听写，才会有转写文字。" }
+    if message.hasPrefix("Speech Recognition is off") { return "语音识别已关闭，请在「系统设置 › 隐私与安全性」里打开。" }
+    if message.hasPrefix("Speech Recognition isn't allowed yet") { return "还没允许语音识别，所以录制不会有转写文字。" }
+    return message
+  }
 
   /// One line for onboarding and Settings, or nil when there's nothing to say.
   var line: String? {
     switch state {
-    case "checking": return "Checking for the speech model…"
-    case "downloading": return "Downloading the speech model…\(percent)"
-    case "ready": return "Speech model ready (\(language))"
-    case "unavailable": return "No Apple speech model for \(language) on this Mac"
+    case "checking": return "正在检查语音模型…"
+    case "downloading": return "正在下载语音模型…\(percent)"
+    case "ready": return "语音模型已就绪（\(language)）"
+    case "unavailable": return "这台 Mac 上没有\(language)的 Apple 语音模型"
     // macOS 15: the error says what to turn on (Speech Recognition, or Dictation's model).
-    case "needsPermission": return error ?? "Speech Recognition isn't allowed yet, so captures have no transcript."
-    case "failed" where engine == "SFSpeechRecognizer" && error != nil: return error
-    case "failed": return "The speech model didn't download. Pointo will try again."
+    case "needsPermission": return error.map(Self.chinese) ?? "还没允许语音识别，所以录制不会有转写文字。"
+    case "failed" where engine == "SFSpeechRecognizer" && error != nil: return error.map(Self.chinese)
+    case "failed": return "语音模型没下载成功，Pointo 会再试。"
     default: return nil
     }
   }
@@ -425,20 +434,20 @@ struct PermissionInfo {
 
 /// What System Settings calls the Accessibility list. macOS 27 renamed it.
 let accessibilityName = ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
-  ? "Device Control and Data Access" : "Accessibility"
+  ? "设备控制与数据访问" : "辅助功能"
 
 func permissionInfo(_ permission: String, paste: String) -> PermissionInfo {
   switch permission {
   case "screen-recording":
-    return PermissionInfo(symbol: "rectangle.dashed.badge.record", name: "Screen & System Audio Recording", why: "See your screen while you record")
+    return PermissionInfo(symbol: "rectangle.dashed.badge.record", name: "屏幕与系统录音", why: "录制时看到你的屏幕")
   case "microphone":
-    return PermissionInfo(symbol: "mic", name: "Microphone", why: "Hear what you say while you record")
+    return PermissionInfo(symbol: "mic", name: "麦克风", why: "录制时听到你说的话")
   case "accessibility":
-    return PermissionInfo(symbol: "accessibility", name: accessibilityName, why: "Undo with ⌘Z while you record, and paste with \(paste)")
+    return PermissionInfo(symbol: "accessibility", name: accessibilityName, why: "录制时用 ⌘Z 撤销，用 \(paste) 粘贴")
   case "camera":
-    return PermissionInfo(symbol: "iphone", name: "Camera", why: "Show and record a cabled iPhone")
+    return PermissionInfo(symbol: "iphone", name: "摄像头", why: "显示并录制数据线连接的 iPhone")
   case "speech-recognition":
-    return PermissionInfo(symbol: "waveform", name: "Speech Recognition", why: "Write down what you say, on this Mac")
+    return PermissionInfo(symbol: "waveform", name: "语音识别", why: "在这台 Mac 上把你说的话转成文字")
   default:
     return PermissionInfo(symbol: "lock", name: permission, why: "")
   }
@@ -472,7 +481,7 @@ struct PermissionRowView: View {
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(Palette.text)
           if showOptional && !row.required {
-            Text("Optional")
+            Text("可选")
               .font(.system(size: 10, weight: .semibold))
               .foregroundStyle(Palette.muted)
               .padding(.horizontal, 6)
@@ -496,16 +505,16 @@ struct PermissionRowView: View {
       if row.granted && row.reopening {
         HStack(spacing: 6) {
           Spinner()
-          Text("Reopening Pointo")
+          Text("正在重新打开 Pointo")
         }
         .transition(Motion.swap)
       } else if row.granted && row.relaunch {
-        RowButton(title: "Reopen Pointo", prominent: true, action: grant)
+        RowButton(title: "重新打开 Pointo", prominent: true, action: grant)
           .transition(Motion.swap)
       } else if row.granted {
         HStack(spacing: 5) {
           Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.positive)
-          Text("Allowed")
+          Text("已允许")
         }
         .transition(Motion.swap)
       } else {
@@ -517,7 +526,7 @@ struct PermissionRowView: View {
           if row.requested && (row.status != "denied" || draggable) {
             Spinner()
           }
-          RowButton(title: settings ? "Open Settings" : "Allow", prominent: next && !row.requested, action: grant)
+          RowButton(title: settings ? "打开系统设置" : "允许", prominent: next && !row.requested, action: grant)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { buttonFrame($0) }
         }
         .transition(Motion.swap)
@@ -569,9 +578,9 @@ struct OnboardingView: View {
   private var centered: some View {
     let s = model.shortcut
     let (title, body): (String, String) = switch state.step {
-    case "try-it": ("Make your first Pointo", "Tap \(s) now. Talk, point at something, then tap \(s) again.")
-    case "done": ("It's on your clipboard", "Press ⌘V in your agent. Pointo stays in the menu bar; tap \(s) whenever you want to show something.")
-    default: ("Welcome to Pointo", "Record your screen and your voice, draw on what matters, and paste it all into your agent.")
+    case "try-it": ("录下你的第一条 Pointo", "现在按 \(s)，边说边指点，说完再按一次 \(s)。")
+    case "done": ("已复制到剪贴板", "在你的 AI 代理里按 ⌘V 粘贴。Pointo 会留在菜单栏，想给它看点什么时按 \(s) 就行。")
+    default: ("欢迎使用 Pointo", "录下屏幕和你的声音，在重点上画几笔，再整份粘贴给你的 AI 代理。")
     }
     return VStack(spacing: 0) {
       Spacer().frame(height: 34)
@@ -602,7 +611,7 @@ struct OnboardingView: View {
         }
         if state.speech?.notReady == true, let line = state.speech?.line {
           note((state.speech?.state == "downloading" || state.speech?.state == "checking") && state.speech?.engine != "SFSpeechRecognizer"
-            ? "The speech model is still downloading\(state.speech?.percentInParens ?? ""). If it isn't done when you finish, Pointo adds the transcript to your capture afterwards."
+            ? "语音模型还在下载\(state.speech?.percentInParens ?? "")。如果录完时还没下好，Pointo 会稍后把转写文字补进这次录制。"
             : line)
             .padding(.top, 12)
         }
@@ -642,7 +651,7 @@ struct OnboardingView: View {
 
   private var howItWorks: some View {
     VStack(spacing: 0) {
-      Text("How Pointo works")
+      Text("Pointo 怎么用")
         .font(.system(size: 22, weight: .semibold))
         .foregroundStyle(Palette.text)
         .padding(.top, 34)
@@ -654,13 +663,13 @@ struct OnboardingView: View {
   private var permissionsCopy: (title: String, body: String?) {
     let required = state.rows.filter(\.required).count
     if state.fix, state.rows.count == 1, state.rows.first?.permission == "camera" {
-      return ("Camera, for your iPhone", "macOS treats a cabled iPhone's screen as a camera, so Pointo needs Camera access to show and record it. Pick iPhone again once it's on.")
+      return ("为 iPhone 开启摄像头", "macOS 把数据线连接的 iPhone 屏幕当作摄像头，所以 Pointo 需要摄像头权限才能显示和录制。开启后请重新选择 iPhone。")
     }
     if state.fix {
-      return ("Pointo can't record yet", "Turn these on, then press \(model.shortcut) again.")
+      return ("Pointo 暂时无法录制", "开启下面这些权限，然后再按一次 \(model.shortcut)。")
     }
-    let count = ["zero", "one", "two", "three", "four", "five"][min(required, 5)]
-    return ("Pointo needs \(count) permissions", nil)
+    let count = ["零", "一", "两", "三", "四", "五"][min(required, 5)]
+    return ("Pointo 需要\(count)项权限", nil)
   }
 
   private var permissions: some View {
@@ -695,7 +704,7 @@ struct OnboardingView: View {
   }
 
   private var pickerNoteText: String {
-    "macOS may also ask whether Pointo can bypass its private window picker. Choose Allow, so Pointo can record the screen you're showing."
+    "macOS 可能还会问是否允许 Pointo 绕过系统的私密窗口选择器。请选「允许」，Pointo 才能录下你要展示的屏幕。"
   }
 
   private func note(_ text: String) -> some View {
@@ -711,20 +720,20 @@ struct OnboardingView: View {
 
   private var primary: (title: String, action: String, enabled: Bool)? {
     switch state.step {
-    case "welcome": return ("Get Started", "continue", true)
-    case "how-it-works": return state.tutorialSeen ? ("Continue", "continue", true) : ("Skip", "skip", true)
+    case "welcome": return ("开始", "continue", true)
+    case "how-it-works": return state.tutorialSeen ? ("继续", "continue", true) : ("跳过", "skip", true)
     case "permissions":
-      return (state.fix ? "Done" : "Continue", "continue", state.ready)
-    case "done": return ("Done", "continue", true)
+      return (state.fix ? "完成" : "继续", "continue", state.ready)
+    case "done": return ("完成", "continue", true)
     default: return nil
     }
   }
 
   private var secondary: String? {
     switch state.step {
-    case "permissions": return state.fix ? "Not now" : "Set up later"
-    case "try-it": return "Close"
-    case "done": return "Open Settings"
+    case "permissions": return state.fix ? "以后再说" : "稍后设置"
+    case "try-it": return "关闭"
+    case "done": return "打开设置"
     default: return nil
     }
   }
@@ -753,7 +762,7 @@ struct OnboardingView: View {
         }
         HStack {
           if state.index > 0 && !state.fix && state.step != "done" {
-            QuietButton(title: "Back") { model.send("back") }
+            QuietButton(title: "返回") { model.send("back") }
           }
           Spacer()
         }
@@ -866,7 +875,7 @@ final class Onboarding: NSObject, NSApplicationDelegate, NSWindowDelegate {
     )
     window.titlebarAppearsTransparent = true
     window.titleVisibility = .hidden
-    window.title = "Welcome to Pointo"
+    window.title = "欢迎使用 Pointo"
     window.isMovableByWindowBackground = true
     window.appearance = NSAppearance(named: .darkAqua)
     window.backgroundColor = NSColor(calibratedWhite: 0x16 / 255, alpha: 1)
