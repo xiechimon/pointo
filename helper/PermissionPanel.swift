@@ -160,10 +160,10 @@ enum PermissionPanel {
     /// The name the pane's list is known by. macOS 27 renamed Accessibility.
     var title: String {
       switch self {
-      case .screenRecording: return "Screen Recording"
+      case .screenRecording: return "屏幕与系统录音"
       case .accessibility:
         return ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
-          ? "Device Control and Data Access" : "Accessibility"
+          ? "设备控制与数据访问" : "辅助功能"
       }
     }
 
@@ -386,7 +386,7 @@ extension PermissionPanel {
         ZStack(alignment: .leading) {
           dragText.opacity(model.phase == .granted ? 0 : 1)
             .blur(radius: model.phase == .granted ? 3 : 0)
-          (Text(appName).foregroundStyle(.primary).fontWeight(.medium) + Text(" is allowed").foregroundStyle(.secondary))
+          (Text(appName).foregroundStyle(.primary).fontWeight(.medium) + Text(" 已允许").foregroundStyle(.secondary))
             .opacity(model.phase == .granted ? 1 : 0)
             .blur(radius: model.phase == .granted ? 0 : 3)
         }
@@ -398,9 +398,9 @@ extension PermissionPanel {
     }
 
     private var dragText: Text {
-      Text("Drag ").foregroundStyle(.secondary)
+      Text("把 ").foregroundStyle(.secondary)
         + Text(appName).foregroundStyle(.primary).fontWeight(.medium)
-        + Text(" to the list above to allow ").foregroundStyle(.secondary)
+        + Text(" 拖到上面的列表里，允许 ").foregroundStyle(.secondary)
         + Text(kind.title).foregroundStyle(.primary).fontWeight(.medium)
     }
 
@@ -446,7 +446,7 @@ extension PermissionPanel {
           .contentShape(Circle())
       }
       .buttonStyle(.plain)
-      .help("Back")
+      .help("返回")
       .onHover { hovering = $0 }
       .animation(.spring(duration: 0.25, bounce: 0), value: hovering)
     }

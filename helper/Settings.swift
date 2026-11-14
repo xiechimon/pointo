@@ -36,7 +36,7 @@ struct SettingsLogin: Decodable, Equatable {
 
 struct SettingsShortcut: Decodable, Equatable, Identifiable {
   var kind = "record"
-  var title = "Record"
+  var title = "开始录制"
   var label = "⌥⇧S"
   var key = "S"
   var shift = true
@@ -68,9 +68,9 @@ struct SettingsMenuOption: Decodable, Equatable {
 struct SettingsMicrophone: Decodable, Equatable {
   /// "default" or a device's CoreAudio UID.
   var selected = "default"
-  var value = "System default"
+  var value = "系统默认"
   /// An `id` of "-" is a separator.
-  var options: [SettingsMenuOption] = [SettingsMenuOption(id: "default", title: "System default")]
+  var options: [SettingsMenuOption] = [SettingsMenuOption(id: "default", title: "系统默认")]
   var note: String?
   /// The device to show the level of; nil until Microphone is allowed.
   var meter: String?
@@ -78,7 +78,7 @@ struct SettingsMicrophone: Decodable, Equatable {
 
 struct SettingsTranscriber: Decodable, Equatable {
   var engine = "apple"
-  var hexTitle = "Hex (not running)"
+  var hexTitle = "Hex（未运行）"
   var hexEnabled = false
   var language = "en"
   var appleLocale = "auto"
@@ -86,20 +86,20 @@ struct SettingsTranscriber: Decodable, Equatable {
   var speech: SpeechStatus?
 
   static func languageMenu(saved: String, speech: SpeechStatus?) -> (value: String, selected: String, options: [(id: String, title: String, enabled: Bool)], note: String?) {
-    func name(_ id: String) -> String { Locale.current.localizedString(forIdentifier: id) ?? id }
+    func name(_ id: String) -> String { Locale(identifier: "zh-Hans").localizedString(forIdentifier: id) ?? id }
     let effective = speech?.locale ?? Locale.current.identifier
-    let automatic = "Automatic (\(name(saved == "auto" ? effective : Locale.current.identifier)))"
+    let automatic = "自动（\(name(saved == "auto" ? effective : Locale.current.identifier))）"
     let supported = (speech?.locales ?? []).map { (id: $0, title: name($0), enabled: true) }
       .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     var options: [(id: String, title: String, enabled: Bool)] = [("auto", automatic, true), ("-", "", false)] + supported
-    if saved == "auto" { return ("Automatic", "auto", options, nil) }
+    if saved == "auto" { return ("自动", "auto", options, nil) }
     if let match = supported.first(where: { Locale(identifier: $0.id).language.maximalIdentifier == Locale(identifier: saved).language.maximalIdentifier }) {
       return (match.title, match.id, options, nil)
     }
     let unknown = supported.isEmpty
-    let title = unknown ? name(saved) : "\(name(saved)) (not available)"
+    let title = unknown ? name(saved) : "\(name(saved))（不可用）"
     options.append((saved, title, unknown))
-    let note = unknown ? nil : "\(name(saved)) isn't available on this Mac. Using \(name(effective))."
+    let note = unknown ? nil : "这台 Mac 上没有\(name(saved))，改用\(name(effective))。"
     return (title, saved, options, note)
   }
   /// The program's file name while transcribeCommand is usable.
@@ -114,11 +114,11 @@ struct SettingsOption: Decodable, Equatable {
 struct SettingsRetention: Decodable, Equatable {
   var preset: String? = "week"
   var options: [SettingsOption] = [
-    SettingsOption(id: "week", label: "Video for 7 Days"),
-    SettingsOption(id: "month", label: "Video for 30 Days"),
-    SettingsOption(id: "forever", label: "Forever"),
+    SettingsOption(id: "week", label: "视频保留 7 天"),
+    SettingsOption(id: "month", label: "视频保留 30 天"),
+    SettingsOption(id: "forever", label: "永久保留"),
   ]
-  var note = "Video and audio go to the Trash after 7 days, the rest of each capture after 30 days."
+  var note = "视频和音频 7 天后移到废纸篓，每次录制的其余内容 30 天后移走。"
 }
 
 struct SettingsPermission: Decodable, Equatable, Identifiable {
@@ -148,7 +148,7 @@ struct SettingsCommandLine: Decodable, Equatable {
   /// "install", "uninstall", or none.
   var button: String? = "install"
   var enabled = true
-  var caption = "Links pointo into /opt/homebrew/bin, so agents and your terminal can run it."
+  var caption = "把 pointo 链接到 /opt/homebrew/bin，AI 代理和终端就能运行它。"
   var error = false
 }
 
@@ -159,7 +159,7 @@ struct SettingsState: Decodable, Equatable {
   var project = SettingsProject()
   var shortcuts: [SettingsShortcut] = [
     SettingsShortcut(),
-    SettingsShortcut(kind: "paste", title: "Paste last capture", label: "⌥⇧V", key: "V", clearable: true),
+    SettingsShortcut(kind: "paste", title: "粘贴上一次录制", label: "⌥⇧V", key: "V", clearable: true),
   ]
   var microphone = SettingsMicrophone()
   var transcriber = SettingsTranscriber()
@@ -184,12 +184,12 @@ enum SettingsPane: String, CaseIterable {
 
   var title: String {
     switch self {
-    case .general: "General"
-    case .recording: "Recording"
-    case .storage: "Storage"
-    case .permissions: "Permissions"
-    case .agents: "Agents"
-    case .about: "About"
+    case .general: "通用"
+    case .recording: "录制"
+    case .storage: "存储"
+    case .permissions: "权限"
+    case .agents: "AI 代理"
+    case .about: "关于"
     }
   }
 
@@ -292,8 +292,8 @@ final class SettingsModel: ObservableObject {
     panel.canChooseDirectories = true
     panel.canCreateDirectories = false
     panel.allowsMultipleSelection = false
-    panel.prompt = "Choose"
-    panel.message = "Every capture goes to this project folder, whatever it was of."
+    panel.prompt = "选择"
+    panel.message = "所有录制都会发送到这个项目文件夹，不论录的是什么。"
     if let path = state.project.path {
       panel.directoryURL = URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
     }
@@ -309,8 +309,8 @@ final class SettingsModel: ObservableObject {
     panel.canChooseDirectories = true
     panel.canCreateDirectories = true
     panel.allowsMultipleSelection = false
-    panel.prompt = "Choose"
-    panel.message = "New captures go to this folder. Captures already made stay where they are."
+    panel.prompt = "选择"
+    panel.message = "新的录制会存到这个文件夹，已经录好的留在原处。"
     let current = NSString(string: state.capturesDir.path).expandingTildeInPath
     panel.directoryURL = URL(fileURLWithPath: current).deletingLastPathComponent()
     NSApp.activate(ignoringOtherApps: true)
@@ -700,8 +700,8 @@ struct LevelMeter: View {
       }
     }
     .accessibilityElement()
-    .accessibilityLabel("Input level")
-    .accessibilityValue("\(Int(meter.level * 100)) percent")
+    .accessibilityLabel("输入电平")
+    .accessibilityValue("\(Int(meter.level * 100))%")
   }
 }
 
@@ -734,7 +734,7 @@ struct ShortcutRecorder: View {
                 .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("Reset to \(shortcut.kind == "paste" ? "⌥⇧V" : "⌥⇧S")")
+            .help("恢复为 \(shortcut.kind == "paste" ? "⌥⇧V" : "⌥⇧S")")
             .transition(SettingsMotion.replace)
           }
           if shortcut.clearable && !shortcut.off && !shortcut.recording {
@@ -747,8 +747,8 @@ struct ShortcutRecorder: View {
                 .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("Turn off")
-            .accessibilityLabel("Turn off \(shortcut.title) shortcut")
+            .help("关闭")
+            .accessibilityLabel("关闭「\(shortcut.title)」快捷键")
             .transition(SettingsMotion.replace)
           }
           field
@@ -762,8 +762,8 @@ struct ShortcutRecorder: View {
         }
         .onHover { hovering = $0 }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(shortcut.title) shortcut")
-        .accessibilityValue(shortcut.recording ? "Listening" : shortcut.off ? "Off" : shortcut.label)
+        .accessibilityLabel("「\(shortcut.title)」快捷键")
+        .accessibilityValue(shortcut.recording ? "等待按键" : shortcut.off ? "已关闭" : shortcut.label)
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { model.act(shortcut.recording ? "cancel-shortcut" : "record-shortcut", ["kind": shortcut.kind]) }
       }
@@ -803,11 +803,11 @@ struct ShortcutRecorder: View {
   }
 
   private var caption: String {
-    if shortcut.recording { return shortcut.clearable ? "Esc cancels. Delete turns it off." : "Esc cancels." }
+    if shortcut.recording { return shortcut.clearable ? "按 Esc 取消，按 Delete 关闭。" : "按 Esc 取消。" }
     if let error = shortcut.error { return error }
     return shortcut.kind == "paste"
-      ? "Pastes the last capture into the app in front."
-      : "Records the screen. Press again to finish."
+      ? "把上一次录制粘贴到最前面的 App。"
+      : "开始录制屏幕，再按一次结束。"
   }
 }
 
@@ -844,7 +844,7 @@ struct SettingsView: View {
     VStack(alignment: .leading, spacing: 0) {
       if model.rendering { trafficLights } else { Spacer().frame(height: SettingsMetrics.titlebar) }
       item(.general)
-      section("Settings")
+      section("设置")
       VStack(spacing: 2) {
         item(.recording)
         item(.storage)
@@ -935,29 +935,29 @@ struct SettingsView: View {
   private var general: some View {
     VStack(spacing: 0) {
       SettingsGroup {
-        SettingsRow(title: "Launch at login", enabled: state.login.available) {
+        SettingsRow(title: "登录时启动", enabled: state.login.available) {
           SettingsSwitch(on: state.login.on, enabled: state.login.available) { model.set("launchAtLogin", $0) }
         }
         SettingsSeparator()
-        SettingsRow(title: "Send captures to the detected project") {
+        SettingsRow(title: "把录制发送到识别出的项目") {
           SettingsSwitch(on: state.autoSend) { model.set("autoSend", $0) }
         }
         SettingsSeparator()
-        SettingsRow(title: "Project folder") {
+        SettingsRow(title: "项目文件夹") {
           HStack(spacing: 8) {
-            Text(state.project.path ?? "Automatic")
+            Text(state.project.path ?? "自动")
               .font(.system(size: 14))
               .foregroundStyle(SettingsTheme(scheme).secondary)
               .lineLimit(1)
               .truncationMode(.head)
-            SettingsButton(title: "Choose…") { model.chooseProjectFolder() }
+            SettingsButton(title: "选择…") { model.chooseProjectFolder() }
             if state.project.path != nil {
-              SettingsButton(title: "Clear") { model.set("project", "") }
+              SettingsButton(title: "清除") { model.set("project", "") }
             }
           }
         }
         SettingsSeparator()
-        SettingsRow(title: "Lower other audio while recording") {
+        SettingsRow(title: "录制时调低其他声音") {
           SettingsSwitch(on: state.lowerPlayback) { model.set("lowerPlayback", $0) }
         }
         if state.lowerPlayback {
@@ -966,9 +966,9 @@ struct SettingsView: View {
         }
       }
       if state.login.needsApproval {
-        SettingsCaption(text: "Allow Pointo in System Settings › General › Login Items.")
+        SettingsCaption(text: "请在「系统设置 › 通用 › 登录项」里允许 Pointo。")
       } else if !state.login.available {
-        SettingsCaption(text: "Launch at login works in the installed Pointo.app.")
+        SettingsCaption(text: "登录时启动只在已安装的 Pointo.app 里可用。")
       }
       ForEach(state.shortcuts) { shortcut in
         Color.clear.frame(height: 14)
@@ -984,19 +984,19 @@ struct SettingsView: View {
     let qwenLanguages: [(id: String, title: String, enabled: Bool)] = [("auto", "自动识别", true), ("zh-CN", "普通话", true), ("yue", "粤语", true), ("en-US", "English", true)]
     let qwenLanguage = qwenLanguages.first { $0.id == t.appleLocale } ?? qwenLanguages[0]
     engines.append(("hex", t.hexTitle, t.hexEnabled))
-    if let command = t.command { engines.append(("command", "Command (\(command))", true)) }
+    if let command = t.command { engines.append(("command", "命令（\(command)）", true)) }
     let chosenModel = t.models.first(where: \.chosen)
     let mic = state.microphone
     return VStack(spacing: 0) {
       SettingsGroup {
-        SettingsRow(title: "Microphone") {
+        SettingsRow(title: "麦克风") {
           SettingsPopup(value: mic.value, options: mic.options.map { ($0.id, $0.title, $0.enabled) }, selected: mic.selected) {
             model.set("microphone", $0)
           }
         }
         if mic.meter != nil {
           SettingsSeparator()
-          SettingsRow(title: "Input level") { LevelMeter(meter: model.meter) }
+          SettingsRow(title: "输入电平") { LevelMeter(meter: model.meter) }
         }
       }
       if let note = mic.note {
@@ -1005,7 +1005,7 @@ struct SettingsView: View {
       }
       Color.clear.frame(height: 20)
       SettingsGroup {
-        SettingsRow(title: "Transcription") {
+        SettingsRow(title: "语音转写") {
           SettingsPopup(value: engines.first { $0.id == t.engine }?.title ?? "Qwen3-ASR（本机）", options: engines, selected: t.engine) {
             model.set("transcriber", $0)
           }
@@ -1020,7 +1020,7 @@ struct SettingsView: View {
         }
         if t.engine == "apple" {
           SettingsSeparator()
-          SettingsRow(title: "Language") {
+          SettingsRow(title: "语言") {
             SettingsPopup(value: language.value, options: language.options, selected: language.selected) {
               model.set("appleLocale", $0)
             }
@@ -1028,9 +1028,9 @@ struct SettingsView: View {
         }
         if t.engine == "hex", !t.models.isEmpty {
           SettingsSeparator()
-          SettingsRow(title: "Hex model") {
+          SettingsRow(title: "Hex 模型") {
             SettingsPopup(
-              value: chosenModel?.title ?? "Choose",
+              value: chosenModel?.title ?? "选择",
               options: t.models.map { ($0.id, $0.title, true) },
               selected: chosenModel?.id
             ) { model.set("hexModel", $0) }
@@ -1044,33 +1044,33 @@ struct SettingsView: View {
       SettingsCaption(text: t.engine == "qwen"
         ? "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型。"
         : t.engine == "command"
-        ? "Command runs transcribeCommand from config.json. If it fails, that recording uses Apple Speech."
+        ? "「命令」会运行 config.json 里的 transcribeCommand。失败时，这次录制改用 Apple Speech。"
         : t.hexEnabled || t.engine == "hex"
-        ? "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."
-        : "Apple Speech runs on this Mac and times each word. Hex shows up here while Hex is running.")
+        ? "Apple Speech 会标出每个字的时间。Hex 使用你在 Hex 里已有的模型，字词时间是估算的。"
+        : "Apple Speech 在这台 Mac 上运行，并标出每个字的时间。Hex 运行时会出现在这里。")
       if t.engine == "apple", let note = language.note {
         SettingsCaption(text: note)
       }
       if t.engine == "apple" || t.engine == "qwen", t.speech?.notReady == true, let line = t.speech?.line {
         SettingsCaption(text: line)
       }
-      SettingsHeader("Experimental")
+      SettingsHeader("实验功能")
       SettingsGroup {
-        SettingsRow(title: "Video export") {
+        SettingsRow(title: "视频导出") {
           SettingsSwitch(on: state.videoExport) { model.set("videoExport", $0) }
         }
       }
-      SettingsCaption(text: "Adds Export Last Capture as Video… to the menu.")
+      SettingsCaption(text: "在菜单里加入「导出为视频…」。")
     }
     .animation(SettingsMotion.state, value: mic)
   }
 
   private var storage: some View {
     let r = state.retention
-    let current = r.options.first { $0.id == r.preset }?.label ?? "Custom"
+    let current = r.options.first { $0.id == r.preset }?.label ?? "自定义"
     return VStack(spacing: 0) {
       SettingsGroup {
-        SettingsRow(title: "Keep recordings") {
+        SettingsRow(title: "录制保留时长") {
           SettingsPopup(value: current, options: r.options.map { ($0.id, $0.label, true) }, selected: r.preset) {
             model.set("retention", $0)
           }
@@ -1079,11 +1079,11 @@ struct SettingsView: View {
       if !r.note.isEmpty {
         SettingsCaption(text: r.note)
       }
-      SettingsHeader("Captures")
+      SettingsHeader("录制")
       SettingsGroup {
         HStack(spacing: 12) {
           VStack(alignment: .leading, spacing: 1) {
-            Text("Location").font(.system(size: 14)).foregroundStyle(SettingsTheme(scheme).text)
+            Text("位置").font(.system(size: 14)).foregroundStyle(SettingsTheme(scheme).text)
             Text(state.capturesDir.path)
               .font(.system(size: 12, design: .monospaced))
               .foregroundStyle(SettingsTheme(scheme).secondary)
@@ -1092,18 +1092,18 @@ struct SettingsView: View {
           .lineLimit(1)
           Spacer(minLength: 8)
           if state.capturesDir.custom {
-            SettingsButton(title: "Reset") { model.set("capturesDir", "") }
+            SettingsButton(title: "重置") { model.set("capturesDir", "") }
           }
-          SettingsButton(title: "Change…") { model.chooseCapturesFolder() }
+          SettingsButton(title: "更改…") { model.chooseCapturesFolder() }
         }
         .padding(.horizontal, 12)
         .frame(height: 52)
         SettingsSeparator()
-        SettingsRow(title: "Size") {
-          Text(state.capturesSize ?? "Measuring…")
+        SettingsRow(title: "大小") {
+          Text(state.capturesSize ?? "正在计算…")
             .font(.system(size: 14).monospacedDigit())
             .foregroundStyle(SettingsTheme(scheme).secondary)
-          SettingsButton(title: "Show in Finder") { model.act("show-captures") }
+          SettingsButton(title: "在访达中显示") { model.act("show-captures") }
         }
       }
     }
@@ -1114,8 +1114,8 @@ struct SettingsView: View {
     let optional = state.permissions.filter { !$0.required }
     return VStack(spacing: 0) {
       SettingsGroup { permissionRows(required) }
-      SettingsCaption(text: "Pointo needs these three to record.")
-      SettingsHeader("When you use them")
+      SettingsCaption(text: "录制需要这三项权限。")
+      SettingsHeader("用到时再开")
       SettingsGroup { permissionRows(optional) }
     }
   }
@@ -1134,7 +1134,7 @@ struct SettingsView: View {
       SettingsGroup {
         HStack(spacing: 12) {
           VStack(alignment: .leading, spacing: 1) {
-            Text("Command-line tool").font(.system(size: 14)).foregroundStyle(theme.text)
+            Text("命令行工具").font(.system(size: 14)).foregroundStyle(theme.text)
             if let path = cli.path {
               Text(path)
                 .font(.system(size: 12, design: .monospaced))
@@ -1145,7 +1145,7 @@ struct SettingsView: View {
           .lineLimit(1)
           Spacer(minLength: 8)
           if let button = cli.button {
-            SettingsButton(title: button == "uninstall" ? "Uninstall" : "Install", enabled: cli.enabled) {
+            SettingsButton(title: button == "uninstall" ? "卸载" : "安装", enabled: cli.enabled) {
               model.act(button == "uninstall" ? "uninstall-cli" : "install-cli")
             }
           }
@@ -1155,9 +1155,9 @@ struct SettingsView: View {
       }
       SettingsCaption(text: cli.caption, error: cli.error)
         .animation(SettingsMotion.state, value: cli)
-      SettingsHeader("Agent skill")
+      SettingsHeader("AI 代理技能")
       SettingsGroup { CopyLine(text: state.skillCommand) }
-      SettingsCaption(text: "Run it in a terminal. It teaches Claude Code, Codex, Cursor and other agents to read your captures and use pointo.")
+      SettingsCaption(text: "在终端里运行它，Claude Code、Codex、Cursor 等 AI 代理就会学会读取你的录制并使用 pointo。")
     }
   }
 
@@ -1171,25 +1171,25 @@ struct SettingsView: View {
           }
           VStack(alignment: .leading, spacing: 1) {
             Text("Pointo").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text)
-            Text("Version \(state.version)").font(.system(size: 12).monospacedDigit()).foregroundStyle(theme.secondary)
+            Text("版本 \(state.version)").font(.system(size: 12).monospacedDigit()).foregroundStyle(theme.secondary)
           }
           Spacer()
-          SettingsButton(title: "Check for Updates…", enabled: state.updates) { model.act("check-for-updates") }
+          SettingsButton(title: "检查更新…", enabled: state.updates) { model.act("check-for-updates") }
         }
         .padding(.horizontal, 12)
         .frame(height: 64)
       }
       if !state.updates {
-        SettingsCaption(text: "Updates work in the installed Pointo.app.")
+        SettingsCaption(text: "更新只在已安装的 Pointo.app 里可用。")
       }
-      SettingsHeader("Links")
+      SettingsHeader("链接")
       SettingsGroup {
-        link("Website", "xiechimon.github.io/pointo", "https://xiechimon.github.io/pointo")
+        link("官网", "xiechimon.github.io/pointo", "https://xiechimon.github.io/pointo")
         SettingsSeparator()
-        link("Source", "github.com/xiechimon/pointo", "https://github.com/xiechimon/pointo")
+        link("源码", "github.com/xiechimon/pointo", "https://github.com/xiechimon/pointo")
         SettingsSeparator()
-        SettingsRow(title: "Welcome tour") {
-          SettingsButton(title: "Show") { model.act("tour") }
+        SettingsRow(title: "欢迎导览") {
+          SettingsButton(title: "查看") { model.act("tour") }
         }
       }
     }
@@ -1226,7 +1226,7 @@ struct CopyLine: View {
         .lineLimit(1)
         .textSelection(.enabled)
       Spacer(minLength: 8)
-      SettingsButton(title: copied ? "Copied" : "Copy") {
+      SettingsButton(title: copied ? "已复制" : "复制") {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         copied = true
@@ -1257,15 +1257,15 @@ struct PermissionLine: View {
       Spacer(minLength: 8)
       ZStack(alignment: .trailing) {
         if row.granted && row.relaunch {
-          SettingsButton(title: "Reopen Pointo") { model.act("reopen") }
+          SettingsButton(title: "重新打开 Pointo") { model.act("reopen") }
         } else if row.granted {
           HStack(spacing: 5) {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.positive)
-            Text("Allowed").foregroundStyle(theme.secondary)
+            Text("已允许").foregroundStyle(theme.secondary)
           }
           .font(.system(size: 12, weight: .medium))
         } else {
-          SettingsButton(title: row.requested || row.status == "denied" ? "Open Settings" : "Allow") {
+          SettingsButton(title: row.requested || row.status == "denied" ? "打开系统设置" : "允许") {
             model.act("grant", ["permission": row.permission])
           }
         }
@@ -1279,19 +1279,19 @@ struct PermissionLine: View {
   /// Shorter than onboarding's, to fit one line beside the button.
   private var name: String {
     switch row.permission {
-    case "screen-recording": "Screen Recording"
-    case "accessibility": "Accessibility"
+    case "screen-recording": "屏幕与系统录音"
+    case "accessibility": "辅助功能"
     default: permissionInfo(row.permission, paste: paste).name
     }
   }
 
   private var why: String {
     switch row.permission {
-    case "screen-recording": "To see your screen"
-    case "microphone": "To hear you"
-    case "accessibility": "For ⌘Z and \(paste)"
-    case "camera": "To show a cabled iPhone"
-    case "speech-recognition": "To write down what you say"
+    case "screen-recording": "用来看到屏幕"
+    case "microphone": "用来听到你说话"
+    case "accessibility": "用于 ⌘Z 和 \(paste)"
+    case "camera": "用来显示数据线连接的 iPhone"
+    case "speech-recognition": "用来把你说的话转成文字"
     default: ""
     }
   }
@@ -1406,7 +1406,7 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     window.toolbarStyle = .unified
     window.titlebarAppearsTransparent = true
     window.titleVisibility = .hidden
-    window.title = "Pointo Settings"
+    window.title = "Pointo 设置"
     window.isMovableByWindowBackground = true
     window.isReleasedWhenClosed = false
     window.delegate = self
@@ -1537,9 +1537,9 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var listening = base
     listening.shortcuts[0].recording = true
     var refused = base
-    refused.shortcuts[0].error = "Apps use ⌘V. Add ⌥ or ⌃."
+    refused.shortcuts[0].error = "App 会用到 ⌘V，请加上 ⌥ 或 ⌃。"
     var custom = base
-    custom.shortcuts[0] = SettingsShortcut(kind: "record", title: "Record", label: "⌃⌥⌘R", key: "R", shift: false, control: true, option: true, command: true, isDefault: false)
+    custom.shortcuts[0] = SettingsShortcut(kind: "record", title: "开始录制", label: "⌃⌥⌘R", key: "R", shift: false, control: true, option: true, command: true, isDefault: false)
     var pasteListening = custom
     pasteListening.shortcuts[1].recording = true
     let script: [(Double, (SettingsModel, Double) -> Void)] = [
@@ -1606,17 +1606,17 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       SettingsMenuOption(id: "BuiltInMicrophoneDevice", title: "MacBook Pro Microphone"),
       SettingsMenuOption(id: "AppleUSBAudioEngine:Shure:MV7", title: "Shure MV7"),
     ]
-    let micOptions = [SettingsMenuOption(id: "default", title: "System default (MacBook Pro Microphone)"), SettingsMenuOption(id: "-", title: "", enabled: false)] + devices
-    base.microphone = SettingsMicrophone(selected: "default", value: "System default", options: micOptions, note: nil, meter: "BuiltInMicrophoneDevice")
+    let micOptions = [SettingsMenuOption(id: "default", title: "系统默认（MacBook Pro Microphone）"), SettingsMenuOption(id: "-", title: "", enabled: false)] + devices
+    base.microphone = SettingsMicrophone(selected: "default", value: "系统默认", options: micOptions, note: nil, meter: "BuiltInMicrophoneDevice")
     var listening = base
     listening.shortcuts[0].recording = true
     var refused = base
-    refused.shortcuts[0].error = "Apps use ⌘V. Add ⌥ or ⌃."
+    refused.shortcuts[0].error = "App 会用到 ⌘V，请加上 ⌥ 或 ⌃。"
     var custom = base
-    custom.shortcuts[0] = SettingsShortcut(kind: "record", title: "Record", label: "⌃⌥⌘R", key: "R", shift: false, control: true, option: true, command: true, isDefault: false)
+    custom.shortcuts[0] = SettingsShortcut(kind: "record", title: "开始录制", label: "⌃⌥⌘R", key: "R", shift: false, control: true, option: true, command: true, isDefault: false)
     custom.login.on = true
     var pasteOff = base
-    pasteOff.shortcuts[1] = SettingsShortcut(kind: "paste", title: "Paste last capture", label: "", key: "", shift: false, option: false, isDefault: false, clearable: true)
+    pasteOff.shortcuts[1] = SettingsShortcut(kind: "paste", title: "粘贴上一次录制", label: "", key: "", shift: false, option: false, isDefault: false, clearable: true)
     var pasteListening = base
     pasteListening.shortcuts[1].recording = true
     var lowered = base
@@ -1677,28 +1677,28 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var cliInstalled = base
     cliInstalled.commandLine = SettingsCommandLine(
       path: "/opt/homebrew/bin/pointo", button: "uninstall",
-      caption: "Agents and your terminal can run pointo to read captures, zoom into a moment and export video.")
+      caption: "AI 代理和终端可以运行 pointo 来读取录制、放大某一刻、导出视频。")
     var cliLocal = base
     cliLocal.commandLine = SettingsCommandLine(
       path: "~/.local/bin/pointo", button: "uninstall",
-      caption: "If your shell can't find pointo, add ~/.local/bin to your PATH.")
+      caption: "如果 shell 找不到 pointo，请把 ~/.local/bin 加进 PATH。")
     var cliHomebrew = base
     cliHomebrew.commandLine = SettingsCommandLine(
       path: "/opt/homebrew/bin/pointo", button: nil,
-      caption: "Installed with Homebrew. Agents and your terminal can run pointo to read captures, zoom into a moment and export video.")
+      caption: "通过 Homebrew 安装。AI 代理和终端可以运行 pointo 来读取录制、放大某一刻、导出视频。")
     var cliTaken = base
     cliTaken.commandLine = SettingsCommandLine(
-      button: nil, caption: "/usr/local/bin/pointo is another program, so Pointo leaves it alone.", error: true)
+      button: nil, caption: "/usr/local/bin/pointo 是另一个程序，所以 Pointo 不会动它。", error: true)
     var cliDev = base
     cliDev.commandLine = SettingsCommandLine(
-      enabled: false, caption: "The command-line tool works in the installed Pointo.app.")
+      enabled: false, caption: "命令行工具只在已安装的 Pointo.app 里可用。")
     var micChosen = base
     micChosen.microphone = SettingsMicrophone(selected: devices[1].id, value: "Shure MV7", options: micOptions, note: nil, meter: devices[1].id)
     var micMissing = base
     micMissing.microphone = SettingsMicrophone(
       selected: "airpods", value: "AirPods Pro",
-      options: micOptions + [SettingsMenuOption(id: "airpods", title: "AirPods Pro (not connected)", enabled: false)],
-      note: "AirPods Pro isn't connected. Using MacBook Pro Microphone.", meter: devices[0].id
+      options: micOptions + [SettingsMenuOption(id: "airpods", title: "AirPods Pro（未连接）", enabled: false)],
+      note: "AirPods Pro 未连接，改用 MacBook Pro Microphone。", meter: devices[0].id
     )
     var micNotAllowed = base
     micNotAllowed.microphone.meter = nil
@@ -1788,7 +1788,7 @@ private struct PlaybackLevelRow: View {
   }
 
   var body: some View {
-    SettingsRow(title: "Lower to") {
+    SettingsRow(title: "调低到") {
       // ImageRenderer cannot draw the AppKit-backed slider; previews get a plain track.
       if model.rendering {
         Capsule().fill(theme.track)
@@ -1828,7 +1828,7 @@ private struct HexLanguageField: View {
     if valid { model.set("hexLanguage", normalized) }
   }
   var body: some View {
-    SettingsRow(title: "Hex language") {
+    SettingsRow(title: "Hex 语言") {
       // ImageRenderer cannot draw AppKit-backed text fields; keep previews readable.
       if model.rendering {
         Text(language).frame(width: 120, alignment: .leading)
@@ -1837,12 +1837,12 @@ private struct HexLanguageField: View {
           .textFieldStyle(.roundedBorder)
           .frame(width: 120)
           .onSubmit { apply() }
-          .accessibilityLabel("Hex language code")
+          .accessibilityLabel("Hex 语言代码")
       }
-      Button("Apply") { apply() }
+      Button("应用") { apply() }
         .disabled(!valid || (normalized.isEmpty ? "en" : normalized) == language)
     }
-    .help("Language code, e.g. en, nl or auto. Support depends on the Hex model; some ignore it. This does not follow Hex’s dictation language.")
+    .help("语言代码，例如 en、nl 或 auto。是否支持取决于 Hex 模型，有些模型会忽略它。这不会跟随 Hex 的听写语言。")
     .onChange(of: language) { _, value in draft = value }
   }
 }

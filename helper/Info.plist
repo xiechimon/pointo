@@ -7,10 +7,10 @@
   <key>CFBundleName</key>
   <string>Pointo Helper</string>
   <key>NSCameraUsageDescription</key>
-  <string>Pointo mirrors and records a cabled iPhone's screen.</string>
+  <string>Pointo 需要摄像头权限，才能显示并录制数据线连接的 iPhone 屏幕。</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Pointo records your voice to align transcripts with keyframes.</string>
+  <string>Pointo 会录下你的声音，让转写文字和关键帧对齐。</string>
   <key>NSSpeechRecognitionUsageDescription</key>
-  <string>Pointo transcribes your narration on this Mac.</string>
+  <string>Pointo 会在这台 Mac 上把你的讲解转写成文字。</string>
 </dict>
 </plist>

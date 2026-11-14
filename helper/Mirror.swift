@@ -117,7 +117,7 @@ final class Mirror: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCapture
     showWindow(title: "iPhone", orderFront: !hiddenPreview)
     AVCaptureDevice.requestAccess(for: .video) { granted in
       DispatchQueue.main.async {
-        guard granted else { return self.die("Camera access denied; allow Pointo in System Settings › Privacy & Security › Camera") }
+        guard granted else { return self.die("摄像头权限被拒绝，请在「系统设置 › 隐私与安全性 › 摄像头」里允许 Pointo") }
         AVCaptureDevice.requestAccess(for: .audio) { micGranted in
           DispatchQueue.main.async {
             if !micGranted {
@@ -145,14 +145,14 @@ final class Mirror: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCapture
     } else if Date() < deadline, !stopping {
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { self.findPhone(deadline: deadline) }
     } else if phoneInput == nil {
-      die(stopping ? "Stopped before the iPhone appeared" : "No iPhone found; connect one with a cable and unlock it")
+      die(stopping ? "iPhone 还没出现就停止了" : "没有找到 iPhone，请用数据线连接并解锁")
     }
   }
 
   private func attach(_ device: AVCaptureDevice) {
     guard phoneInput == nil else { return }
     let input: AVCaptureDeviceInput
-    do { input = try AVCaptureDeviceInput(device: device) } catch { return die("Could not open \(device.localizedName): \(error.localizedDescription)") }
+    do { input = try AVCaptureDeviceInput(device: device) } catch { return die("无法打开 \(device.localizedName)：\(error.localizedDescription)") }
     phoneInput = input
     let size = Phone.size(of: device)
     if size.width > 0, size.height > 0 { aspect = CGFloat(size.height) / CGFloat(size.width) }
@@ -246,7 +246,7 @@ final class Mirror: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCapture
       if Date() < deadline {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { self.startMovieWhenReady(deadline: deadline) }
       } else {
-        die("The iPhone's video never started; unlock the phone and try again")
+        die("iPhone 的画面一直没有开始，请解锁手机后再试")
       }
       return
     }
@@ -423,7 +423,7 @@ final class Mirror: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCapture
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
       guard !self.finished else { return }
-      self.die("Recording did not finish")
+      self.die("录制没有完成")
     }
   }
 
@@ -465,7 +465,7 @@ final class Mirror: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCapture
       guard Self.recordingSucceeded(error: error, stopping: self.stopping, seconds: seconds),
             FileManager.default.fileExists(atPath: url.path)
       else {
-        return self.die("Recording failed: \(error?.localizedDescription ?? "no movie was written")")
+        return self.die("录制失败：\(error?.localizedDescription ?? "没有写出视频")")
       }
       self.finish(["event": "finished", "path": url.path, "durationMs": Int((seconds * 1000).rounded())])
     }
@@ -503,7 +503,7 @@ final class PhoneCaseView: NSView {
   let statusField: NSTextField
 
   override init(frame: NSRect) {
-    statusField = NSTextField(labelWithString: "Connecting iPhone…")
+    statusField = NSTextField(labelWithString: "正在连接 iPhone…")
     super.init(frame: frame)
     wantsLayer = true
 
