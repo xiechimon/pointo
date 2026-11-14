@@ -621,6 +621,7 @@ pub struct View {
     pub version: String,
     pub login: LoginView,
     pub auto_send: bool,
+    pub project: ProjectView,
     pub shortcuts: Vec<ShortcutView>,
     pub microphone: MicrophoneView,
     pub transcriber: TranscriberView,
@@ -846,6 +847,27 @@ pub struct ModelView {
     pub chosen: bool,
 }
 
+/// Settings › General › Project folder: the folder every capture goes to (`"project"`).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectView {
+    /// The pinned folder, with the home folder as `~`; `None` is "Automatic" (the page, port or
+    /// terminal decides).
+    pub path: Option<String>,
+}
+
+impl ProjectView {
+    fn new(config: &crate::handoff::Config) -> Self {
+        Self {
+            path: config
+                .project
+                .as_deref()
+                .and_then(crate::handoff::configured_project)
+                .map(|folder| crate::command_line::tilde(&folder)),
+        }
+    }
+}
+
 /// Settings › Storage › Location: where new captures go (`"capturesDir"`).
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -959,6 +981,7 @@ fn shortcut_view(
 #[serde(tag = "action", rename_all = "kebab-case")]
 pub enum Action {
     /// A settings control: `launchAtLogin`, `autoSend`, `videoExport`, `lowerPlayback` (bool),
+    /// `project` (an absolute folder, "" or null for Automatic),
     /// `playbackLevel` (u8), `microphone` ("default" or a device id), `transcriber`
     /// ("apple"/"hex"/"command"), `hexModel` (an id), `hexLanguage` (a code), `appleLocale`
     /// (a locale id or "auto"), `retention` (a preset id).
@@ -1233,6 +1256,18 @@ impl Panel {
                     return Effect::SpeechModel;
                 }
             }
+            // The folder every capture goes to, from an open panel; "" or null goes back to
+            // Automatic.
+            ("project", serde_json::Value::Null) => write(key, serde_json::Value::Null),
+            ("project", serde_json::Value::String(dir)) => {
+                if dir.trim().is_empty() {
+                    write(key, serde_json::Value::Null);
+                } else if crate::handoff::configured_project(dir).is_some() {
+                    write(key, dir.trim().into());
+                } else {
+                    crate::capture::scrawl_log(format!("Settings: ignoring project={dir}"));
+                }
+            }
             // An absolute folder from the helper's open panel; "" or null is the built-in one.
             // Captures already made stay where they are.
             ("capturesDir", serde_json::Value::Null) => {
@@ -1327,6 +1362,7 @@ impl Panel {
                 needs_approval: login == LoginItem::NeedsApproval,
             },
             auto_send: config.auto_send.unwrap_or(true),
+            project: ProjectView::new(&config),
             shortcuts: ShortcutKind::ALL
                 .into_iter()
                 .map(|kind| {
@@ -2375,6 +2411,44 @@ mod tests {
         set(&mut panel, &mut host, "retention", "forever".into());
         // "Forever" says it all; no caption.
         assert_eq!(panel.view(&host).retention.note, "");
+    }
+
+    #[test]
+    fn the_project_folder_can_be_pinned_and_cleared() {
+        let dir = TempDir::new("project");
+        let mut host = fake(&dir);
+        let mut panel = Panel::default();
+        let set = |panel: &mut Panel, host: &mut Fake, value: serde_json::Value| {
+            panel.on(
+                Action::Set {
+                    key: "project".into(),
+                    value,
+                },
+                host,
+            )
+        };
+        // Automatic until a folder is chosen.
+        assert_eq!(panel.view(&host).project.path, None);
+        let app = dir.0.join("app");
+        std::fs::create_dir_all(&app).unwrap();
+        set(&mut panel, &mut host, app.display().to_string().into());
+        assert_eq!(read_json(&host.path)["project"], app.display().to_string());
+        assert_eq!(
+            panel.view(&host).project.path,
+            Some(crate::command_line::tilde(&app))
+        );
+        // A relative or missing folder is turned down and the pinned one kept.
+        set(&mut panel, &mut host, "app".into());
+        set(
+            &mut panel,
+            &mut host,
+            dir.0.join("gone").display().to_string().into(),
+        );
+        assert_eq!(read_json(&host.path)["project"], app.display().to_string());
+        // Clear goes back to Automatic.
+        set(&mut panel, &mut host, "".into());
+        assert!(read_json(&host.path).get("project").is_none());
+        assert_eq!(panel.view(&host).project.path, None);
     }
 
     #[test]
