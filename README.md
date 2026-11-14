@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/app-icon.png" width="160" alt="Pointo 图标：黄色圆角方块里一个带眼睛的黑色鼠标指针">
+  <img src="assets/app-icon.png" width="160" alt="Pointo 图标：蓝色圆角方块里一只白色的小幽灵">
 </p>
 
 <h1 align="center">Pointo</h1>
