@@ -41,14 +41,9 @@ impl InboxEntry {
             _ => "Mac",
         });
         format!(
-            "{name} · {} · {} {} · {}",
+            "{name} · {} · {} 帧 · {}",
             format_clock(self.duration_ms),
             self.keyframes,
-            if self.keyframes == 1 {
-                "frame"
-            } else {
-                "frames"
-            },
             relative_age(now_ms.saturating_sub(self.received_at_ms)),
         )
     }
@@ -57,10 +52,10 @@ impl InboxEntry {
 pub fn relative_age(age_ms: u64) -> String {
     let minutes = age_ms / 60_000;
     match minutes {
-        0 => "just now".to_owned(),
-        1..=59 => format!("{minutes} min ago"),
-        60..=1_439 => format!("{} hr ago", minutes / 60),
-        _ => format!("{} d ago", minutes / 1_440),
+        0 => "刚刚".to_owned(),
+        1..=59 => format!("{minutes} 分钟前"),
+        60..=1_439 => format!("{} 小时前", minutes / 60),
+        _ => format!("{} 天前", minutes / 1_440),
     }
 }
 
@@ -283,15 +278,15 @@ mod tests {
         let entry = fx.entry("a", 1_000);
         assert_eq!(
             entry.label(1_000 + 2 * 60_000 + 5_000),
-            "UpDown · 0:25 · 5 frames · 2 min ago"
+            "UpDown · 0:25 · 5 帧 · 2 分钟前"
         );
         let single = InboxEntry {
             app: None,
             keyframes: 1,
             ..entry
         };
-        assert_eq!(single.label(1_000), "iPhone · 0:25 · 1 frame · just now");
-        assert_eq!(relative_age(3 * 3_600_000), "3 hr ago");
-        assert_eq!(relative_age(2 * 86_400_000), "2 d ago");
+        assert_eq!(single.label(1_000), "iPhone · 0:25 · 1 帧 · 刚刚");
+        assert_eq!(relative_age(3 * 3_600_000), "3 小时前");
+        assert_eq!(relative_age(2 * 86_400_000), "2 天前");
     }
 }
