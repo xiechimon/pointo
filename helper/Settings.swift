@@ -7,7 +7,7 @@ import SwiftUI
 // `pointo-helper settings [--pane P] [--icon PNG] [--render DIR]`: the Settings window.
 // Pointo decides everything (`src/settings.rs`) and sends what to show as JSON lines on stdin:
 //   {"type":"state","version":"0.3.2","login":{"on":false,"available":true,"needsApproval":false},
-//    "autoSend":true,"shortcuts":[{"kind":"record","title":"Record","label":"⌥⇧S","key":"S",
+//    "autoSend":true,"project":{"path":"~/code/app"},"shortcuts":[{"kind":"record","title":"Record","label":"⌥⇧S","key":"S",
 //    "shift":true,"control":false,"option":true,"command":false,"isDefault":true,
 //    "recording":false,"error":null},…],"microphone":{"selected":"default","value":"System default",
 //    "options":[{"id":"default","title":"System default (…)","enabled":true},{"id":"-",…},…],
@@ -23,7 +23,7 @@ import SwiftUI
 // {"action":"reset-shortcut","kind":"paste"}, {"action":"clear-shortcut","kind":"paste"},
 // {"action":"grant","permission":"camera"},
 // {"action":"reopen"}, {"action":"show-captures"}, {"action":"check-for-updates"},
-// {"action":"set","key":"capturesDir","value":"/Users/me/Captures"} ("" resets),
+// {"action":"set","key":"capturesDir","value":"/Users/me/Captures"} ("" resets), {"action":"set","key":"project","value":"/Users/me/app"} ("" is Automatic),
 // {"action":"tour"}, {"action":"install-cli"}, {"action":"uninstall-cli"}, {"action":"close"}.
 
 // MARK: State
@@ -138,6 +138,11 @@ struct SettingsCapturesDir: Decodable, Equatable {
   var custom = false
 }
 
+/// The folder every capture goes to; no path is Automatic (the page, port or terminal decides).
+struct SettingsProject: Decodable, Equatable {
+  var path: String?
+}
+
 struct SettingsCommandLine: Decodable, Equatable {
   var path: String?
   /// "install", "uninstall", or none.
@@ -151,6 +156,7 @@ struct SettingsState: Decodable, Equatable {
   var version = "0.3.2"
   var login = SettingsLogin()
   var autoSend = true
+  var project = SettingsProject()
   var shortcuts: [SettingsShortcut] = [
     SettingsShortcut(),
     SettingsShortcut(kind: "paste", title: "Paste last capture", label: "⌥⇧V", key: "V", clearable: true),
@@ -277,6 +283,23 @@ final class SettingsModel: ObservableObject {
 
   func set(_ key: String, _ value: Any) {
     act("set", ["key": key, "value": value])
+  }
+
+  /// Choose… beside Project folder: a folder picker, sent as `project`.
+  func chooseProjectFolder() {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = false
+    panel.canChooseDirectories = true
+    panel.canCreateDirectories = false
+    panel.allowsMultipleSelection = false
+    panel.prompt = "Choose"
+    panel.message = "Every capture goes to this project folder, whatever it was of."
+    if let path = state.project.path {
+      panel.directoryURL = URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+    }
+    NSApp.activate(ignoringOtherApps: true)
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    set("project", url.path)
   }
 
   /// Change… under Storage: a folder picker, sent as `capturesDir`.
@@ -916,8 +939,22 @@ struct SettingsView: View {
           SettingsSwitch(on: state.login.on, enabled: state.login.available) { model.set("launchAtLogin", $0) }
         }
         SettingsSeparator()
-        SettingsRow(title: "Send dev-site captures to OpenCode") {
+        SettingsRow(title: "Send captures to the detected project") {
           SettingsSwitch(on: state.autoSend) { model.set("autoSend", $0) }
+        }
+        SettingsSeparator()
+        SettingsRow(title: "Project folder") {
+          HStack(spacing: 8) {
+            Text(state.project.path ?? "Automatic")
+              .font(.system(size: 14))
+              .foregroundStyle(SettingsTheme(scheme).secondary)
+              .lineLimit(1)
+              .truncationMode(.head)
+            SettingsButton(title: "Choose…") { model.chooseProjectFolder() }
+            if state.project.path != nil {
+              SettingsButton(title: "Clear") { model.set("project", "") }
+            }
+          }
         }
         SettingsSeparator()
         SettingsRow(title: "Lower other audio while recording") {
@@ -1120,7 +1157,7 @@ struct SettingsView: View {
         .animation(SettingsMotion.state, value: cli)
       SettingsHeader("Agent skill")
       SettingsGroup { CopyLine(text: state.skillCommand) }
-      SettingsCaption(text: "Run it in a terminal. It teaches Claude Code, OpenCode, Codex and other agents to read your captures and use pointo.")
+      SettingsCaption(text: "Run it in a terminal. It teaches Claude Code, Codex, Cursor and other agents to read your captures and use pointo.")
     }
   }
 

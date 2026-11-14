@@ -297,7 +297,7 @@ pub struct GlyphAtlas {
     /// Reserved slot for the completed label string (`y = 400`, `x = 256..960`).
     completed_text: String,
     pub completed_sprite: Sprite,
-    /// Reserved rows for the Completed island's session chips (`y = 424, 468`).
+    /// Reserved rows for the Completed island's project chips (`y = 424, 468`).
     route_text: [String; 2],
     pub route_sprites: [Sprite; 2],
 }
@@ -488,7 +488,7 @@ impl GlyphAtlas {
         self.route_text.get(index).map_or("", String::as_str)
     }
 
-    /// Updates the `index`th session chip's label sprite only when `text` changes.
+    /// Updates the `index`th route chip's label sprite only when `text` changes.
     pub fn update_route(&mut self, index: usize, text: &str) -> Sprite {
         let index = index.min(1);
         if self.route_text[index] == text {

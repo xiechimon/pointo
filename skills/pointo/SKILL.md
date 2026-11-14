@@ -1,6 +1,6 @@
 ---
 name: pointo
-description: Read and dig into Pointo screen captures, where someone recorded their screen while talking, clicking and drawing red marks on it. Use whenever a message contains a Pointo capture (a line like `[pointo 0:12 · App “Window” · /path/to/….pointo]`, a `.pointo` bundle path, or a contact-sheet.png from one), when the user says "look at my pointo" or refers to something they just recorded or drew, or when you need the `pointo` CLI to zoom into a moment, pull frames, send a capture to a session, or export one as video.
+description: Read and dig into Pointo screen captures, where someone recorded their screen while talking, clicking and drawing red marks on it. Use whenever a message contains a Pointo capture (a line like `[pointo 0:12 · App “Window” · /path/to/….pointo]`, a `.pointo` bundle path, or a contact-sheet.png from one), when the user says "look at my pointo" or refers to something they just recorded or drew, or when you need the `pointo` CLI to zoom into a moment, pull frames, deliver a capture to a project folder, or export one as video.
 ---
 
 # Pointo captures
@@ -10,9 +10,9 @@ Pointo records someone's screen, voice, clicks and red ink, then packs the resul
 ## What a paste looks like
 
 ```text
-[pointo 0:33 · OpenCode “Settings” · /Users/me/Library/Application Support/pointo/captures/pointo-1792432139176.pointo]
+[pointo 0:33 · Acme “Settings” · /Users/me/Library/Application Support/pointo/captures/pointo-1792432139176.pointo]
 Open contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.
-Cropped to: the activity in OpenCode (full frames in frames-full/)
+Cropped to: the activity in Acme (full frames in frames-full/)
 - #1 (0:04) [clicked “New tab”] “Command T makes a new session, but here it should make a tab.”
 - #2 (0:07) “No, it doesn't.”
 - #3 (0:10) ⚑ “It says command shift B makes a new tab.”
@@ -23,10 +23,19 @@ Cropped to: the activity in OpenCode (full frames in frames-full/)
 - The next line asks you to open the images first. Do: the text is only what was said and done, and a problem can show in a frame without being marked or mentioned.
 - Each `#N (M:SS)` line is a keyframe: what they did at that moment in brackets, then what they said while it was on screen. A line with no quote has the action alone.
 - `⚑` means they flagged the moment on purpose. `⟨Name⟩` means the app reported a new screen. Lines starting `·` are events or values the app logged.
-- Optional lines near the top: `For session:` (where Pointo sent it), `Screen:` with app context, `Note:`, and `Cropped to:`.
+- Optional lines near the top: `For project:` (the folder Pointo delivered it to), `Screen:` with app context, `Note:`, and `Cropped to:`.
 - Coordinates are fractions of the captured area, from the top left (x 0.51 is just right of centre).
 
 When you answer, refer to moments the same way, as in "#3 (0:10)", so the person can find them on the contact sheet.
+
+## Captures delivered to this project
+
+When someone records a capture for the project you are working in, Pointo copies it into that folder, whichever coding agent you are:
+
+- `.pointo/captures/<name>/` holds each capture (`summary.md`, `contact-sheet.png`, `frames/`, `frames-full/`, `pointo.json`).
+- `.pointo/latest` is one line with the absolute path of the newest one. When they say "look at my capture" or "the capture I just sent", read `summary.md` and `contact-sheet.png` in that folder first, then the frames you need.
+- `.pointo/` is excluded from git (through `.git/info/exclude`), so never commit it or add it to `.gitignore`.
+- The copy leaves out `recording.mp4` and `audio.wav`. The last line of its `summary.md` names the original bundle that still has them, so run `pointo zoom <that bundle> …` there.
 
 ## Reading a bundle
 
@@ -40,7 +49,7 @@ What the drawings mean:
 - A ripple around the cursor shows a click or tap, and a finger trail shows a swipe.
 - A glowing red trail that tapers off is the laser pointer, used to point without leaving a mark.
 
-Other files: `pointo.json` is the full manifest (keyframes, `marks` with shape and box, `events`, `transcript.words` with times, app `context`, and `autocrop`). `recording.mp4` or `recording.mov` and `audio.wav` are the source media. A `.media-pending` file means the video is still being copied from another Mac.
+Other files: `pointo.json` is the full manifest (keyframes, `marks` with shape and box, `events`, `transcript.words` with times, app `context`, and `autocrop`). `recording.mp4` or `recording.mov` and `audio.wav` are the source media, in the original bundle only.
 
 ## The pointo CLI
 
@@ -69,13 +78,13 @@ pointo inspect <bundle>               # summary.md, the text above
 pointo inspect <bundle> --json        # pointo.json
 pointo inspect <bundle> --marks       # the marks, numbered as in the text [--json]
 pointo frames <bundle> --from 0:04 --to 0:06 [--fps 4]   # plain PNGs of a range; prints their paths
-pointo send <bundle> --session ses_…  # queue the capture into an OpenCode session
+pointo send <bundle> --project <dir>  # deliver the capture to a project folder (prints the copy)
 pointo send <bundle> --clipboard      # copy the summary text to the clipboard
 pointo export <bundle> [--out demo.mp4] [--zoom] [--crop auto|full|x,y,w,h] [--size 1920]
 ```
 
 - `zoom` and `frames` write into `<bundle>/zoom/`. Leave the rest of the bundle as it is, because Pointo manages those files and cleans them up.
-- `send` without `--session` goes to the session the capture was addressed to (the `For session:` line), and otherwise to the most recently active session. With a recorded destination it refuses a different `--session` unless you pass `--reroute`, so check with the person before rerouting.
+- `send` without `--project` goes to the folder the capture was recorded for (the `For project:` line), else to the project Settings pinned or its page, dev server or terminal points at; with none of those it asks for `--project`. Delivering again to the same project replaces its copy.
 - `export` writes one `.mp4` with the ink and clicks burned in and the audio in sync (default `~/Movies/Pointo/<bundle>.mp4`). `--zoom` eases in toward the activity. `--no-ink`, `--no-clicks`, `--hevc` and `--fps` are also available.
 - Video and audio go to the Trash 7 days after a capture unless the person changed that in Settings. After that `zoom`, `frames` and `export` can't read the video, but `frames/`, the contact sheet and `pointo.json` remain.
 - `pointo <command> --help` lists every flag, and `pointo skill` prints this guide as the installed version knows it.

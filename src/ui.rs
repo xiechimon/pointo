@@ -228,7 +228,7 @@ fn completed_label(inbox_count: usize, note: Option<&str>) -> String {
     }
 }
 
-/// How long a smart-routed capture waits, showing "Sending to …", before it is sent.
+/// How long an automatically routed capture waits, showing "Sending to …", before it is sent.
 const SMART_SEND_UNDO: Duration = Duration::from_millis(3_000);
 
 fn truncate_title(title: &str, max: usize) -> String {
@@ -242,7 +242,7 @@ fn truncate_title(title: &str, max: usize) -> String {
     }
 }
 
-/// A session title short enough for the island.
+/// A project folder's name short enough for the island.
 fn island_title(title: &str) -> String {
     truncate_title(title, 24)
 }
@@ -726,17 +726,17 @@ pub struct ScrawlCoordinator {
     iphone: Option<PhoneDevice>,
     /// The bundle the Completed island is showing.
     completed_dir: Option<PathBuf>,
-    /// The Completed island's lead text for a local capture sent to a session ("Sent to …"),
+    /// The Completed island's lead text for a local capture sent to a project ("Sent to …"),
     /// instead of "Copied".
     completed_note: Option<String>,
-    /// A smart-routed capture waiting out its undo window before it's sent; ✕ or Paste on the
-    /// Completed island cancels it.
+    /// An automatically routed capture waiting out its undo window before it's delivered; ✕ or
+    /// Paste on the Completed island cancels it.
     pending_send: Option<PathBuf>,
     /// A local capture copied while its route is still being worked out; ✕ or Paste clears it,
     /// keeping the capture on the clipboard whatever the route says.
     routing: Option<PathBuf>,
-    /// Sessions the Completed island offers one click away (smart routing): when it asks, the
-    /// suggestion then a runner-up; during the undo window, the runner-up to switch to.
+    /// Projects the Completed island offers one click away: after a capture that wasn't
+    /// delivered, the recent ones; during the undo window, the most recent other one to switch to.
     route_chips: Vec<RouteChip>,
     /// When this Mac last finished a capture, so ⌥⇧V prefers it over older inbox items.
     last_local_capture_ms: u64,
@@ -1990,47 +1990,40 @@ impl ScrawlCoordinator {
         });
     }
 
-    /// Acts on smart routing's decision for a finished local capture (the clipboard already has
-    /// it): a send waits out the undo window first, with the runner-up one click away; an offer
-    /// asks on the Completed island ("Send to DESKTOP" beside Paste) and sends nothing until a
-    /// session is picked.
+    /// Acts on the ladder's decision for a finished local capture (the clipboard already has
+    /// it): a delivery waits out the undo window first, with the most recent other project one
+    /// click away; a capture that goes nowhere offers the recent projects and delivers nothing
+    /// until one is picked.
     fn act_on_route(
         &mut self,
         dir: PathBuf,
-        judgement: crate::routing::smart::Judgement,
-        url: Option<String>,
+        dest: Option<crate::model::Destination>,
         cx: &mut Context<Self>,
     ) {
-        use crate::routing::smart::Decision;
         let showing = self.completed_dir.as_deref() == Some(dir.as_path());
-        match &judgement.decision {
-            Decision::Send { to, instead } => {
+        let recent = crate::handoff::recent_projects();
+        match dest {
+            Some(dest) => {
                 if showing {
-                    self.route_chips = RouteChip::switches(instead, url.as_deref());
+                    self.route_chips = RouteChip::switches(&recent, &dest);
                 }
-                self.send_after_undo(
-                    dir,
-                    crate::routing::smart::destination_of(to, url.as_deref()),
-                    cx,
-                );
+                self.send_after_undo(dir, dest, cx);
             }
-            Decision::Offer { choices } => {
+            None => {
+                let chips = RouteChip::offers(&recent);
                 if showing {
-                    self.route_chips = RouteChip::asks(choices, url.as_deref());
+                    self.route_chips = chips.clone();
                 }
-                let names: Vec<String> = choices
-                    .iter()
-                    .map(|c| island_title(c.candidate.label()))
-                    .collect();
-                if self
-                    .review_bundle
-                    .as_ref()
-                    .is_some_and(|(shown, _)| *shown == dir)
+                if !chips.is_empty()
+                    && self
+                        .review_bundle
+                        .as_ref()
+                        .is_some_and(|(shown, _)| *shown == dir)
                 {
+                    let names: Vec<&str> = chips.iter().map(|c| c.name.as_str()).collect();
                     self.review_status = Some(format!("Copied · for {}?", names.join(" or ")));
                 }
             }
-            Decision::Keep { .. } => {}
         }
     }
 
@@ -2042,7 +2035,7 @@ impl ScrawlCoordinator {
             .collect()
     }
 
-    /// A route chip on the Completed island was clicked: the capture goes to that session now,
+    /// A route chip on the Completed island was clicked: the capture goes to that project now,
     /// as Kit's choice (it replaces a send waiting out its undo window).
     pub fn choose_route(&mut self, index: usize, cx: &mut Context<Self>) {
         let Some(dir) = self.completed_dir.clone() else {
@@ -2056,9 +2049,8 @@ impl ScrawlCoordinator {
         self.pending_send = None;
         self.mark_handled(&dir);
         scrawl_log(format!(
-            "routing (smart): chose {} ({}) for {}",
-            chip.dest.title,
-            chip.dest.session,
+            "routing: chose {} for {}",
+            chip.dest.project,
             dir.display()
         ));
         self.send_completed(dir, chip.dest, cx);
@@ -2075,7 +2067,7 @@ impl ScrawlCoordinator {
     ) {
         self.pending_send = Some(dir.clone());
         if self.completed_dir.as_deref() == Some(dir.as_path()) {
-            self.completed_note = Some(format!("Sending to {}…", island_title(&dest.title)));
+            self.completed_note = Some(format!("Sending to {}…", island_title(&dest.name())));
         }
         cx.spawn(async move |entity, cx| {
             cx.background_executor().timer(SMART_SEND_UNDO).await;
@@ -2107,14 +2099,11 @@ impl ScrawlCoordinator {
         if self.pending_send.as_deref() == Some(dir) {
             self.pending_send = None;
             self.completed_note = None;
-            scrawl_log(format!(
-                "routing (smart): kept {} on the clipboard",
-                dir.display()
-            ));
+            scrawl_log(format!("routing: kept {} on the clipboard", dir.display()));
         }
     }
 
-    /// Sends a finished local capture to the session it was routed to, and says how that went
+    /// Delivers a finished local capture to the project it was routed to, and says how that went
     /// on the Completed island and in the review window.
     fn send_completed(
         &mut self,
@@ -2122,7 +2111,7 @@ impl ScrawlCoordinator {
         dest: crate::model::Destination,
         cx: &mut Context<Self>,
     ) {
-        let title = island_title(&dest.title);
+        let title = island_title(&dest.name());
         if self.completed_dir.as_deref() == Some(dir.as_path()) {
             self.completed_note = Some(format!("Sending to {title}…"));
         }
@@ -2147,10 +2136,10 @@ impl ScrawlCoordinator {
                 }
                 let _ = sender.send(crate::delivery::deliver(
                     &send_dir,
-                    &dest.session,
-                    &dest.title,
+                    &dest.project,
+                    &dest.name(),
                     None,
-                    crate::handoff::send_bundle_to_session,
+                    crate::project::forward,
                 ));
             });
         if spawned.is_err() {
@@ -2804,9 +2793,8 @@ impl ScrawlCoordinator {
             return;
         }
 
-        // A capture that ends on a dev site goes to its project's session; work that out (reading
-        // the browser tab, the port's process, the sessions) while the bundle is built.
-        let smart = crate::handoff::experiment(crate::routing::SMART_ROUTING);
+        // A capture goes to the project its page, port or terminal points at; work that out
+        // (reading the browser tab, the port's process, the terminal) while the bundle is built.
         let screen = matches!(source, CaptureSource::Screen { .. });
         // A window capture is of that window's app, whatever is in front at the end.
         let front = screen
@@ -2819,15 +2807,9 @@ impl ScrawlCoordinator {
             .flatten();
         let captured = target.bundle_id.clone();
         let finish_started = Instant::now();
-        let route = (screen && !smart).then(|| {
-            let (front, captured) = (front.clone(), captured.clone());
+        let route = screen.then(|| {
             std::thread::spawn(move || {
                 crate::routing::route_capture(front.as_deref(), captured.as_deref())
-            })
-        });
-        let look = (screen && smart).then(|| {
-            std::thread::spawn(move || {
-                crate::routing::look_capture(front.as_deref(), captured.as_deref())
             })
         });
 
@@ -2895,8 +2877,8 @@ impl ScrawlCoordinator {
                 .await;
 
             // The capture is copied and shown as done as soon as it's built; routing (the
-            // browser tab, the port's process, OpenCode's sessions) can take seconds, or longer
-            // when the server is down, so its outcome follows when it's ready.
+            // browser tab, the port's process, the terminal) can take seconds, so its outcome
+            // follows when it's ready.
             let routed = entity
                 .update(cx, |coord, cx| {
                     let (finalized, duration_ms) = result;
@@ -2908,9 +2890,9 @@ impl ScrawlCoordinator {
                         let _ = crate::handoff::copy_bundle_to_clipboard(&dir);
                         coord.completed_dir = Some(dir.clone());
                         coord.last_local_capture_ms = crate::now_epoch_ms();
-                        if route.is_some() || look.is_some() {
+                        if route.is_some() {
                             coord.routing = Some(dir.clone());
-                            routed = Some((dir.clone(), look.is_some().then(|| bundle.clone())));
+                            routed = Some(dir.clone());
                         }
                         coord.set_review_bundle((dir, bundle), coord.completed_note.clone());
                     }
@@ -2926,25 +2908,12 @@ impl ScrawlCoordinator {
                 .ok()
                 .flatten();
             let copied_ms = finish_started.elapsed().as_millis();
-            let Some((dir, bundle)) = routed else {
+            let Some(dir) = routed else {
                 return;
             };
-            let route_dir = dir.clone();
             let route = cx
                 .background_executor()
-                .spawn(async move {
-                    if let Some(dest) = route.and_then(|route| route.join().ok().flatten()) {
-                        return RouteOutcome::Send(dest);
-                    }
-                    if let (Some(bundle), Some(live)) =
-                        (bundle, look.and_then(|look| look.join().ok().flatten()))
-                    {
-                        let (judgement, url) =
-                            crate::routing::judge_capture(&route_dir, &bundle, live);
-                        return RouteOutcome::Judged(judgement, url);
-                    }
-                    RouteOutcome::None
-                })
+                .spawn(async move { route.and_then(|route| route.join().ok().flatten()) })
                 .await;
             scrawl_log(format!(
                 "finish: copied at {copied_ms}ms · routed at {}ms",
@@ -2957,9 +2926,14 @@ impl ScrawlCoordinator {
 
     /// Acts on a local capture's route once it's worked out, unless ✕ or Paste on the Completed
     /// island kept the capture on the clipboard first.
-    fn route_arrived(&mut self, dir: PathBuf, route: RouteOutcome, cx: &mut Context<Self>) {
+    fn route_arrived(
+        &mut self,
+        dir: PathBuf,
+        route: Option<crate::model::Destination>,
+        cx: &mut Context<Self>,
+    ) {
         if self.routing.as_deref() != Some(dir.as_path()) {
-            if !matches!(route, RouteOutcome::None) {
+            if route.is_some() {
                 scrawl_log(format!(
                     "routing: {} was kept on the clipboard before its route arrived",
                     dir.display()
@@ -2968,19 +2942,17 @@ impl ScrawlCoordinator {
             return;
         }
         self.routing = None;
-        match route {
-            RouteOutcome::None => return,
-            RouteOutcome::Send(dest) => self.send_completed(dir, dest, cx),
-            RouteOutcome::Judged(judgement, url) => self.act_on_route(dir, judgement, url, cx),
-        }
+        self.act_on_route(dir, route, cx);
         cx.notify();
     }
 }
 
-/// A session offered one click away on the Completed island.
+/// A project offered one click away on the Completed island.
 #[derive(Clone, Debug)]
 struct RouteChip {
     label: String,
+    /// The folder's name.
+    name: String,
     dest: crate::model::Destination,
 }
 
@@ -2988,52 +2960,57 @@ impl RouteChip {
     /// How many fit beside Paste.
     const MAX: usize = 2;
 
-    fn chosen(scored: &crate::routing::smart::Scored, url: Option<&str>, label: String) -> Self {
-        let mut dest = crate::routing::smart::destination_of(scored, url);
-        dest.via = "chosen".into();
-        Self { label, dest }
+    fn to(project: &std::path::Path, label: impl FnOnce(&str) -> String) -> Self {
+        let name = chip_title(&crate::project::folder_name(project));
+        Self {
+            label: label(&name),
+            name,
+            dest: crate::model::Destination {
+                project: project.display().to_string(),
+                via: "chosen".into(),
+                url: None,
+            },
+        }
     }
 
-    /// An offer's chips: "Send to DESKTOP", then the runner-up by name.
-    fn asks(choices: &[crate::routing::smart::Scored], url: Option<&str>) -> Vec<Self> {
-        choices
+    /// The chips for a capture that wasn't delivered: "Send to APP", then the next recent
+    /// project by name.
+    fn offers(recent: &[PathBuf]) -> Vec<Self> {
+        recent
             .iter()
             .take(Self::MAX)
             .enumerate()
-            .map(|(i, scored)| {
-                let title = chip_title(scored.candidate.label());
-                let label = if i == 0 {
-                    format!("Send to {title}")
-                } else {
-                    title
-                };
-                Self::chosen(scored, url, label)
+            .map(|(i, project)| {
+                Self::to(project, |name| {
+                    if i == 0 {
+                        format!("Send to {name}")
+                    } else {
+                        name.to_owned()
+                    }
+                })
             })
             .collect()
     }
 
-    /// The undo window's chip beside "Sending to DESKTOP…": "Send to OPENCODE IOS" instead.
-    fn switches(instead: &[crate::routing::smart::Scored], url: Option<&str>) -> Vec<Self> {
-        instead
+    /// The undo window's chip beside "Sending to APP…": the most recent other project, "Send to
+    /// SITE" instead.
+    fn switches(recent: &[PathBuf], current: &crate::model::Destination) -> Vec<Self> {
+        recent
             .iter()
-            .take(1)
-            .map(|scored| {
-                let label = format!("Send to {}", chip_title(scored.candidate.label()));
-                Self::chosen(scored, url, label)
+            .find(|project| project.display().to_string() != current.project)
+            .map(|project| {
+                let mut chip = Self::to(project, |name| format!("Send to {name}"));
+                chip.dest.url.clone_from(&current.url);
+                chip
             })
+            .into_iter()
             .collect()
     }
 }
 
-/// A session title short enough for a chip.
+/// A project folder's name short enough for a chip.
 fn chip_title(title: &str) -> String {
     truncate_title(title, 16)
-}
-
-enum RouteOutcome {
-    None,
-    Send(crate::model::Destination),
-    Judged(crate::routing::smart::Judgement, Option<String>),
 }
 
 pub struct HudPillWindow {
@@ -5827,26 +5804,66 @@ mod tests {
         assert_eq!(completed_label(0, Some("Sent to POINTO")), "Sent to POINTO");
         assert_eq!(completed_label(1, Some("Sent to POINTO")), "From iPhone");
         assert_eq!(completed_label(3, None), "3 from iPhone");
-        assert_eq!(island_title("POINTO"), "POINTO");
+        assert_eq!(island_title("pointo"), "pointo");
         assert_eq!(
-            island_title("Make Mac captures route to the site session"),
-            "Make Mac captures route…"
+            island_title("a-very-long-project-folder-name"),
+            "a-very-long-project-fol…"
         );
         assert_eq!(
-            chip_title("Make Mac captures route to the site session"),
-            "Make Mac captur…"
+            chip_title("a-very-long-project-folder-name"),
+            "a-very-long-pro…"
         );
         let queued = crate::delivery::Delivery::Queued {
-            title: "POINTO".into(),
+            title: "pointo".into(),
             error: "offline".into(),
         };
         assert_eq!(
-            completed_delivery_note(&queued, "POINTO"),
-            "Copied · couldn't reach POINTO"
+            completed_delivery_note(&queued, "pointo"),
+            "Copied · couldn't reach pointo"
         );
         let sent = crate::delivery::Delivery::Sent {
-            title: "POINTO".into(),
+            title: "pointo".into(),
         };
-        assert_eq!(completed_delivery_note(&sent, "POINTO"), "Sent to POINTO");
+        assert_eq!(completed_delivery_note(&sent, "pointo"), "Sent to pointo");
+    }
+
+    #[test]
+    fn route_chips_offer_recent_projects_and_a_runner_up_beside_the_undo_window() {
+        let recent: Vec<PathBuf> = ["/p/app", "/p/site", "/p/docs"]
+            .into_iter()
+            .map(PathBuf::from)
+            .collect();
+        // Not delivered: at most two recent projects, the first as "Send to".
+        let offers = RouteChip::offers(&recent);
+        let labels: Vec<&str> = offers.iter().map(|c| c.label.as_str()).collect();
+        assert_eq!(labels, ["Send to app", "site"]);
+        assert_eq!(offers[1].dest.project, "/p/site");
+        assert_eq!(offers[1].dest.via, "chosen");
+        assert!(RouteChip::offers(&[]).is_empty());
+
+        // Delivered to the most recent: the runner-up is the next one, never the same project.
+        let current = |project: &str| crate::model::Destination {
+            project: project.into(),
+            via: "port".into(),
+            url: Some("http://localhost:5173/".into()),
+        };
+        let chips = RouteChip::switches(&recent, &current("/p/app"));
+        assert_eq!(chips.len(), 1);
+        assert_eq!(chips[0].label, "Send to site");
+        assert_eq!(chips[0].dest.url.as_deref(), Some("http://localhost:5173/"));
+        assert_eq!(
+            RouteChip::switches(&recent, &current("/p/site"))[0]
+                .dest
+                .project,
+            "/p/app"
+        );
+        // A project that isn't in the list yet leaves the most recent as the runner-up.
+        assert_eq!(
+            RouteChip::switches(&recent, &current("/p/new"))[0]
+                .dest
+                .project,
+            "/p/app"
+        );
+        assert!(RouteChip::switches(&recent[..1], &current("/p/app")).is_empty());
     }
 }

@@ -1,9 +1,8 @@
-//! Dev pages telling Pointo which OpenCode session they belong to.
+//! Dev pages telling Pointo which project folder they belong to.
 //!
-//! A project adds `<script src="http://127.0.0.1:47777/sdk.js" data-session="ses_…"></script>`
-//! (or `data-directory`) to its dev build. The script registers the page with the ingest server
-//! and heartbeats while the tab is open; a Mac capture of that tab is then sent to the session
-//! (`routing`). Registrations last `TTL_MS` past the last heartbeat.
+//! A project adds `<script src="http://127.0.0.1:47777/sdk.js" data-directory="/abs/project"></script>`
+//! to its dev build. The script registers the page with the ingest server and heartbeats while
+//! the tab is open; a Mac capture of that tab is then delivered to that folder (`routing`). Registrations last `TTL_MS` past the last heartbeat.
 //!
 //! Without the ingest token, only a page on a loopback origin, calling from this Mac, may
 //! register, and only for its own origin. Any other origin must send the token as a bearer.
@@ -34,8 +33,6 @@ pub struct Registration {
     pub url: String,
     #[serde(default)]
     pub title: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directory: Option<String>,
     /// A random ID per page load, so two tabs on one origin come and go separately.
@@ -176,17 +173,8 @@ struct Body {
     origin: Option<String>,
     url: Option<String>,
     title: Option<String>,
-    session: Option<String>,
     directory: Option<String>,
     tab: Option<String>,
-}
-
-fn valid_session(id: &str) -> bool {
-    id.starts_with("ses")
-        && id.len() <= 64
-        && id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
 /// The registration a request describes. Without the token the page's own `Origin` header is
@@ -212,13 +200,6 @@ fn registration_from(
         .url
         .filter(|u| u.len() <= 4096 && parse_url(u).is_some_and(|p| p.origin() == origin))
         .unwrap_or_else(|| format!("{origin}/"));
-    let session = body
-        .session
-        .map(|s| s.trim().to_owned())
-        .filter(|s| !s.is_empty());
-    if session.as_deref().is_some_and(|s| !valid_session(s)) {
-        return Err("invalid session ID");
-    }
     let directory = body
         .directory
         .map(|d| d.trim().trim_end_matches('/').to_owned())
@@ -240,7 +221,6 @@ fn registration_from(
         origin,
         url,
         title: body.title.unwrap_or_default().chars().take(200).collect(),
-        session,
         directory,
         tab,
         seen_ms: 0,
@@ -399,9 +379,8 @@ pub fn handle(stream: &mut TcpStream, header: &str, expected_token: &str) -> Res
                 }
                 Ok(reg) => {
                     crate::capture::scrawl_log(format!(
-                        "web: {} registered (session {}, directory {})",
+                        "web: {} registered (directory {})",
                         reg.url,
-                        reg.session.as_deref().unwrap_or("-"),
                         reg.directory.as_deref().unwrap_or("-")
                     ));
                     // `context`: the page may send what it sees (`crate::page`); loopback only.
@@ -466,7 +445,7 @@ mod tests {
         let body = Body {
             origin: Some("https://victim.example".into()),
             url: Some("https://victim.example/x".into()),
-            session: Some("ses_abc".into()),
+            directory: Some("/p/abc".into()),
             tab: Some("t1!".into()),
             ..Body::default()
         };
@@ -474,13 +453,8 @@ mod tests {
         assert_eq!(reg.origin, "http://localhost:5173");
         assert_eq!(reg.url, "http://localhost:5173/");
         assert_eq!(reg.tab, "t1");
-        assert_eq!(reg.session.as_deref(), Some("ses_abc"));
+        assert_eq!(reg.directory.as_deref(), Some("/p/abc"));
 
-        let bad = Body {
-            session: Some("ses_a; rm -rf".into()),
-            ..Body::default()
-        };
-        assert!(registration_from(bad, Some("http://localhost:1"), false).is_err());
         let relative = Body {
             directory: Some("site".into()),
             ..Body::default()
@@ -498,12 +472,12 @@ mod tests {
         assert_eq!(reg.directory.as_deref(), Some("/p/app"));
     }
 
-    fn reg(origin: &str, url: &str, tab: &str, session: &str) -> Registration {
+    fn reg(origin: &str, url: &str, tab: &str, directory: &str) -> Registration {
         Registration {
             origin: origin.into(),
             url: url.into(),
             tab: tab.into(),
-            session: Some(session.into()),
+            directory: Some(directory.into()),
             ..Registration::default()
         }
     }
@@ -512,31 +486,31 @@ mod tests {
     fn registrations_expire_and_prefer_the_exact_tab() {
         let mut registry = Registry::default();
         let o = "http://localhost:5173";
-        registry.register(reg(o, "http://localhost:5173/a", "1", "ses_a"), 1_000);
-        registry.register(reg(o, "http://localhost:5173/b", "2", "ses_b"), 2_000);
-        let session = |r: &Registry, url: &str, now| r.lookup(url, now).and_then(|r| r.session);
+        registry.register(reg(o, "http://localhost:5173/a", "1", "/p/a"), 1_000);
+        registry.register(reg(o, "http://localhost:5173/b", "2", "/p/b"), 2_000);
+        let session = |r: &Registry, url: &str, now| r.lookup(url, now).and_then(|r| r.directory);
         assert_eq!(
             session(&registry, "http://localhost:5173/a", 3_000).as_deref(),
-            Some("ses_a")
+            Some("/p/a")
         );
         // Another page on the origin goes to the newest tab.
         assert_eq!(
             session(&registry, "http://localhost:5173/c", 3_000).as_deref(),
-            Some("ses_b")
+            Some("/p/b")
         );
         assert_eq!(session(&registry, "http://localhost:3000/", 3_000), None);
         // Tab 2 stops heartbeating; tab 1 heartbeats on.
-        registry.register(reg(o, "http://localhost:5173/a", "1", "ses_a"), 100_000);
+        registry.register(reg(o, "http://localhost:5173/a", "1", "/p/a"), 100_000);
         assert_eq!(
             session(&registry, "http://localhost:5173/c", 2_000 + TTL_MS + 1).as_deref(),
-            Some("ses_a")
+            Some("/p/a")
         );
         assert_eq!(
             session(&registry, "http://localhost:5173/a", 100_000 + TTL_MS + 1),
             None
         );
         // A heartbeat replaces the tab's entry instead of adding one.
-        registry.register(reg(o, "http://localhost:5173/a", "1", "ses_a"), 100_500);
+        registry.register(reg(o, "http://localhost:5173/a", "1", "/p/a"), 100_500);
         assert_eq!(registry.live(100_500).len(), 2);
         registry.unregister(o, "1");
         assert_eq!(registry.live(100_500).len(), 1);
@@ -574,7 +548,7 @@ mod tests {
             "{js}"
         );
 
-        let body = r#"{"url":"http://localhost:6123/","session":"ses_webtest","tab":"zz"}"#;
+        let body = r#"{"url":"http://localhost:6123/","directory":"/p/webtest","tab":"zz"}"#;
         let ok = request(
             &format!(
                 "POST /web/register HTTP/1.1\r\nOrigin: http://localhost:6123\r\nContent-Length: {}\r\n\r\n{body}",
@@ -587,9 +561,9 @@ mod tests {
         assert_eq!(
             registry()
                 .lookup("http://localhost:6123/", crate::now_epoch_ms())
-                .and_then(|r| r.session)
+                .and_then(|r| r.directory)
                 .as_deref(),
-            Some("ses_webtest")
+            Some("/p/webtest")
         );
 
         let remote = request(
@@ -615,7 +589,7 @@ mod tests {
             "GET /web/registrations HTTP/1.1\r\nAuthorization: Bearer tok\r\n\r\n",
             "tok",
         );
-        assert!(list.contains("ses_webtest"), "{list}");
+        assert!(list.contains("/p/webtest"), "{list}");
 
         let unregister = request(
             &format!(

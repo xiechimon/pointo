@@ -4,10 +4,9 @@
 //! video, audio and full-size frames are nearly all of its size. After `mediaDays` the heavy
 //! media (and the `zoom/` sheets made from it) goes to the Trash and the prompt stays; after
 //! `bundleDays` the whole bundle goes. Both live under `"retention"` in `~/.config/pointo/config.json` (`null` keeps forever). A bundle
-//! younger than a day or changed within the last day, one whose media is still copying
-//! (`.media-pending`, `.media-sending`), one Pointo is working on, a pinned one (`.pinned`), one
-//! still waiting to reach OpenCode (`.deliver.json`), and one `pointo recover` hasn't built yet
-//! are never touched.
+//! younger than a day or changed within the last day, one Pointo is working on, a pinned one
+//! (`.pinned`), one still waiting to reach its project folder (`.deliver.json`), and one
+//! `pointo recover` hasn't built yet are never touched.
 //!
 //! Cabled-iPhone videos are also re-encoded to HEVC at the size keyframes use (`shrink`), which
 //! makes them about ten times smaller.
@@ -27,14 +26,10 @@ use crate::capture::scrawl_log;
 
 /// Marks a bundle to keep forever.
 pub const PINNED: &str = ".pinned";
-/// Present on this Mac while a bundle's heavy media streams to another one.
-pub const MEDIA_SENDING: &str = ".media-sending";
 /// Written when the heavy media went to the Trash: when, and after how many days.
 pub const MEDIA_CLEANED: &str = ".media-cleaned";
 
 const DAY_MS: u64 = 24 * 60 * 60 * 1000;
-/// A sync marker older than this belongs to a copy that died.
-const STALE_MARKER: Duration = Duration::from_secs(24 * 60 * 60);
 /// Long edge iPhone video is re-encoded to: the size its keyframes are decoded at.
 const SHRINK_EDGE: u32 = crate::phone::PHONE_FRAME_EDGE;
 /// Videos above this rate are worth re-encoding (native iPhone mirror video is ~18 Mbps; a
@@ -247,11 +242,6 @@ fn changed_ago(path: &Path, now: SystemTime) -> Option<Duration> {
     Some(now.duration_since(changed).unwrap_or_default())
 }
 
-/// A sync marker that is recent enough to mean a copy is still running.
-fn live_marker(dir: &Path, name: &str, now: SystemTime) -> bool {
-    modified_ago(&dir.join(name), now).is_some_and(|ago| ago < STALE_MARKER)
-}
-
 fn created_ms(dir: &Path, manifest: &Manifest) -> Option<u64> {
     manifest.created_at_ms.or_else(|| {
         // `pointo-<ms>-…`
@@ -284,8 +274,6 @@ pub fn plan(captures: &Path, policy: &Policy, now: SystemTime) -> Vec<Action> {
             || dir.join(crate::delivery::PENDING).exists()
             || is_claimed(&dir)
             || crate::recover::owed(&dir)
-            || live_marker(&dir, crate::handoff::MEDIA_PENDING, now)
-            || live_marker(&dir, MEDIA_SENDING, now)
         {
             continue;
         }
@@ -476,12 +464,7 @@ pub fn apply(actions: &[Action], policy: &Policy, trasher: Trasher, shrink: bool
         let Some(_claim) = claim(bundle) else {
             continue;
         };
-        let now = SystemTime::now();
-        if live_marker(bundle, crate::handoff::MEDIA_PENDING, now)
-            || live_marker(bundle, MEDIA_SENDING, now)
-            || bundle.join(PINNED).exists()
-            || bundle.join(crate::delivery::PENDING).exists()
-        {
+        if bundle.join(PINNED).exists() || bundle.join(crate::delivery::PENDING).exists() {
             continue;
         }
         let result = match action {
@@ -563,14 +546,6 @@ pub fn shrink_video(bundle: &Path, video: &Path) -> Result<Option<Shrunk>> {
             return Err(e);
         }
     };
-    // A sync that started while encoding streams the original; let it finish with that.
-    let now = SystemTime::now();
-    if live_marker(bundle, MEDIA_SENDING, now)
-        || live_marker(bundle, crate::handoff::MEDIA_PENDING, now)
-    {
-        let _ = std::fs::remove_file(&tmp);
-        anyhow::bail!("its media started copying while it was being shrunk");
-    }
     std::fs::rename(&tmp, video)?;
     scrawl_log(format!(
         "shrink: {} {} → {} ({}×{}, {:.1} s)",
@@ -782,11 +757,7 @@ fn worker(jobs: &flume::Receiver<Job>) {
 
 /// `Err` when the bundle is busy and should be retried.
 fn shrink_now(dir: &Path) -> std::result::Result<(), ()> {
-    let now = SystemTime::now();
-    if recording()
-        || live_marker(dir, crate::handoff::MEDIA_PENDING, now)
-        || live_marker(dir, MEDIA_SENDING, now)
-    {
+    if recording() {
         return Err(());
     }
     let Some(_claim) = claim(dir) else {
@@ -896,7 +867,7 @@ mod tests {
         assert_eq!(Policy::load_from(&path), Preset::Week.policy());
         std::fs::write(
             &path,
-            r#"{"ingestToken":"abc","agentHost":"studio","retention":{"mediaDays":null}}"#,
+            r#"{"ingestToken":"abc","project":"/p/app","retention":{"mediaDays":null}}"#,
         )
         .unwrap();
         let loaded = Policy::load_from(&path);
@@ -913,7 +884,7 @@ mod tests {
         let config: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(config["ingestToken"], "abc");
-        assert_eq!(config["agentHost"], "studio");
+        assert_eq!(config["project"], "/p/app");
         assert_eq!(config["retention"]["mediaDays"], serde_json::Value::Null);
         Preset::Month.policy().save_to(&path).unwrap();
         assert_eq!(
@@ -959,19 +930,11 @@ mod tests {
     }
 
     #[test]
-    fn pinned_syncing_and_busy_bundles_are_left_alone() {
+    fn pinned_undelivered_and_busy_bundles_are_left_alone() {
         let tmp = TempDir::new("guards");
         let pinned = bundle(&tmp.0, "pointo-pinned", 40.0, false);
         std::fs::write(pinned.join(PINNED), "").unwrap();
-        let pending = bundle(&tmp.0, "pointo-pending", 40.0, false);
-        marker(
-            &pending,
-            crate::handoff::MEDIA_PENDING,
-            later() - Duration::from_secs(3600),
-        );
-        let sending = bundle(&tmp.0, "pointo-sending", 40.0, false);
-        marker(&sending, MEDIA_SENDING, later() - Duration::from_secs(3600));
-        // A bundle still waiting to reach OpenCode, however old its marker.
+        // A bundle still waiting to reach its project folder, however old its marker.
         let undelivered = bundle(&tmp.0, "pointo-undelivered", 40.0, false);
         marker(
             &undelivered,
@@ -987,13 +950,6 @@ mod tests {
             planned(&tmp.0, &Policy::default()),
             vec![Action::TrashBundle(busy)]
         );
-        // A marker left by a copy that died over a day ago no longer holds a bundle.
-        marker(
-            &pending,
-            crate::handoff::MEDIA_PENDING,
-            later() - STALE_MARKER - Duration::from_secs(60),
-        );
-        assert!(planned(&tmp.0, &Policy::default()).contains(&Action::TrashBundle(pending)));
     }
 
     #[test]

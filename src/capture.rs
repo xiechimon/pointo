@@ -1587,7 +1587,7 @@ mod tests {
     }
 
     /// Kit's Screen capture on the Pro: the old listen-only event tap was off (no Input
-    /// Monitoring), so his clicks on OpenCode's composer never reached the bundle. Clicks now
+    /// Monitoring), so his clicks on an app's composer never reached the bundle. Clicks now
     /// come from the mouse monitor; polled button state stands in if it couldn't be installed.
     #[test]
     fn clicks_are_recorded_from_polled_buttons_while_the_mouse_monitor_is_missing() {

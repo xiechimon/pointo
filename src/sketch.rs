@@ -768,13 +768,8 @@ pub fn summary_markdown_with(
         format_clock(bundle.duration_ms),
         bundle_dir.display()
     );
-    if let Some(dest) = &bundle.destination {
-        let title = if dest.title.is_empty() {
-            &dest.session
-        } else {
-            &dest.title
-        };
-        out.push_str(&format!("For session: {title} ({})", dest.session));
+    if let Some(dest) = bundle.destination.as_ref().filter(|d| d.is_project()) {
+        out.push_str(&format!("For project: {} ({})", dest.name(), dest.project));
         if let Some(url) = &dest.url {
             out.push_str(&format!(" · page {url}"));
         }
@@ -2221,14 +2216,14 @@ mod tests {
     fn summary_shows_app_version_context_and_screen_changes() {
         let mut bundle: ScrawlBundle = serde_json::from_value(serde_json::json!({
             "version": 1, "id": "t", "createdAtMs": 0, "durationMs": 25_000,
-            "target": {"mode": "device", "app": "OpenCode", "bundleId": "ai.opencode.mobilecode",
+            "target": {"mode": "device", "app": "Notes", "bundleId": "dev.example.notes",
                 "displayId": 0,
                 "frame": {"x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0, "scale": 1.0}},
             "transcript": {"source": "test", "text": "", "segments": []},
             "strokes": [], "marks": [], "events": [], "keyframes": [], "contactSheet": "c.png",
             "source": "iphone",
             "device": {"name": "iPhone", "capture": "scrawlkit", "width": 10, "height": 20,
-                "app": "OpenCode", "appVersion": "354", "appShortVersion": "1.4"}
+                "app": "Notes", "appVersion": "354", "appShortVersion": "1.4"}
         }))
         .unwrap();
         let keyframe = |index: usize, t: u64, reason, event: &str, said: Option<&str>| Keyframe {
@@ -2297,7 +2292,7 @@ mod tests {
         assert_eq!(
             summary,
             format!(
-                "[pointo 0:25 · iPhone · OpenCode 1.4 (354) · /recordings/phone]\n\
+                "[pointo 0:25 · iPhone · Notes 1.4 (354) · /recordings/phone]\n\
                  {LOOK_AT_IMAGES}\n\
                  Screen: Sessions · server: studio · session: {session}\n\
                  - #1 (0:01) “So here.”\n\
@@ -2315,7 +2310,7 @@ mod tests {
         bundle.device.as_mut().unwrap().app_short_version = None;
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/phone"));
         assert!(summary.starts_with(&format!(
-            "[pointo 0:25 · iPhone · OpenCode (354) · /recordings/phone]\n{LOOK_AT_IMAGES}\n- #1 (0:01) “So here.”\n"
+            "[pointo 0:25 · iPhone · Notes (354) · /recordings/phone]\n{LOOK_AT_IMAGES}\n- #1 (0:01) “So here.”\n"
         )));
     }
 }

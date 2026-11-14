@@ -1726,7 +1726,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("pointo-onboarding-{}", std::process::id()));
         let path = dir.join("config.json");
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(&path, r#"{"agentHost":"studio","autocrop":false}"#).unwrap();
+        std::fs::write(&path, r#"{"project":"/p/app","autocrop":false}"#).unwrap();
         assert_eq!(Progress::load_from(&path), Progress::default());
         let progress = Progress {
             seen: true,
@@ -1740,7 +1740,7 @@ mod tests {
         assert_eq!(Progress::load_from(&path), progress);
         let config: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-        assert_eq!(config["agentHost"], "studio");
+        assert_eq!(config["project"], "/p/app");
         assert_eq!(config["autocrop"], false);
         assert_eq!(config["onboarding"]["resume"], "permissions");
         assert_eq!(config["onboarding"]["relaunchedAt"], 1_792_000_000_000_u64);

@@ -331,7 +331,7 @@ pub enum ElemId {
     DoneLead = 12,
     Paste = 13,
     Inspect = 14,
-    /// The Completed island's sessions one click away (smart routing).
+    /// The Completed island's projects one click away.
     Route0 = 15,
     Route1 = 16,
 }
@@ -422,7 +422,7 @@ impl ElemId {
             Self::DoneLead => "Completed",
             Self::Paste => "Paste",
             Self::Inspect => "Inspect",
-            Self::Route0 | Self::Route1 => "Send to session",
+            Self::Route0 | Self::Route1 => "Send to project",
         }
     }
 }
@@ -439,7 +439,7 @@ pub enum Pres {
         has_iphone: bool,
     },
     Processing,
-    /// `routes`: the labels of sessions offered one click away, beside Paste.
+    /// `routes`: the labels of projects offered one click away, beside Paste.
     Completed {
         label: String,
         routes: Vec<String>,
@@ -1307,7 +1307,7 @@ impl PillModel {
             CONTENT_OUT_SPRING
         };
 
-        // Boxes of shared items still travelling: a session chip inserted between them waits until
+        // Boxes of shared items still travelling: a route chip inserted between them waits until
         // they've cleared its spot, so it never fades in underneath one.
         let movers: Vec<[f32; 4]> = ElemId::ALL
             .iter()

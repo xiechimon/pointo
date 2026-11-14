@@ -103,27 +103,38 @@ pub struct ScrawlBundle {
     /// the full frames are kept beside them).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub autocrop: Option<AutocropInfo>,
-    /// The OpenCode session a Mac capture of a dev site was sent to (`routing`), so `pointo send`
+    /// The project folder the capture was delivered to (`project::deliver`), so `pointo send`
     /// recovers to the same place.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<Destination>,
 }
 
+/// Where a capture was delivered: a project folder.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Destination {
-    pub session: String,
+    /// The project folder's absolute path. Empty in a bundle written when a destination was a
+    /// session, which counts as no destination.
+    #[serde(default, alias = "directory")]
+    pub project: String,
+    /// How the folder was chosen: `"pinned"`, `"page"`, `"port"`, `"terminal"` or `"chosen"`.
     #[serde(default)]
-    pub title: String,
-    /// `"sdk"` (the page registered through `/sdk.js`) or `"localhost"` (matched by the port's
-    /// process directory).
     pub via: String,
     /// The browser tab the capture was of.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
-    /// The project directory the session was chosen by, when it was.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub directory: Option<String>,
+}
+
+impl Destination {
+    /// The folder's name, for chips, the HUD and the summary.
+    pub fn name(&self) -> String {
+        crate::project::folder_name(std::path::Path::new(&self.project))
+    }
+
+    /// Whether this names a folder (older bundles recorded a session instead).
+    pub fn is_project(&self) -> bool {
+        !self.project.is_empty()
+    }
 }
 
 fn is_zero_u64(v: &u64) -> bool {
@@ -643,13 +654,13 @@ mod tests {
     fn old_bundles_load_without_app_context_and_new_ones_round_trip() {
         let old = serde_json::json!({
             "version": 1, "id": "t", "createdAtMs": 0, "durationMs": 20_000,
-            "target": {"mode": "device", "app": "OpenCode", "bundleId": "OpenCode", "displayId": 0,
+            "target": {"mode": "device", "app": "Notes", "bundleId": "Notes", "displayId": 0,
                 "frame": {"x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0, "scale": 1.0}},
             "transcript": {"source": "test", "text": "", "segments": []},
             "strokes": [], "marks": [], "events": [], "keyframes": [], "contactSheet": "c.png",
             "source": "iphone",
             "device": {"name": "iPhone", "capture": "scrawlkit", "width": 10, "height": 20,
-                "app": "OpenCode", "appVersion": "354"}
+                "app": "Notes", "appVersion": "354"}
         });
         let mut bundle: ScrawlBundle = serde_json::from_value(old).unwrap();
         assert!(bundle.context.is_empty() && bundle.screens.is_empty());

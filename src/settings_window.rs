@@ -82,6 +82,13 @@ pub fn poll(cx: &mut App) {
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+struct ProjectFolder {
+    /// The pinned folder; `None` is Automatic.
+    path: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
 struct Login {
     on: bool,
     available: bool,
@@ -162,6 +169,7 @@ struct ViewState {
     version: String,
     login: Login,
     auto_send: bool,
+    project: ProjectFolder,
     shortcuts: Vec<Shortcut>,
     transcriber: Transcriber,
     video_export: bool,
@@ -909,6 +917,7 @@ impl SettingsWindow {
     fn general(&self, theme: Theme, state: &ViewState, cx: &mut Context<Self>) -> Div {
         let login_on = state.login.on;
         let auto_send = state.auto_send;
+        let project = state.project.path.clone();
         let mut column = div().flex().flex_col().child(group(
             theme,
             vec![
@@ -928,11 +937,59 @@ impl SettingsWindow {
                 .into_any_element(),
                 row(
                     theme,
-                    "Send dev-site captures to OpenCode",
+                    "Send captures to the detected project",
                     true,
                     switch(theme, "settings-auto-send", auto_send, true).on_click(
                         cx.listener(move |view, _, _, _| view.set("autoSend", (!auto_send).into())),
                     ),
+                )
+                .into_any_element(),
+                row(
+                    theme,
+                    "Project folder",
+                    true,
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .text_size(px(14.0))
+                                .text_color(theme.secondary())
+                                .child(project.clone().unwrap_or_else(|| "Automatic".to_owned())),
+                        )
+                        .child(
+                            button(theme, "settings-project-choose", "Choose…", true).on_click(
+                                cx.listener(|_, _, _, cx| {
+                                    let chosen = cx.prompt_for_paths(gpui::PathPromptOptions {
+                                        files: false,
+                                        directories: true,
+                                        multiple: false,
+                                        prompt: Some("Choose".into()),
+                                    });
+                                    cx.spawn(async move |view, cx| {
+                                        if let Ok(Ok(Some(paths))) = chosen.await
+                                            && let Some(folder) = paths.first()
+                                        {
+                                            let folder = folder.display().to_string();
+                                            let _ = view.update(cx, |view, _| {
+                                                view.set("project", folder.into());
+                                            });
+                                        }
+                                    })
+                                    .detach();
+                                }),
+                            ),
+                        )
+                        .when(project.is_some(), |d| {
+                            d.child(
+                                button(theme, "settings-project-clear", "Clear", true).on_click(
+                                    cx.listener(|view, _, _, _| {
+                                        view.set("project", serde_json::Value::Null);
+                                    }),
+                                ),
+                            )
+                        }),
                 )
                 .into_any_element(),
             ],
@@ -1555,7 +1612,7 @@ impl SettingsWindow {
             .child(group(theme, vec![line]))
             .child(caption(
                 theme,
-                "Run it in a terminal. It teaches Claude Code, OpenCode, Codex and other agents to read your captures and use pointo.",
+                "Run it in a terminal. It teaches Claude Code, Codex, Cursor and other agents to read your captures and use pointo.",
                 false,
             ))
     }

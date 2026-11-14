@@ -37,6 +37,7 @@ mod phone;
 // Lowers the output volume while recording on macOS; elsewhere a no-op.
 #[cfg_attr(not(target_os = "macos"), path = "win/playback.rs")]
 mod playback;
+mod project;
 mod recover;
 mod render;
 mod retention;
@@ -535,29 +536,24 @@ enum Command {
         #[arg(long, default_value_t = 1)]
         repeat: u32,
     },
-    /// Copy a `.pointo` bundle to the clipboard or send it to an OpenCode V2 session.
+    /// Copy a `.pointo` bundle to the clipboard or deliver it to a project folder
+    /// (`<project>/.pointo/captures/`, newest named by `<project>/.pointo/latest`).
     Send {
         /// Path to `.pointo` bundle directory or `latest`.
         #[arg(default_value = "latest")]
         bundle: PathBuf,
-        /// Target OpenCode session ID (`ses_...`). If omitted, an iPhone recording goes to the
-        /// session it was addressed to, a Mac capture of a dev site to the session it was routed
-        /// to, anything else to the most recent active session.
-        #[arg(long)]
-        session: Option<String>,
-        /// Send an iPhone recording to `--session` even though it was addressed to another.
-        #[arg(long)]
-        reroute: bool,
-        /// Copy to the macOS clipboard instead of posting to OpenCode.
+        /// The project folder to deliver to. If omitted, the folder the capture was recorded
+        /// for, else the pinned project (`project` in config.json), else the one its page,
+        /// server port or terminal points at.
+        #[arg(long, value_name = "DIR")]
+        project: Option<PathBuf>,
+        /// Copy to the clipboard instead of delivering to a project.
         #[arg(long)]
         clipboard: bool,
     },
-    /// Print which OpenCode session a capture of a browser tab would be sent to, without
-    /// sending: a page registered through `/sdk.js`, else the project serving a localhost port.
-    ///
-    /// With `--explain <bundle>`, prints the evidence smart routing sees for that capture, the
-    /// sessions it weighed and their scores, and its decision (read-only). `--url` stands in for
-    /// the tab when the bundle didn't save one.
+    /// Print which project folder a capture of a browser tab would be delivered to, and why,
+    /// without delivering: the pinned project, a page registered through `/sdk.js`, else the
+    /// project serving a localhost port.
     Route {
         /// The tab's URL.
         #[arg(long, conflicts_with = "browser")]
@@ -565,9 +561,6 @@ enum Command {
         /// Read the front tab of this browser instead (bundle ID, e.g. `com.brave.Browser`).
         #[arg(long)]
         browser: Option<String>,
-        /// A `.pointo` bundle (or `latest`) to explain.
-        #[arg(long, value_name = "BUNDLE")]
-        explain: Option<PathBuf>,
     },
     /// Open a `.pointo` bundle in the native GPUI review window.
     Preview {
@@ -587,9 +580,6 @@ enum Command {
         /// Pointo ingest base URL(s); defaults to this Mac's Tailscale and LAN IPs on `--port`.
         #[arg(long = "url")]
         urls: Vec<String>,
-        /// Optional OpenCode session ID (`ses_...`) to route captures from this app to.
-        #[arg(long)]
-        session: Option<String>,
         /// Ingest port used when discovering default Tailscale / LAN URLs.
         #[arg(long, default_value_t = phone::DEFAULT_INGEST_PORT)]
         port: u16,
@@ -602,9 +592,6 @@ enum Command {
         /// Also poll cabled iPhones over USB (`devicectl`) for apps listed in `usbApps`.
         #[arg(long)]
         usb: bool,
-        /// Build bundles without posting them to an OpenCode session.
-        #[arg(long)]
-        no_opencode: bool,
     },
     /// Print the agent skill that teaches coding agents to read captures and use this CLI (`bunx skills add xiechimon/pointo` installs it).
     Skill,
@@ -1397,9 +1384,9 @@ pub fn generate_demo_bundle(out: Option<PathBuf>) -> Result<(PathBuf, ScrawlBund
     let (fw, fh) = (1280_u32, 800_u32);
     let target = TargetInfo {
         mode: CaptureMode::Window,
-        app: Some("OpenCode".into()),
-        bundle_id: Some("ai.opencode.desktop".into()),
-        window_title: Some("session/tool-running — OpenCode".into()),
+        app: Some("Notes".into()),
+        bundle_id: Some("dev.example.notes".into()),
+        window_title: Some("Checklist — Notes".into()),
         window_id: Some(4210),
         display_id: 1,
         frame: TargetFrame {
@@ -2352,8 +2339,7 @@ fn main() -> Result<()> {
         }
         Command::Send {
             bundle,
-            session,
-            reroute,
+            project,
             clipboard,
         } => {
             let dir = handoff::resolve_bundle_dir(&bundle)?;
@@ -2361,19 +2347,19 @@ fn main() -> Result<()> {
                 handoff::copy_bundle_to_clipboard(&dir)?;
                 println!("Copied {} to clipboard", dir.display());
             } else {
-                let target_session = handoff::send_to_opencode(&dir, session.as_deref(), reroute)?;
+                let project = routing::project_for_send(&dir, project)?;
+                let copy = project::deliver(&dir, &project)?;
+                handoff::remember_project(&project.to_string_lossy());
                 println!(
-                    "Sent {} to OpenCode session {target_session}",
-                    dir.display()
+                    "Sent {} to {}",
+                    dir.display(),
+                    project::folder_name(&project)
                 );
+                println!("{}", copy.display());
             }
             Ok(())
         }
-        Command::Route {
-            url,
-            browser,
-            explain,
-        } => {
+        Command::Route { url, browser } => {
             let url = match (url, browser) {
                 (Some(url), _) => Some(url),
                 (None, Some(browser)) => Some(
@@ -2382,12 +2368,8 @@ fn main() -> Result<()> {
                 ),
                 (None, None) => None,
             };
-            if let Some(bundle) = explain {
-                print!("{}", routing::explain_bundle(&bundle, url.as_deref())?);
-                return Ok(());
-            }
             let url = url.context("Pass --url or --browser")?;
-            match routing::route(&url, &routing::Hooks::default()) {
+            match routing::decide(Some(&url), &[], &routing::Hooks::default()) {
                 Ok(dest) => println!("{}", serde_json::to_string_pretty(&dest)?),
                 Err(reason) => println!("{url}: clipboard only ({reason})"),
             }
@@ -2405,12 +2387,7 @@ fn main() -> Result<()> {
             ui::run_app(initial, false, false, capture_screenshot);
             Ok(())
         }
-        Command::Link {
-            scheme,
-            urls,
-            session,
-            port,
-        } => {
+        Command::Link { scheme, urls, port } => {
             let token = handoff::ensure_ingest_token()?;
             let resolved_urls = if urls.is_empty() {
                 phone::discover_default_ingest_urls(port)
@@ -2421,19 +2398,14 @@ fn main() -> Result<()> {
                 !resolved_urls.is_empty(),
                 "Could not discover a Tailscale or LAN IP; pass --url http://<host>:{port}"
             );
-            let link =
-                phone::format_setup_link(&scheme, &resolved_urls, &token, session.as_deref())?;
+            let link = phone::format_setup_link(&scheme, &resolved_urls, &token)?;
             println!("{link}");
             if let Ok(qr) = helper::qr(&link) {
                 eprintln!("\n{qr}");
             }
             Ok(())
         }
-        Command::Serve {
-            port,
-            usb,
-            no_opencode,
-        } => phone::run_ingest_server(port, usb, no_opencode),
+        Command::Serve { port, usb } => phone::run_ingest_server(port, usb),
         Command::Skill => {
             print!("{SKILL}");
             Ok(())

@@ -1026,7 +1026,7 @@ mod tests {
         ];
         let window = |id, title: &str| WindowEntry {
             id,
-            app: "OpenCode".into(),
+            app: "Notes".into(),
             bundle_id: None,
             regular: true,
             title: title.into(),
@@ -1059,7 +1059,7 @@ mod tests {
         );
         assert!(!all.contains("x 0."), "no coordinates: {all}");
         assert!(
-            all.contains("· 0:04 OpenCode window closed “The whole window closes.”"),
+            all.contains("· 0:04 Notes window closed “The whole window closes.”"),
             "{all}"
         );
         assert!(!all.contains("Secret") && !all.contains("Hex"), "{all}");
