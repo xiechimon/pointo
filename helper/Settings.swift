@@ -24,7 +24,7 @@ import SwiftUI
 // {"action":"grant","permission":"camera"},
 // {"action":"reopen"}, {"action":"show-captures"}, {"action":"check-for-updates"},
 // {"action":"set","key":"capturesDir","value":"/Users/me/Captures"} ("" resets), {"action":"set","key":"project","value":"/Users/me/app"} ("" is Automatic),
-// {"action":"tour"}, {"action":"install-cli"}, {"action":"uninstall-cli"}, {"action":"close"}.
+// {"action":"tour"}, {"action":"close"}.
 
 // MARK: State
 
@@ -128,15 +128,6 @@ struct SettingsProject: Decodable, Equatable {
   var path: String?
 }
 
-struct SettingsCommandLine: Decodable, Equatable {
-  var path: String?
-  /// "install", "uninstall", or none.
-  var button: String? = "install"
-  var enabled = true
-  var caption = "把 pointo 链接到 /opt/homebrew/bin，AI 代理和终端就能运行它。"
-  var error = false
-}
-
 struct SettingsState: Decodable, Equatable {
   var version = "0.3.2"
   var login = SettingsLogin()
@@ -157,15 +148,13 @@ struct SettingsState: Decodable, Equatable {
   var permissions: [SettingsPermission] = ["screen-recording", "microphone", "accessibility", "camera"]
     .map { SettingsPermission(permission: $0, required: ["screen-recording", "microphone", "accessibility"].contains($0)) }
   var updates = true
-  var commandLine = SettingsCommandLine()
-  var skillCommand = "bunx skills add xiechimon/pointo"
 
   var pasteLabel: String { shortcuts.first { $0.kind == "paste" }?.label ?? "⌥⇧V" }
   var recording: String? { shortcuts.first(where: \.recording)?.kind }
 }
 
 enum SettingsPane: String, CaseIterable {
-  case general, recording, storage, permissions, agents, about
+  case general, recording, storage, permissions, about
 
   var title: String {
     switch self {
@@ -173,7 +162,6 @@ enum SettingsPane: String, CaseIterable {
     case .recording: "录制"
     case .storage: "存储"
     case .permissions: "权限"
-    case .agents: "AI 代理"
     case .about: "关于"
     }
   }
@@ -184,7 +172,6 @@ enum SettingsPane: String, CaseIterable {
     case .recording: "record.circle"
     case .storage: "internaldrive.fill"
     case .permissions: "hand.raised.fill"
-    case .agents: "terminal.fill"
     case .about: "info"
     }
   }
@@ -196,7 +183,6 @@ enum SettingsPane: String, CaseIterable {
     case .recording: (Color(red: 1, green: 0.42, blue: 0.38), Color(red: 0.92, green: 0.2, blue: 0.17))
     case .storage: (Color(red: 0.36, green: 0.66, blue: 1), Color(red: 0.16, green: 0.45, blue: 0.95))
     case .permissions: (Color(red: 0.36, green: 0.82, blue: 0.56), Color(red: 0.16, green: 0.66, blue: 0.4))
-    case .agents: (Color(white: 0.36), Color(white: 0.18))
     }
   }
 }
@@ -834,7 +820,6 @@ struct SettingsView: View {
         item(.recording)
         item(.storage)
         item(.permissions)
-        item(.agents)
       }
       section("Pointo")
       item(.about)
@@ -907,7 +892,6 @@ struct SettingsView: View {
       case .recording: recording
       case .storage: storage
       case .permissions: permissions
-      case .agents: agents
       case .about: about
       }
       Spacer(minLength: 0)
@@ -1078,40 +1062,6 @@ struct SettingsView: View {
     }
   }
 
-  private var agents: some View {
-    let theme = SettingsTheme(scheme)
-    let cli = state.commandLine
-    return VStack(spacing: 0) {
-      SettingsGroup {
-        HStack(spacing: 12) {
-          VStack(alignment: .leading, spacing: 1) {
-            Text("命令行工具").font(.system(size: 14)).foregroundStyle(theme.text)
-            if let path = cli.path {
-              Text(path)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(theme.secondary)
-                .truncationMode(.head)
-            }
-          }
-          .lineLimit(1)
-          Spacer(minLength: 8)
-          if let button = cli.button {
-            SettingsButton(title: button == "uninstall" ? "卸载" : "安装", enabled: cli.enabled) {
-              model.act(button == "uninstall" ? "uninstall-cli" : "install-cli")
-            }
-          }
-        }
-        .padding(.horizontal, 12)
-        .frame(height: cli.path == nil ? SettingsMetrics.row : 52)
-      }
-      SettingsCaption(text: cli.caption, error: cli.error)
-        .animation(SettingsMotion.state, value: cli)
-      SettingsHeader("AI 代理技能")
-      SettingsGroup { CopyLine(text: state.skillCommand) }
-      SettingsCaption(text: "在终端里运行它，Claude Code、Codex、Cursor 等 AI 代理就会学会读取你的录制并使用 pointo。")
-    }
-  }
-
   private var about: some View {
     let theme = SettingsTheme(scheme)
     return VStack(spacing: 0) {
@@ -1160,33 +1110,6 @@ struct SettingsView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-  }
-}
-
-/// A command in monospace with a Copy button that says Copied for a moment.
-struct CopyLine: View {
-  @Environment(\.settingsTheme) private var theme
-  let text: String
-  @State private var copied = false
-
-  var body: some View {
-    HStack(spacing: 12) {
-      Text(text)
-        .font(.system(size: 12, design: .monospaced))
-        .foregroundStyle(theme.text)
-        .lineLimit(1)
-        .textSelection(.enabled)
-      Spacer(minLength: 8)
-      SettingsButton(title: copied ? "已复制" : "复制") {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        copied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
-      }
-      .animation(SettingsMotion.state, value: copied)
-    }
-    .padding(.horizontal, 12)
-    .frame(height: SettingsMetrics.row)
   }
 }
 
@@ -1614,24 +1537,6 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     noUpdates.updates = false
     var storageCustom = base
     storageCustom.capturesDir = SettingsCapturesDir(path: "~/Documents/Pointo Captures", custom: true)
-    var cliInstalled = base
-    cliInstalled.commandLine = SettingsCommandLine(
-      path: "/opt/homebrew/bin/pointo", button: "uninstall",
-      caption: "AI 代理和终端可以运行 pointo 来读取录制、放大某一刻、导出视频。")
-    var cliLocal = base
-    cliLocal.commandLine = SettingsCommandLine(
-      path: "~/.local/bin/pointo", button: "uninstall",
-      caption: "如果 shell 找不到 pointo，请把 ~/.local/bin 加进 PATH。")
-    var cliHomebrew = base
-    cliHomebrew.commandLine = SettingsCommandLine(
-      path: "/opt/homebrew/bin/pointo", button: nil,
-      caption: "通过 Homebrew 安装。AI 代理和终端可以运行 pointo 来读取录制、放大某一刻、导出视频。")
-    var cliTaken = base
-    cliTaken.commandLine = SettingsCommandLine(
-      button: nil, caption: "/usr/local/bin/pointo 是另一个程序，所以 Pointo 不会动它。", error: true)
-    var cliDev = base
-    cliDev.commandLine = SettingsCommandLine(
-      enabled: false, caption: "命令行工具只在已安装的 Pointo.app 里可用。")
     var micChosen = base
     micChosen.microphone = SettingsMicrophone(selected: devices[1].id, value: "Shure MV7", options: micOptions, note: nil, meter: devices[1].id)
     var micMissing = base
@@ -1668,12 +1573,6 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       ("storage-custom", .storage, storageCustom),
       ("permissions", .permissions, base),
       ("permissions-missing", .permissions, missing),
-      ("agents", .agents, base),
-      ("agents-installed", .agents, cliInstalled),
-      ("agents-local", .agents, cliLocal),
-      ("agents-homebrew", .agents, cliHomebrew),
-      ("agents-taken", .agents, cliTaken),
-      ("agents-dev", .agents, cliDev),
       ("about", .about, base),
       ("about-dev", .about, noUpdates),
     ]

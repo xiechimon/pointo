@@ -92,16 +92,6 @@ Pointo 按这个顺序决定一段录制该去哪个项目，找到就停：
 
 并在项目的 `.git/info/exclude` 里加一行 `.pointo/`，不会出现在 `git status` 里，也不会改你的 `.gitignore`。录屏和录音这类大文件留在原处（`~/Library/Application Support/pointo/captures/`），`summary.md` 里写着它们的位置。
 
-## 让 AI 工具读懂录制
-
-给你的 AI 编程工具装上 Pointo 技能：
-
-```bash
-npx skills add xiechimon/pointo
-```
-
-然后对它说「看看 Pointo 最新的录制」或直接粘贴，它会先看总览图和关键帧，再按需用命令行放大细节。不装技能也行：`summary.md` 本身就是写给 AI 看的。
-
 ## 语音转写
 
 | 引擎 | 说明 |
@@ -110,22 +100,6 @@ npx skills add xiechimon/pointo
 | Command | 在 `~/.config/pointo/config.json` 里配置 `transcribeCommand`，用你自己的程序转写。 |
 
 Command 出错时，这段录制自动改用 Qwen3-ASR。如果你的电脑上 Hex 已经下载过 Qwen3-ASR 模型，Pointo 会直接用它，不再重复下载。
-
-## 命令行
-
-Pointo.app 里自带 `pointo` 命令（设置 › AI 代理 › 命令行工具 › 安装，链接到你的 PATH）：
-
-```bash
-pointo inspect latest              # 打印最新录制的说明
-pointo zoom latest --at 0:12       # 放大 0:12 前后，生成一张密集的帧图
-pointo zoom latest --at "这个按钮"  # 按你说过的话定位
-pointo frames latest --from 0:02 --to 0:07
-pointo send latest --project ~/code/my-app   # 投递到指定项目
-pointo route --url http://localhost:5173/    # 看看这个页面会投递到哪个项目
-pointo export latest --zoom --out demo.mp4   # 导出可分享的视频
-pointo retranscribe latest         # 用当前引擎重新转写
-pointo skill                       # 打印 AI 技能文件
-```
 
 ## 配置
 
@@ -156,7 +130,7 @@ cargo build --release
 cargo test
 ```
 
-签名会自动使用本机的开发者证书（`scripts/sign-identity.sh`），没有证书时用临时签名。发布流程见 `scripts/release-app.sh`。给 AI 代理的开发说明在 [AGENTS.md](AGENTS.md)。
+签名会自动使用本机的开发者证书（`scripts/sign-identity.sh`），没有证书时用临时签名。发布流程见 `scripts/release-app.sh`。给 AI 代理的开发说明在 [AGENTS.md](AGENTS.md)。开发者可以用 `target/release/pointo` 的子命令（`demo`、`inspect`、`reprocess` 等，`--help` 列出全部）调试。
 
 ## 致谢与许可
 

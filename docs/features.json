@@ -295,7 +295,7 @@
       "says": "A .scrawl folder with contact-sheet.png, frames/, summary.md, scrawl.json, the recording and audio.wav.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md"]
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "contact-sheet",
@@ -322,7 +322,7 @@
       "says": "Each keyframe line gives what was done and the words said while it was on screen, split at clause boundaries.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md", "docs/keyframes-and-text.md"]
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "spoken-cues",
@@ -630,32 +630,13 @@
     },
 
     {
-      "id": "cli-install",
-      "group": "cli",
-      "name": "Command-line tool",
-      "says": "Settings › Agents links scrawl onto PATH and it always runs the app's current copy; Homebrew links it too.",
-      "status": "stable@0.3.4",
-      "platforms": ["mac", "windows", "linux"],
-      "note": "Windows gets a scrawl.cmd shim.",
-      "docs": ["README.md#agents"]
-    },
-    {
-      "id": "skill",
-      "group": "cli",
-      "name": "Agent skill",
-      "says": "bunx skills add kitlangton/scrawl teaches an agent to read a paste and use the CLI; scrawl skill prints it.",
-      "status": "stable@0.3.4",
-      "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md"]
-    },
-    {
       "id": "cli-zoom",
       "group": "cli",
       "name": "scrawl zoom",
       "says": "A dense sheet of frames around a time, a phrase that was said, or a numbered mark.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md"]
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "cli-read",
@@ -664,7 +645,7 @@
       "says": "Print summary.md, scrawl.json or the marks; pull plain PNGs of a time range.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md"]
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "cli-send",
@@ -673,7 +654,7 @@
       "says": "Deliver a capture to a project folder (--project, else the one it was recorded for or the ladder picks); see which folder a URL would route to.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md", "docs/iphone-and-routing.md"]
+      "docs": ["docs/iphone-and-routing.md"]
     },
     {
       "id": "cli-reprocess",
