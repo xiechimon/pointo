@@ -37,8 +37,15 @@ fn stage_transcribe_dlls() {
         return;
     };
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
-    // OUT_DIR is <target>/<profile>/build/pointo-<hash>/out.
-    let Some(profile) = out_dir.ancestors().nth(3) else {
+    // OUT_DIR is <target>/<profile>/build/pointo-<hash>/out, or with Cargo's newer build-dir
+    // layout <target>/<profile>/build/pointo/<hash>/out: the profile folder is the parent of the
+    // nearest `build` folder above it, whichever layout this Cargo uses.
+    let Some(profile) = out_dir
+        .ancestors()
+        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+        .and_then(|build| build.parent())
+    else {
+        println!("cargo:warning=could not find the profile folder above {}", out_dir.display());
         return;
     };
     let dlls: Vec<PathBuf> = std::fs::read_dir(&runtime)
