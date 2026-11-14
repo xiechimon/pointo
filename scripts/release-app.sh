@@ -27,8 +27,12 @@ cp -f "${REPO_DIR}/target/release/pointo" "${APP_BUNDLE}/Contents/MacOS/pointo"
 cp -f "${REPO_DIR}/target/release/pointo-helper" "${APP_BUNDLE}/Contents/MacOS/pointo-helper"
 chmod +x "${APP_BUNDLE}/Contents/MacOS/pointo" "${APP_BUNDLE}/Contents/MacOS/pointo-helper"
 
-if [[ -f "${REPO_DIR}/assets/Pointo.icns" ]]; then
-  cp -f "${REPO_DIR}/assets/Pointo.icns" "${APP_BUNDLE}/Contents/Resources/Pointo.icns"
+# Liquid Glass icon (Assets.car, rendered live by macOS 26) plus Pointo.icns for macOS 15, both
+# compiled from the Icon Composer file; the committed .icns is the fallback without Xcode.
+if ! xcrun actool "${REPO_DIR}/assets/Pointo.icon" --compile "${APP_BUNDLE}/Contents/Resources" --platform macosx \
+    --minimum-deployment-target 15.0 --app-icon Pointo \
+    --output-partial-info-plist "$(mktemp -t pointo-icon)" >/dev/null; then
+  cp -f "${REPO_DIR}/assets/Pointo.icns" "${APP_BUNDLE}/Contents/Resources"/Pointo.icns
 fi
 
 /usr/bin/ditto "${SPARKLE_DIR}/Sparkle.framework" "${APP_BUNDLE}/Contents/Frameworks/Sparkle.framework"
@@ -41,6 +45,8 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>
   <string>pointo</string>
   <key>CFBundleIconFile</key>
+  <string>Pointo</string>
+  <key>CFBundleIconName</key>
   <string>Pointo</string>
   <key>CFBundleIdentifier</key>
   <string>dev.xiechimon.pointo</string>
