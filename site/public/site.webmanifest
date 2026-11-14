@@ -1,13 +1,13 @@
 {
-  "name": "Scrawl",
-  "short_name": "Scrawl",
-  "description": "Show an agent a problem instead of describing it.",
-  "start_url": "/",
-  "display": "browser",
-  "background_color": "#0a0a0b",
-  "theme_color": "#0a0a0b",
+  "name": "Pointo",
+  "short_name": "Pointo",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFD43B",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

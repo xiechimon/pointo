@@ -1,47 +1,266 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Scrawl: show an agent the problem on your screen</title>
-    <meta name="description" content="Scrawl, for Mac and Windows, shows an AI coding agent a problem. Record your screen, voice, clicks and drawings, then paste one capture into your agent." />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0a0a0b" />
-    <link rel="canonical" href="https://scrawl.kitlangton.com/" />
-    <link rel="icon" href="/favicon.ico" sizes="32x32" />
-    <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
+    <title>Pointo：指给 AI 看，而不是讲给它听</title>
+    <meta name="description" content="Pointo 是一个 macOS 菜单栏应用：边说边点、按住 Shift 画标注，把屏幕、语音和操作打包成 AI 编程工具读得懂的一份记录。中文语音在本机用 Qwen3-ASR 转写，不上传。" />
+    <meta name="theme-color" content="#FFD43B" />
+    <link rel="canonical" href="https://xiechimon.github.io/pointo/" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" sizes="64x64" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
-    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
-    <!-- The terminal font only styles the demo, so it loads without blocking the first paint. -->
-    <link rel="preload" as="style" href="https://fonts.bunny.net/css?family=jetbrains-mono:400,700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
-    <noscript><link rel="stylesheet" href="https://fonts.bunny.net/css?family=jetbrains-mono:400,700&display=swap" /></noscript>
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Scrawl" />
-    <meta property="og:title" content="Scrawl: show an agent the problem" />
-    <meta property="og:description" content="Record your screen, voice, clicks and drawings on a Mac or PC, then paste one compact capture into your AI coding agent." />
-    <meta property="og:url" content="https://scrawl.kitlangton.com/" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:image" content="https://scrawl.kitlangton.com/og.png" />
-    <meta property="og:image:type" content="image/png" />
+    <meta property="og:site_name" content="Pointo" />
+    <meta property="og:title" content="Pointo：指给 AI 看，而不是讲给它听" />
+    <meta property="og:description" content="边说边点、画标注，一键打包给 AI 编程工具。本地 Qwen3-ASR 中文转写，不上传。" />
+    <meta property="og:url" content="https://xiechimon.github.io/pointo/" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:image" content="https://xiechimon.github.io/pointo/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Scrawl: a red circle and arrow drawn over an app, with the spoken note beside them." />
-    <meta property="og:video" content="https://scrawl.kitlangton.com/og.mp4?v=1" />
-    <meta property="og:video:secure_url" content="https://scrawl.kitlangton.com/og.mp4?v=1" />
-    <meta property="og:video:type" content="video/mp4" />
-    <meta property="og:video:width" content="1200" />
-    <meta property="og:video:height" content="630" />
+    <meta property="og:image:alt" content="Pointo 图标：黄色圆角方块里，一只带两只白色眼睛的黑色鼠标指针。标语：指给 AI 看，而不是讲给它听。" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:creator" content="@kitlangton" />
-    <meta name="twitter:title" content="Scrawl: show an agent the problem" />
-    <meta name="twitter:description" content="Record your screen, voice, clicks and drawings on a Mac or PC, then paste one compact capture into your AI coding agent." />
-    <meta name="twitter:image" content="https://scrawl.kitlangton.com/og.png" />
-    <meta name="twitter:image:alt" content="Scrawl: a red circle and arrow drawn over an app, with the spoken note beside them." />
+    <meta name="twitter:image" content="https://xiechimon.github.io/pointo/og.png" />
+    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="root"><!--app--></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <a class="skip" href="#main">跳到正文</a>
+
+    <header class="top">
+      <a class="brand" href="#top" aria-label="Pointo 首页">
+        <img src="/icon-192.png" alt="" width="30" height="30" />
+        <span>Pointo</span>
+      </a>
+      <nav aria-label="页面导航">
+        <a href="#how">怎么用</a>
+        <a href="#bundle">产物</a>
+        <a href="#asr">本地转写</a>
+        <a href="#deliver">投递</a>
+        <a href="#tools">AI 工具</a>
+        <a href="#install">安装</a>
+        <a href="#faq">FAQ</a>
+        <a class="gh" href="https://github.com/xiechimon/pointo" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">macOS 菜单栏应用 · Windows 预览版</p>
+            <h1>指给 AI 看，<br />而不是<span class="mark-word">讲给它听</span></h1>
+            <p class="lede">
+              按下 <kbd>⌥⇧S</kbd>，边说边点，按住 <kbd>⇧</kbd> 在屏幕上画标注。
+              再按一次，Pointo 把这一段整理成 AI 编程工具读得懂的一份记录：关键帧、带时间的转写、点击和标注。
+            </p>
+            <div class="cta">
+              <a class="btn primary" href="https://github.com/xiechimon/pointo/releases/latest/download/Pointo-latest-arm64.dmg">下载 macOS 版（.dmg）</a>
+              <a class="btn ghost" href="https://github.com/xiechimon/pointo/releases/latest" rel="noopener">Windows 预览版（.zip）</a>
+            </div>
+            <p class="fine">Apple 芯片 · macOS 15 及以上 · 免费开源（MIT）· <a href="#install">首次打开需要右键 → 打开</a></p>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <img class="app-icon" src="/icon-1024.png" alt="" width="1024" height="1024" />
+            <div class="float-card">
+              <div class="fc-bar"><i></i><i></i><i></i></div>
+              <div class="fc-body">
+                <span class="fc-line w70"></span>
+                <span class="fc-line w45"></span>
+                <span class="fc-target">登录按钮没反应
+                  <svg viewBox="0 0 220 70" class="ring" focusable="false"><path d="M12 38 C 8 12, 98 2, 176 10 C 214 16, 214 58, 120 64 C 40 68, 4 52, 20 24" /></svg>
+                </span>
+                <span class="fc-line w60"></span>
+              </div>
+              <div class="fc-caption"><b>00:07</b> “这里点了没反应”</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="sect">
+        <div class="wrap">
+          <p class="kicker">怎么用</p>
+          <h2>三步，不开窗口</h2>
+          <ol class="steps">
+            <li>
+              <span class="num" aria-hidden="true">1</span>
+              <h3>开始录制</h3>
+              <p>按 <kbd>⌥⇧S</kbd>。Pointo 住在菜单栏，不占 Dock，不弹窗口。</p>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">2</span>
+              <h3>边说边点，按住 ⇧ 画</h3>
+              <p>直接用中文讲问题，点到哪里都会记下来。按住 <kbd>⇧</kbd> 在屏幕上画红色标注，圈出出错的地方。</p>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">3</span>
+              <h3>再按 ⌥⇧S 结束</h3>
+              <p>记录已经在剪贴板里。到任何应用按 <kbd>⌥⇧V</kbd> 粘贴，或一键发进项目文件夹。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="bundle" class="sect alt">
+        <div class="wrap split">
+          <div>
+            <p class="kicker">产物</p>
+            <h2>压成 AI 一眼能读的目录</h2>
+            <p>
+              几分钟的录屏，AI 看不完也不需要看完。Pointo 把它压成体积小、结构固定的一个目录：
+              先扫一眼总览图，需要细看再取全分辨率关键帧，文字和操作按时间对齐。
+            </p>
+            <ul class="facts">
+              <li><strong>contact-sheet.png</strong> 总览图，一张图看完全程。</li>
+              <li><strong>frames/</strong> 关键帧，标注和点击位置都画在上面。</li>
+              <li><strong>summary.md</strong> 带时间的转写和操作记录。</li>
+              <li><strong>pointo.json</strong> 机器可读的清单。</li>
+            </ul>
+          </div>
+          <div class="tree" role="group" aria-label="记录目录结构示例">
+<pre><code><b>.pointo/captures/2026-11-14-1530/</b>
+├─ <i>contact-sheet.png</i>  总览图
+├─ <i>frames/</i>            关键帧
+│   ├─ 0001.png
+│   └─ 0002.png
+├─ <i>summary.md</i>         转写 + 操作记录
+└─ <i>pointo.json</i>        清单</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="asr" class="sect dark">
+        <div class="wrap">
+          <p class="kicker">本地中文转写</p>
+          <h2>声音留在这台 Mac 上</h2>
+          <div class="cols">
+            <p>
+              语音在设备上转写：<strong>Qwen3-ASR 0.6B</strong> 模型经 transcribe.cpp 在本机运行。
+              没有云端、没有 API Key，录音不上传。
+            </p>
+            <ul class="facts">
+              <li><strong>普通话、粤语、中英混说</strong>，写代码时的英文术语不会被硬翻成汉字。</li>
+              <li><strong>首次下载约 850 MB</strong> 模型，优先走 hf-mirror.com 国内镜像，之后离线可用。</li>
+              <li><strong>不需要账号</strong>，也不计费。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="deliver" class="sect">
+        <div class="wrap">
+          <p class="kicker">投递到任意项目</p>
+          <h2>自动找到该去的那个项目</h2>
+          <div class="cols">
+            <div>
+              <p>Pointo 按下面的顺序自动识别目标项目，识别不对就手动选：</p>
+              <ol class="order">
+                <li>固定项目</li>
+                <li>浏览器页面登记的目录</li>
+                <li>localhost 端口所在进程的项目</li>
+                <li>终端当前目录</li>
+              </ol>
+            </div>
+            <div>
+              <p>
+                记录写入 <code>&lt;项目&gt;/.pointo/captures/</code>，最新一条在 <code>.pointo/latest</code>。
+                Pointo 自动把它加进 <code>.git/info/exclude</code>，<strong>不改你的 .gitignore</strong>。
+              </p>
+              <p>
+                最近用过的项目可以一键发送。每次录制也都会复制到剪贴板，<kbd>⌥⇧V</kbd> 粘贴到前台应用。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tools" class="sect alt">
+        <div class="wrap">
+          <p class="kicker">适配任意 AI 编程工具</p>
+          <h2>能读本地文件，就能用</h2>
+          <p class="chips" aria-label="支持的工具示例">
+            <span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>Qwen Code</span><span>…</span>
+          </p>
+          <div class="cols">
+            <div>
+              <h3>技能安装</h3>
+              <p>一行命令，让 AI 工具学会怎么读这些记录：</p>
+              <pre class="cmd"><code>npx skills add xiechimon/pointo</code></pre>
+            </div>
+            <div>
+              <h3>命令行</h3>
+              <p>放大局部、取指定帧、查看细节、导出，或发送到某个项目：</p>
+              <pre class="cmd"><code>pointo zoom / frames / inspect / export
+pointo send --project</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="install" class="sect">
+        <div class="wrap">
+          <p class="kicker">安装与首次打开</p>
+          <h2>下载，拖进应用程序</h2>
+          <div class="cols">
+            <div>
+              <h3>macOS</h3>
+              <p class="req">Apple 芯片 · macOS 15 及以上</p>
+              <ol class="plain">
+                <li>下载 <a href="https://github.com/xiechimon/pointo/releases/latest/download/Pointo-latest-arm64.dmg">Pointo-latest-arm64.dmg</a>，把 Pointo 拖进“应用程序”。</li>
+                <li><strong>应用未经 Apple 公证。</strong>第一次打开：右键 → 打开。</li>
+                <li>
+                  仍被拦住，在终端运行：
+                  <pre class="cmd"><code>xattr -dr com.apple.quarantine /Applications/Pointo.app</code></pre>
+                </li>
+                <li>按提示授予<strong>屏幕录制、麦克风、辅助功能</strong>权限。</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Windows（预览版）</h3>
+              <ol class="plain">
+                <li>到 <a href="https://github.com/xiechimon/pointo/releases/latest" rel="noopener">Releases 页面</a>下载 Windows 的 .zip。</li>
+                <li>解压后运行。预览版的功能和稳定性不如 macOS 版，遇到问题请提 issue。</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" class="sect alt">
+        <div class="wrap faq">
+          <p class="kicker">FAQ</p>
+          <h2>常见问题</h2>
+          <details>
+            <summary>我的屏幕和声音会上传吗？能离线用吗？</summary>
+            <p>不会。转写在本机完成，录音不上传，记录只写到本机目录和剪贴板。转写模型首次需要联网下载一次，之后可以完全离线。</p>
+          </details>
+          <details>
+            <summary>需要什么系统？</summary>
+            <p>Apple 芯片（M 系列）的 Mac，macOS 15 及以上。Windows 有预览版。Intel 版 Mac 目前没有构建。</p>
+          </details>
+          <details>
+            <summary>和 Scrawl 是什么关系？</summary>
+            <p>Pointo 基于 <a href="https://github.com/kitlangton/scrawl" rel="noopener">kitlangton/scrawl</a>（MIT）修改，面向中文使用：本地 Qwen3-ASR 转写、投递到任意项目、适配更多 AI 编程工具。感谢原作者。</p>
+          </details>
+          <details>
+            <summary>为什么首次打开要手动放行？</summary>
+            <p>公证需要付费的 Apple 开发者账号，目前没有。放行步骤见上面的“安装与首次打开”。源码全部公开，也可以自己编译。</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <p class="foot-brand"><img src="/icon-192.png" alt="" width="24" height="24" /> Pointo</p>
+        <p>
+          <a href="https://github.com/xiechimon/pointo" rel="noopener">源码（GitHub）</a> ·
+          <a href="https://github.com/xiechimon/pointo/releases" rel="noopener">所有版本</a>
+        </p>
+        <p>MIT 许可证。基于 <a href="https://github.com/kitlangton/scrawl" rel="noopener">kitlangton/scrawl</a>（MIT）修改。</p>
+      </div>
+    </footer>
   </body>
 </html>
