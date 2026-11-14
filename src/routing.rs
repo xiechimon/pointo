@@ -1,31 +1,24 @@
-//! Where a Mac capture of a browser tab goes. When the capture ends on a browser showing a dev
-//! site, the bundle is sent to that project's OpenCode session instead of only the clipboard:
+//! Which project folder a Mac capture is delivered to (`project::deliver`). The ladder, first
+//! hit wins:
 //!
-//! 1. The page registered itself through Pointo's `/sdk.js` (`web`): its session, or the session
-//!    for the directory it named.
-//! 2. The tab is on a loopback host: the process listening on that port, its working directory,
-//!    that directory's git root, and the most recently active root session in it.
-//! 3. Otherwise nothing: the capture stays on the clipboard.
+//! 1. **Pinned**: `"project"` in config.json, the folder the user chose in Settings.
+//! 2. **Page**: the browser tab registered itself through Pointo's `/sdk.js` (`web`) with a
+//!    `data-directory`.
+//! 3. **Port**: the tab is on a loopback host or one of this Mac's own names: the process
+//!    listening on that port, its working directory, that directory's git root.
+//! 4. **Terminal**: the captured or frontmost terminal's focused folder, up to its git root.
+//! 5. Nothing: the capture stays on the clipboard.
 //!
-//! With `"experiments": {"smartRouting": true}`, [`smart`] decides instead, from clues
-//! [`look`] gathers (`docs/routing.md`).
-
-pub mod look;
-pub mod served;
-pub mod smart;
-
-/// The experiment that routes Mac captures with [`smart`] (`handoff::experiment`).
-pub const SMART_ROUTING: &str = "smartRouting";
+//! The home folder and `/` never count (`is_home_or_root`). `"autoSend": false` turns the whole
+//! ladder off; a folder picked on the pill's chip still delivers.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
-
 use crate::capture::scrawl_log;
-use crate::handoff::{ApiGet, OpenCodeSession};
-use crate::model::{Destination, ScrawlBundle};
+use crate::model::Destination;
 use crate::web::Registration;
 
 /// The parts of an `http(s)` URL routing needs.
@@ -235,7 +228,7 @@ pub fn capture_url(
         .find_map(browser_tab_url)
 }
 
-// MARK: Port → project
+// MARK: Port → folder
 
 /// PIDs in `lsof -F p` output (`p1234` lines), in order, without repeats.
 pub fn parse_lsof_pids(output: &str) -> Vec<i32> {
@@ -298,286 +291,181 @@ pub fn project_root(dir: &Path) -> (PathBuf, bool) {
     (dir.to_path_buf(), false)
 }
 
-/// The most recently active open root session for `root`. Inside a repository a session in any
-/// folder of it counts; outside one, only a session in that very folder, so a server started
-/// from the home folder doesn't claim every session.
-///
-/// The server filters by exact directory, so that takes one request. A session in a subfolder
-/// only wins if it's newer, so the newest-first scan for one stops at the exact match's age (or
-/// after [`ROOT_SEARCH_PAGES`](crate::handoff::ROOT_SEARCH_PAGES)).
-pub fn session_for_directory(
-    get: &mut ApiGet,
-    root: &Path,
-    whole_tree: bool,
-) -> Result<Option<OpenCodeSession>> {
-    use crate::handoff::{ROOT_SEARCH_PAGES, Scan, find_root_session, query_escape};
-    if smart::is_home_or_root(root) {
-        return Ok(None);
-    }
-    let directory = format!("&directory={}", query_escape(&root.to_string_lossy()));
-    let exact = find_root_session(get, &directory, ROOT_SEARCH_PAGES, |_| Scan::Take)?;
-    if !whole_tree {
-        return Ok(exact);
-    }
-    let floor = exact.as_ref().map(|s| s.time.updated);
-    let nested = find_root_session(get, "", ROOT_SEARCH_PAGES, |s| {
-        if floor.is_some_and(|floor| s.time.updated <= floor) {
-            Scan::Stop
-        } else if s
-            .directory()
-            .is_some_and(|dir| Path::new(dir).starts_with(root))
-        {
-            Scan::Take
-        } else {
-            Scan::Skip
-        }
-    })?;
-    Ok(nested.or(exact))
-}
-
-// MARK: Deciding
-
-/// The outside steps of a decision, swappable in tests.
+/// The fewest facts the ladder reads; the outside steps are swappable in tests.
 #[derive(Clone, Copy)]
 pub struct Hooks {
+    pub pinned: fn() -> Option<PathBuf>,
     pub sdk: fn(&str) -> Option<Registration>,
+    /// The port on this Mac that serves a URL's origin, when its host is this Mac.
+    pub own_port: fn(&WebUrl) -> Option<u16>,
     pub listener_dir: fn(u16) -> Option<PathBuf>,
-    /// One `GET` against OpenCode's API, given up after the time given.
-    pub api: fn(&str, Duration) -> Result<Vec<u8>>,
+    /// The folder and title of a terminal app's focused pane.
+    pub terminal: fn(&str) -> Option<(PathBuf, String)>,
 }
 
 impl Default for Hooks {
     fn default() -> Self {
         Self {
+            pinned: crate::handoff::pinned_project,
             sdk: crate::web::lookup,
+            own_port,
             listener_dir: listener_directory,
-            api: crate::handoff::api_get_within,
+            terminal: terminal_pane,
         }
     }
 }
 
-/// How long one capture's routing may spend reading sessions, all requests together.
-pub const SESSIONS_BUDGET: Duration = Duration::from_secs(3);
-
-/// `api` limited to `budget` in all, counted from its first request: each request gets what's
-/// left, and none starts after.
-pub fn within(
-    api: fn(&str, Duration) -> Result<Vec<u8>>,
-    budget: Duration,
-) -> impl FnMut(&str) -> Result<Vec<u8>> {
-    let mut deadline = None;
-    move |path| {
-        let deadline = *deadline.get_or_insert_with(|| Instant::now() + budget);
-        let left = deadline.saturating_duration_since(Instant::now());
-        anyhow::ensure!(
-            !left.is_zero(),
-            "OpenCode took over {} ms to list sessions",
-            budget.as_millis()
-        );
-        api(path, left)
-    }
+/// The home folder and `/`: a server or shell started there says nothing about a project.
+pub(crate) fn is_home_or_root(path: &Path) -> bool {
+    path == Path::new("/") || dirs::home_dir().is_some_and(|home| path == home)
 }
 
-/// Where a capture of `url` goes, or why it goes nowhere.
-pub fn route(url: &str, hooks: &Hooks) -> std::result::Result<Destination, String> {
-    let parsed = parse_url(url).ok_or_else(|| format!("{url} isn't an http(s) URL"))?;
-    let destination = |session: &OpenCodeSession, via: &str, dir: Option<&Path>| Destination {
-        session: session.id.clone(),
-        title: session.label().to_owned(),
+/// `dir`'s project root unless that is the home folder or `/`.
+fn project_of(dir: &Path) -> Option<PathBuf> {
+    let root = project_root(dir).0;
+    (!is_home_or_root(&root)).then_some(root)
+}
+
+/// [`decide`] unless `auto_send` is off (`"autoSend": false`): then nothing is delivered
+/// automatically, a pinned project included.
+pub fn decide_auto(
+    auto_send: bool,
+    url: Option<&str>,
+    terminals: &[&str],
+    hooks: &Hooks,
+) -> std::result::Result<Destination, String> {
+    if !auto_send {
+        return Err("autoSend is off".to_owned());
+    }
+    decide(url, terminals, hooks)
+}
+
+/// Where a capture goes, or why it goes nowhere: `url` is the browser tab it was of and
+/// `terminals` the bundle IDs of the apps in front or captured, searched for a focused pane.
+pub fn decide(
+    url: Option<&str>,
+    terminals: &[&str],
+    hooks: &Hooks,
+) -> std::result::Result<Destination, String> {
+    let destination = |project: &Path, via: &str| Destination {
+        project: project.display().to_string(),
         via: via.to_owned(),
-        url: Some(url.to_owned()),
-        directory: dir.map(|d| d.display().to_string()),
+        url: url.map(str::to_owned),
     };
-    let mut api = within(hooks.api, SESSIONS_BUDGET);
-    let by_directory = |api: &mut ApiGet, dir: &Path, via: &str| {
-        let (root, git) = project_root(dir);
-        session_for_directory(api, &root, git)
-            .map_err(|err| format!("couldn't list sessions: {err:#}"))?
-            .map(|s| destination(&s, via, Some(&root)))
-            .ok_or_else(|| format!("no open OpenCode session in {}", root.display()))
-    };
-
-    if let Some(reg) = (hooks.sdk)(url) {
-        if let Some(id) = reg.session.as_deref() {
-            let title = crate::handoff::get_session(&mut api, id)
-                .map_or_else(|_| id.to_owned(), |s| s.label().to_owned());
-            return Ok(Destination {
-                session: id.to_owned(),
-                title,
-                via: "sdk".into(),
-                url: Some(url.to_owned()),
-                directory: reg.directory,
-            });
+    if let Some(project) = (hooks.pinned)().filter(|p| !is_home_or_root(p)) {
+        return Ok(destination(&project, "pinned"));
+    }
+    let mut why = Vec::new();
+    if let Some(url) = url {
+        if let Some(dir) = (hooks.sdk)(url)
+            .and_then(|reg| reg.directory)
+            .map(PathBuf::from)
+            .filter(|dir| dir.is_dir() && !is_home_or_root(dir))
+        {
+            return Ok(destination(&dir, "page"));
         }
-        if let Some(dir) = reg.directory.as_deref() {
-            return by_directory(&mut api, Path::new(dir), "sdk");
+        match parse_url(url) {
+            None => why.push(format!("{url} isn't an http(s) URL")),
+            Some(parsed) => match (hooks.own_port)(&parsed) {
+                None => why.push(format!("{} isn't served from this Mac", parsed.origin())),
+                Some(port) => match (hooks.listener_dir)(port) {
+                    None => why.push(format!("no process found listening on port {port}")),
+                    Some(dir) => match project_of(&dir) {
+                        Some(root) => return Ok(destination(&root, "port")),
+                        None => why.push(format!(
+                            "the server on port {port} runs in {}, not a project",
+                            dir.display()
+                        )),
+                    },
+                },
+            },
         }
     }
-    if !parsed.is_loopback() {
-        return Err(format!("{} isn't a local dev server", parsed.origin()));
+    if let Some((dir, _)) = terminals.iter().find_map(|id| (hooks.terminal)(id)) {
+        match project_of(&dir) {
+            Some(root) => return Ok(destination(&root, "terminal")),
+            None => why.push(format!(
+                "the terminal is in {}, not a project",
+                dir.display()
+            )),
+        }
     }
-    let dir = (hooks.listener_dir)(parsed.port)
-        .ok_or_else(|| format!("no process found listening on port {}", parsed.port))?;
-    by_directory(&mut api, &dir, "localhost")
-}
-
-fn routing_enabled() -> bool {
-    crate::handoff::auto_send() && std::env::var_os("SCRAWL_NO_OPENCODE").is_none()
+    Err(if why.is_empty() {
+        "no browser tab or terminal to read a project from".to_owned()
+    } else {
+        why.join("; ")
+    })
 }
 
 /// Decides where a capture that just finished goes; `None` (logged) keeps it on the clipboard.
+/// Reads the tab in front (or captured) and the terminal's pane, so it runs while the bundle is
+/// built.
 pub fn route_capture(
     front_bundle_id: Option<&str>,
     target_bundle_id: Option<&str>,
 ) -> Option<Destination> {
-    if !routing_enabled() {
+    if !crate::handoff::auto_send() {
+        scrawl_log("routing: autoSend is off; the capture stays on the clipboard");
         return None;
     }
-    let url = capture_url(front_bundle_id, target_bundle_id)?;
-    match route(&url, &Hooks::default()) {
+    let url = capture_url(front_bundle_id, target_bundle_id);
+    let terminals: Vec<&str> = [front_bundle_id, target_bundle_id]
+        .into_iter()
+        .flatten()
+        .collect();
+    match decide_auto(true, url.as_deref(), &terminals, &Hooks::default()) {
         Ok(dest) => {
             scrawl_log(format!(
-                "routing: {url} → {} ({}) via {}",
-                dest.title, dest.session, dest.via
+                "routing: {} → {} via {}",
+                url.as_deref().unwrap_or("capture"),
+                dest.project,
+                dest.via
             ));
             Some(dest)
         }
         Err(reason) => {
-            scrawl_log(format!("routing: {url} stays on the clipboard: {reason}"));
+            scrawl_log(format!("routing: stays on the clipboard: {reason}"));
             None
         }
     }
 }
 
-/// Smart routing's first half for a capture that just finished: the tab, terminal and sessions,
-/// or `None` when routing is off.
-pub fn look_capture(
-    front_bundle_id: Option<&str>,
-    target_bundle_id: Option<&str>,
-) -> Option<look::Live> {
-    routing_enabled()
-        .then(|| look::look_live(front_bundle_id, target_bundle_id, &look::Senses::default()))
+/// The folder `pointo send` delivers `bundle_dir` to: the one given, else the one the capture
+/// was recorded for, else what the ladder finds from the page the capture recorded (the pinned
+/// project at least).
+pub fn project_for_send(bundle_dir: &Path, explicit: Option<PathBuf>) -> anyhow::Result<PathBuf> {
+    project_for_send_with(bundle_dir, explicit, &Hooks::default())
 }
 
-/// Smart routing's second half, once the bundle is built: decides, saves the evidence beside
-/// the bundle (`RECORD`), and logs the outcome.
-pub fn judge_capture(
-    dir: &Path,
-    bundle: &ScrawlBundle,
-    live: look::Live,
-) -> (smart::Judgement, Option<String>) {
-    let url = live.url.clone();
-    if let Some(error) = &live.error {
-        scrawl_log(format!("routing: {error}"));
+fn project_for_send_with(
+    bundle_dir: &Path,
+    explicit: Option<PathBuf>,
+    hooks: &Hooks,
+) -> anyhow::Result<PathBuf> {
+    if let Some(folder) = explicit {
+        return folder
+            .canonicalize()
+            .map_err(|err| anyhow::anyhow!("{}: {err}", folder.display()));
     }
-    let evidence = look::evidence_for(bundle, dir, live);
-    let judgement = smart::decide(&evidence, smart::Policy::Weigh);
-    if let Err(err) = write_record(dir, &evidence, &judgement) {
-        scrawl_log(format!("routing: couldn't save {RECORD}: {err:#}"));
+    let (_, bundle) = crate::handoff::load_bundle(bundle_dir)?;
+    let recorded = bundle.destination.filter(Destination::is_project);
+    if let Some(dest) = recorded.as_ref().filter(|d| Path::new(&d.project).is_dir()) {
+        return Ok(PathBuf::from(&dest.project));
     }
-    let outcome = match &judgement.decision {
-        smart::Decision::Send { to, .. } => {
-            format!("send to {} ({})", to.candidate.label(), to.candidate.id)
-        }
-        smart::Decision::Offer { choices } => format!(
-            "offer {}",
-            choices
-                .iter()
-                .map(|c| c.candidate.label())
-                .collect::<Vec<_>>()
-                .join(" or ")
-        ),
-        smart::Decision::Keep { reason } => format!("clipboard only: {reason}"),
-    };
-    scrawl_log(format!(
-        "routing (smart): {} clues, {} sessions → {outcome}",
-        evidence.clues.len(),
-        evidence.candidates.len()
-    ));
-    (judgement, url)
-}
-
-/// `pointo route --explain`: what smart routing sees for a bundle and what it decides, beside
-/// what the ladder (smart routing off) does. Read-only.
-pub fn explain_bundle(bundle: &Path, url: Option<&str>) -> Result<String> {
-    use std::fmt::Write as _;
-    let dir = crate::handoff::resolve_bundle_dir(bundle)?;
-    let (_, loaded) = crate::handoff::load_bundle(&dir)?;
-    let (evidence, error, replayed) =
-        look::evidence_for_bundle(&dir, &loaded, url, &look::Senses::default());
-    let judgement = smart::decide(&evidence, smart::Policy::Weigh);
-    let mut out = String::new();
-    let target = &loaded.target;
-    let _ = writeln!(
-        out,
-        "Capture   {} · {}{} · {}:{:02}",
-        dir.file_name()
-            .map_or_else(String::new, |n| n.to_string_lossy().into_owned()),
-        target.app.as_deref().unwrap_or("?"),
-        target
-            .window_title
-            .as_deref()
-            .map(|t| format!(" “{t}”"))
-            .unwrap_or_default(),
-        loaded.duration_ms / 60_000,
-        loaded.duration_ms / 1000 % 60
-    );
-    let tab = url
-        .map(str::to_owned)
-        .or_else(|| loaded.destination.as_ref().and_then(|d| d.url.clone()));
-    if replayed {
-        let _ = writeln!(
-            out,
-            "Evidence  saved at capture time ({RECORD}); the bundle's clues read again with today's rules"
-        );
-    } else {
-        let _ = writeln!(
-            out,
-            "Evidence  gathered now: sessions as they are today{}",
-            if tab.is_none() {
-                "; no tab URL (pass --url)"
-            } else {
-                ""
-            }
-        );
-    }
-    if let Some(error) = error {
-        let _ = writeln!(out, "Warning   {error}");
-    }
-    out.push_str(&smart::explain(&evidence, &judgement));
-    let today = match tab.as_deref() {
-        Some(tab) => match route(tab, &Hooks::default()) {
-            Ok(dest) => format!("send to {} ({}) via {}", dest.title, dest.session, dest.via),
-            Err(reason) => format!("clipboard only: {reason}"),
-        },
-        None => "clipboard only: not a browser tab".into(),
-    };
-    let _ = writeln!(out, "Flag off  {today}");
-    Ok(out)
-}
-
-/// The evidence and decision behind a capture's routing, saved beside it so
-/// `pointo route --explain` replays the same decision.
-pub const RECORD: &str = "routing.json";
-
-pub fn write_record(
-    dir: &Path,
-    evidence: &smart::Evidence,
-    judgement: &smart::Judgement,
-) -> Result<()> {
-    let body = serde_json::json!({ "evidence": evidence, "decision": judgement.decision });
-    std::fs::write(dir.join(RECORD), serde_json::to_vec_pretty(&body)?)?;
-    Ok(())
-}
-
-pub fn read_record(dir: &Path) -> Option<smart::Evidence> {
-    let value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(dir.join(RECORD)).ok()?).ok()?;
-    serde_json::from_value(value.get("evidence")?.clone()).ok()
+    let url = recorded.and_then(|d| d.url);
+    decide(url.as_deref(), &[], hooks)
+        .map(|dest| PathBuf::from(dest.project))
+        .map_err(|reason| {
+            anyhow::anyhow!("No project to deliver to ({reason}); pass --project <dir>")
+        })
 }
 
 /// Writes `dest` into the bundle's `pointo.json` and `summary.md`.
-pub fn record_destination(dir: &Path, bundle: &mut ScrawlBundle, dest: Destination) -> Result<()> {
+pub fn record_destination(
+    dir: &Path,
+    bundle: &mut crate::model::ScrawlBundle,
+    dest: Destination,
+) -> anyhow::Result<()> {
     bundle.destination = Some(dest);
     std::fs::write(dir.join("pointo.json"), serde_json::to_vec_pretty(bundle)?)?;
     std::fs::write(
@@ -587,13 +475,111 @@ pub fn record_destination(dir: &Path, bundle: &mut ScrawlBundle, dest: Destinati
     Ok(())
 }
 
+// MARK: This Mac's own names
+
+/// The port on this Mac serving `url`: its own port on a loopback host, else, when the host is
+/// one of this Mac's names, the loopback port `tailscale serve` proxies it to, or the same
+/// port for plain `http`.
+pub fn own_port(url: &WebUrl) -> Option<u16> {
+    if url.is_loopback() {
+        return Some(url.port);
+    }
+    if !own_names().contains(&url.host) {
+        return None;
+    }
+    tailscale(&["serve", "status", "--json"])
+        .and_then(|json| serve_target(&json, &url.host, url.port))
+        .or_else(|| (url.scheme == "http").then_some(url.port))
+}
+
+/// The loopback port `tailscale serve status --json` proxies `host:port`'s root to.
+pub fn serve_target(status: &serde_json::Value, host: &str, port: u16) -> Option<u16> {
+    let handlers = status
+        .get("Web")?
+        .as_object()?
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case(&format!("{host}:{port}")))?
+        .1
+        .get("Handlers")?
+        .as_object()?;
+    let proxy = handlers
+        .get("/")
+        .or_else(|| handlers.values().next())?
+        .get("Proxy")?
+        .as_str()?;
+    let target = parse_url(proxy).or_else(|| parse_url(&format!("http://{proxy}")))?;
+    target.is_loopback().then_some(target.port)
+}
+
+/// This Mac's host names, lowercased: `hostname`, its Bonjour name, and its Tailscale name.
+fn own_names() -> &'static [String] {
+    static NAMES: OnceLock<Vec<String>> = OnceLock::new();
+    NAMES.get_or_init(|| {
+        let mut names = Vec::new();
+        let mut push = |name: &str| {
+            let name = name.trim().trim_end_matches('.').to_ascii_lowercase();
+            if !name.is_empty() && !names.contains(&name) {
+                names.push(name);
+            }
+        };
+        if let Some(out) = run(&mut Command::new("/bin/hostname")) {
+            push(&out);
+        }
+        if let Some(out) = run(Command::new("/usr/sbin/scutil").args(["--get", "LocalHostName"])) {
+            push(&format!("{}.local", out.trim()));
+        }
+        if let Some(status) = tailscale(&["status", "--json"])
+            && let Some(dns) = status.pointer("/Self/DNSName").and_then(|v| v.as_str())
+        {
+            push(dns);
+        }
+        names
+    })
+}
+
+fn run(command: &mut Command) -> Option<String> {
+    let output = run_with_timeout(command, Duration::from_secs(2))?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn tailscale(args: &[&str]) -> Option<serde_json::Value> {
+    const APP: &str = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
+    let binary = if Path::new(APP).exists() {
+        APP
+    } else {
+        "tailscale"
+    };
+    serde_json::from_str(&run(Command::new(binary).args(args))?).ok()
+}
+
+// MARK: Terminals
+
+const GHOSTTY: &str = "com.mitchellh.ghostty";
+
+/// Ghostty's focused pane: its working directory and title (AppleScript, Ghostty 1.3+). Other
+/// terminals give nothing yet.
+pub fn terminal_pane(bundle_id: &str) -> Option<(PathBuf, String)> {
+    if !bundle_id.eq_ignore_ascii_case(GHOSTTY) {
+        return None;
+    }
+    let script = format!(
+        "tell application id \"{GHOSTTY}\"\nif (count of windows) is 0 then return \"\"\nset t to focused terminal of selected tab of front window\nreturn (working directory of t) & linefeed & (name of t)\nend tell"
+    );
+    let output = run(Command::new("/usr/bin/osascript").args(["-e", &script]))?;
+    let (dir, title) = output
+        .trim_end()
+        .split_once('\n')
+        .unwrap_or((output.trim(), ""));
+    let dir = PathBuf::from(dir.trim());
+    (dir.is_absolute() && dir != Path::new("/")).then(|| (dir, title.trim().to_owned()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn session(id: &str, dir: &str, updated: u64) -> OpenCodeSession {
-        crate::handoff::fake_api::session(id, &id.to_uppercase(), dir, updated)
-    }
 
     #[test]
     fn urls_parse_to_origins() {
@@ -682,219 +668,322 @@ mod tests {
     }
 
     #[test]
-    fn sessions_are_chosen_by_directory() {
-        let mut child = session("ses_child", "/p/app", 900);
-        child.parent_id = Some("ses_app".into());
-        let mut archived = session("ses_old", "/p/app", 800);
-        archived.time.archived = Some(1);
-        let mut sessions = vec![
-            session("ses_app", "/p/app", 100),
-            session("ses_site", "/p/app/site", 200),
-            session("ses_other", "/p/application", 300),
-            child,
-            archived,
-        ];
-        // Thousands of newer sessions elsewhere.
-        sessions.extend((0..3_000).map(|i| session(&format!("ses_x{i}"), "/q", 1_000 + i)));
-        let pick = |sessions: &[OpenCodeSession], root: &str, tree| {
-            let mut requests = 0;
-            let found = session_for_directory(
-                &mut |path: &str| {
-                    requests += 1;
-                    crate::handoff::fake_api::serve(sessions, path)
-                },
-                Path::new(root),
-                tree,
-            )
-            .unwrap()
-            .map(|s| s.id);
-            (found, requests)
-        };
-        // Exact folder: one filtered request.
+    fn tailscale_serve_maps_this_macs_name_to_a_loopback_port() {
+        let status = serde_json::json!({
+            "TCP": {"4948": {"HTTPS": true}},
+            "Web": {
+                "studio.example.ts.net:4948": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:4948"}}},
+                "studio.example.ts.net:8443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:3000"}}},
+                "studio.example.ts.net:9000": {"Handlers": {"/": {"Proxy": "https://example.com"}}}
+            }
+        });
         assert_eq!(
-            pick(&sessions, "/p/app", false),
-            (Some("ses_app".into()), 1)
+            serve_target(&status, "studio.example.ts.net", 4948),
+            Some(4948)
         );
-        // A subfolder needs a newest-first scan, which is capped: past it the exact match stands.
-        let (found, requests) = pick(&sessions, "/p/app", true);
-        assert_eq!(found.as_deref(), Some("ses_app"));
-        assert_eq!(requests, 1 + crate::handoff::ROOT_SEARCH_PAGES);
-        assert_eq!(pick(&sessions, "/p/none", false), (None, 1));
-        assert_eq!(pick(&sessions, "/", true), (None, 0));
-
-        // Recent work in a subfolder beats an older exact match; a sibling with a common prefix
-        // doesn't count.
-        sessions.truncate(5);
-        let (found, requests) = pick(&sessions, "/p/app", true);
-        assert_eq!(found.as_deref(), Some("ses_site"));
-        assert_eq!(requests, 2);
-        // An exact match newer than everything else stops the scan at once.
-        sessions[0].time.updated = 1_000;
-        assert_eq!(pick(&sessions, "/p/app", true), (Some("ses_app".into()), 2));
+        assert_eq!(
+            serve_target(&status, "studio.example.ts.net", 8443),
+            Some(3000)
+        );
+        assert_eq!(serve_target(&status, "studio.example.ts.net", 9000), None);
+        assert_eq!(serve_target(&status, "studio.example.ts.net", 1), None);
+        assert_eq!(serve_target(&serde_json::json!({}), "x", 1), None);
     }
 
-    fn no_sdk(_: &str) -> Option<Registration> {
+    // The ladder, with the outside steps faked. The folders are real so `is_dir` and `.git`
+    // checks run for real; they live in the temp folder for the test run.
+    fn base() -> &'static PathBuf {
+        static BASE: OnceLock<PathBuf> = OnceLock::new();
+        BASE.get_or_init(|| {
+            let base = std::env::temp_dir()
+                .canonicalize()
+                .unwrap()
+                .join(format!("pointo-ladder-{}", crate::make_bundle_id()));
+            for repo in ["pinned", "page", "port", "terminal"] {
+                std::fs::create_dir_all(base.join(repo).join(".git")).unwrap();
+                std::fs::create_dir_all(base.join(repo).join("src")).unwrap();
+            }
+            base
+        })
+    }
+
+    fn pinned() -> Option<PathBuf> {
+        Some(base().join("pinned"))
+    }
+    fn no_pin() -> Option<PathBuf> {
         None
     }
-    fn sdk_session(url: &str) -> Option<Registration> {
-        url.starts_with("http://localhost:5173")
-            .then(|| Registration {
-                origin: "http://localhost:5173".into(),
-                url: url.into(),
-                session: Some("ses_sdk".into()),
-                ..Registration::default()
-            })
-    }
-    fn sdk_directory(_: &str) -> Option<Registration> {
+    fn page(_: &str) -> Option<Registration> {
         Some(Registration {
-            origin: "https://studio.ts.net:5173".into(),
-            directory: Some("/p/app".into()),
+            directory: Some(base().join("page").display().to_string()),
             ..Registration::default()
         })
     }
+    fn no_page(_: &str) -> Option<Registration> {
+        None
+    }
+    fn this_mac(url: &WebUrl) -> Option<u16> {
+        url.is_loopback().then_some(url.port)
+    }
     fn listener(port: u16) -> Option<PathBuf> {
-        (port == 4321).then(|| PathBuf::from("/p/app"))
+        (port == 5173).then(|| base().join("port/src"))
     }
-    fn api(path: &str, _: Duration) -> Result<Vec<u8>> {
-        crate::handoff::fake_api::serve(
-            &[
-                session("ses_sdk", "/elsewhere", 5),
-                session("ses_app", "/p/app", 10),
-            ],
-            path,
-        )
+    fn home_listener(_: u16) -> Option<PathBuf> {
+        dirs::home_dir()
     }
-
-    fn down(_: &str, _: Duration) -> Result<Vec<u8>> {
-        anyhow::bail!("OpenCode API failed: Error: Could not reach server at http://127.0.0.1:4096")
+    fn terminal(id: &str) -> Option<(PathBuf, String)> {
+        (id == GHOSTTY).then(|| (base().join("terminal/src"), "zsh".into()))
     }
-    /// Answers each request after 200 ms, or fails once the time it's given runs out.
-    fn slow(path: &str, left: Duration) -> Result<Vec<u8>> {
-        let delay = Duration::from_millis(200);
-        std::thread::sleep(delay.min(left));
-        anyhow::ensure!(left >= delay, "no answer");
-        let sessions: Vec<_> = (0..250)
-            .map(|i| session(&format!("ses_{i}"), "/q", 1_000 + i))
-            .chain([session("ses_app", "/p/app", 10)])
-            .collect();
-        crate::handoff::fake_api::serve(&sessions, path)
+    fn home_terminal(_: &str) -> Option<(PathBuf, String)> {
+        Some((PathBuf::from("/"), "zsh".into()))
+    }
+    fn nothing(_: &str) -> Option<(PathBuf, String)> {
+        None
     }
 
-    #[test]
-    fn a_down_or_slow_server_costs_routing_a_bounded_time() {
-        let hooks = Hooks {
-            sdk: no_sdk,
+    fn hooks() -> Hooks {
+        Hooks {
+            pinned: no_pin,
+            sdk: no_page,
+            own_port: this_mac,
             listener_dir: listener,
-            api: down,
+            terminal,
+        }
+    }
+
+    const TAB: &str = "http://localhost:5173/a";
+
+    #[test]
+    fn the_ladder_prefers_pinned_then_page_then_port_then_terminal() {
+        let pick = |hooks: &Hooks, url: Option<&str>| {
+            decide(url, &[GHOSTTY], hooks).map(|d| {
+                (
+                    Path::new(&d.project)
+                        .strip_prefix(base())
+                        .unwrap()
+                        .display()
+                        .to_string(),
+                    d.via,
+                )
+            })
         };
-        let started = Instant::now();
-        let err = route("http://127.0.0.1:4321/", &hooks).unwrap_err();
-        assert!(err.contains("Could not reach server"), "{err}");
-        assert!(started.elapsed() < Duration::from_millis(100));
-
-        // Every request shares one budget, counted from the first: reading pages stops when
-        // it's spent instead of waiting out each request in turn.
-        let budget = Duration::from_millis(500);
-        let mut requests = 0;
-        let mut api = within(slow, budget);
-        let started = Instant::now();
-        let result = crate::routing::look::read_candidates(
-            &mut |path: &str| {
-                requests += 1;
-                api(path)
-            },
-            &[PathBuf::from("/p/app"), PathBuf::from("/p/other")],
-            &[],
-            look::SESSION_PAGES,
+        let all = Hooks {
+            pinned,
+            sdk: page,
+            ..hooks()
+        };
+        assert_eq!(
+            pick(&all, Some(TAB)),
+            Ok(("pinned".into(), "pinned".into()))
         );
-        assert!(result.is_err());
-        // Two pages answer, the first folder's read gets the last 100 ms and fails, and the
-        // second is never asked: 500 ms, not the 800 ms four requests take.
-        let took = started.elapsed();
-        assert!((2..4).contains(&requests), "{requests}");
-        assert!(took < Duration::from_millis(700), "{took:?}");
-
-        // A server that answers in time routes as usual.
-        let hooks = Hooks { api: slow, ..hooks };
-        let local = route("http://127.0.0.1:4321/", &hooks).unwrap();
-        assert_eq!(local.session, "ses_app");
+        let no_pin = Hooks {
+            pinned: no_pin,
+            ..all
+        };
+        assert_eq!(pick(&no_pin, Some(TAB)), Ok(("page".into(), "page".into())));
+        let no_page = Hooks {
+            sdk: no_page,
+            ..no_pin
+        };
+        // A subfolder's server resolves to its git root.
+        assert_eq!(
+            pick(&no_page, Some(TAB)),
+            Ok(("port".into(), "port".into()))
+        );
+        let no_server = Hooks {
+            listener_dir: |_| None,
+            ..no_page
+        };
+        assert_eq!(
+            pick(&no_server, Some(TAB)),
+            Ok(("terminal".into(), "terminal".into()))
+        );
+        // No tab at all: the terminal still counts.
+        assert_eq!(
+            pick(&no_page, None),
+            Ok(("terminal".into(), "terminal".into()))
+        );
+        // Nothing to go on.
+        let blind = Hooks {
+            terminal: nothing,
+            ..no_server
+        };
+        let reason = pick(&blind, Some(TAB)).unwrap_err();
+        assert!(
+            reason.contains("no process found listening on port 5173"),
+            "{reason}"
+        );
+        assert!(
+            pick(&blind, None)
+                .unwrap_err()
+                .contains("no browser tab or terminal")
+        );
+        // The tab URL is recorded with the decision.
+        assert_eq!(
+            decide(Some(TAB), &[], &Hooks { pinned, ..hooks() })
+                .unwrap()
+                .url
+                .as_deref(),
+            Some(TAB)
+        );
     }
 
     #[test]
-    fn route_prefers_sdk_then_localhost_port() {
-        let hooks = Hooks {
-            sdk: sdk_session,
-            listener_dir: listener,
-            api,
+    fn auto_send_off_delivers_nothing_even_when_a_project_is_pinned() {
+        let all = Hooks {
+            pinned,
+            sdk: page,
+            ..hooks()
         };
-        let sdk = route("http://localhost:5173/page", &hooks).unwrap();
-        assert_eq!((sdk.session.as_str(), sdk.via.as_str()), ("ses_sdk", "sdk"));
-        assert_eq!(sdk.title, "SES_SDK");
-
-        let hooks = Hooks {
-            sdk: no_sdk,
-            ..hooks
-        };
-        // `/p/app` isn't a repository here, so only a session in exactly that folder matches.
-        let local = route("http://127.0.0.1:4321/", &hooks).unwrap();
+        assert!(decide_auto(true, Some(TAB), &[GHOSTTY], &all).is_ok());
         assert_eq!(
-            (
-                local.session.as_str(),
-                local.via.as_str(),
-                local.directory.as_deref()
-            ),
-            ("ses_app", "localhost", Some("/p/app"))
-        );
-        assert!(route("http://localhost:9999/", &hooks).is_err());
-        assert!(route("https://example.com/", &hooks).is_err());
-
-        let hooks = Hooks {
-            sdk: sdk_directory,
-            ..hooks
-        };
-        let by_dir = route("https://studio.ts.net:5173/", &hooks).unwrap();
-        assert_eq!(
-            (by_dir.session.as_str(), by_dir.via.as_str()),
-            ("ses_app", "sdk")
+            decide_auto(false, Some(TAB), &[GHOSTTY], &all),
+            Err("autoSend is off".to_owned())
         );
     }
 
     #[test]
-    fn destination_is_recorded_and_preferred_by_send() {
+    fn send_without_a_folder_uses_the_explicit_one_then_the_recorded_one_then_the_ladder() {
         let dir =
-            std::env::temp_dir().join(format!("pointo-route-{}.pointo", crate::make_bundle_id()));
+            std::env::temp_dir().join(format!("pointo-send-{}.pointo", crate::make_bundle_id()));
+        crate::generate_demo_bundle(Some(dir.clone())).unwrap();
+        let explicit = base().join("pinned");
+        let ladder = Hooks { pinned, ..hooks() };
+        // An explicit --project wins over everything.
+        assert_eq!(
+            project_for_send_with(&dir, Some(explicit.clone()), &ladder).unwrap(),
+            explicit
+        );
+        assert!(project_for_send_with(&dir, Some(base().join("missing")), &ladder).is_err());
+        // Nothing recorded: the ladder (here the pinned project; no tab or terminal is known).
+        assert_eq!(
+            project_for_send_with(&dir, None, &ladder).unwrap(),
+            explicit
+        );
+        let none = project_for_send_with(&dir, None, &hooks()).unwrap_err();
+        assert!(format!("{none:#}").contains("pass --project"), "{none:#}");
+        // A recorded destination beats the ladder.
+        let (_, mut bundle) = crate::handoff::load_bundle(&dir).unwrap();
+        let recorded = base().join("page");
+        let dest = Destination {
+            project: recorded.display().to_string(),
+            via: "page".into(),
+            url: None,
+        };
+        record_destination(&dir, &mut bundle, dest).unwrap();
+        assert_eq!(
+            project_for_send_with(&dir, None, &ladder).unwrap(),
+            recorded
+        );
+        // ... unless that folder is gone.
+        let (_, mut bundle) = crate::handoff::load_bundle(&dir).unwrap();
+        let gone = Destination {
+            project: base().join("gone").display().to_string(),
+            via: "page".into(),
+            url: None,
+        };
+        record_destination(&dir, &mut bundle, gone).unwrap();
+        assert_eq!(
+            project_for_send_with(&dir, None, &ladder).unwrap(),
+            explicit
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn the_home_folder_and_root_never_count() {
+        // A dev server started from the home folder, then a shell at `/`, then nothing.
+        let home = Hooks {
+            listener_dir: home_listener,
+            terminal: home_terminal,
+            ..hooks()
+        };
+        let reason = decide(Some(TAB), &[GHOSTTY], &home).unwrap_err();
+        assert!(reason.contains("not a project"), "{reason}");
+        assert!(is_home_or_root(Path::new("/")));
+        assert!(is_home_or_root(&dirs::home_dir().unwrap()));
+        assert!(!is_home_or_root(base()));
+        // Not even a pinned or registered folder that is the home folder.
+        let pinned_home = Hooks {
+            pinned: || dirs::home_dir(),
+            ..home
+        };
+        assert!(decide(Some(TAB), &[], &pinned_home).is_err());
+    }
+
+    #[test]
+    fn a_page_or_url_that_is_not_local_leaves_the_terminal_to_decide() {
+        let hooks = Hooks {
+            own_port: |_| None,
+            ..hooks()
+        };
+        let dest = decide(Some("https://example.com/x"), &[GHOSTTY], &hooks).unwrap();
+        assert_eq!(dest.via, "terminal");
+        let reason = decide(Some("https://example.com/x"), &[], &hooks).unwrap_err();
+        assert!(reason.contains("isn't served from this Mac"), "{reason}");
+    }
+
+    #[test]
+    fn a_destination_is_recorded_in_the_bundle_and_its_summary() {
+        let dir =
+            std::env::temp_dir().join(format!("pointo-dest-{}.pointo", crate::make_bundle_id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let mut bundle: ScrawlBundle = serde_json::from_value(serde_json::json!({
-            "version": 1, "id": "t", "createdAtMs": 0, "durationMs": 1_000,
+        let json = serde_json::json!({
+            "version": 1, "id": "x", "createdAtMs": 1, "durationMs": 2000,
             "target": {"mode": "display", "displayId": 1,
-                "frame": {"x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0, "scale": 1.0}},
+                "frame": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 100.0, "scale": 1.0}},
             "transcript": {"source": "none", "text": "", "segments": []},
-            "strokes": [], "marks": [], "events": [], "keyframes": [], "contactSheet": "c.png"
-        }))
-        .unwrap();
-        assert_eq!(crate::handoff::recorded_destination(&dir), None);
-        record_destination(
-            &dir,
-            &mut bundle,
-            Destination {
-                session: "ses_app".into(),
-                title: "APP".into(),
-                via: "localhost".into(),
-                url: Some("http://localhost:4321/".into()),
-                directory: None,
-            },
-        )
-        .unwrap();
+            "strokes": [], "marks": [], "events": [], "keyframes": [],
+            "contactSheet": "contact-sheet.png"
+        });
+        std::fs::write(dir.join("pointo.json"), json.to_string()).unwrap();
+        let (_, mut bundle) = crate::handoff::load_bundle(&dir).unwrap();
+        let dest = Destination {
+            project: "/p/app".into(),
+            via: "port".into(),
+            url: Some("http://localhost:5173/".into()),
+        };
+        record_destination(&dir, &mut bundle, dest.clone()).unwrap();
+        let (_, loaded) = crate::handoff::load_bundle(&dir).unwrap();
+        assert_eq!(loaded.destination, Some(dest));
         let summary = std::fs::read_to_string(dir.join("summary.md")).unwrap();
         assert!(
-            summary.contains("For session: APP (ses_app) · page http://localhost:4321/"),
+            summary.contains("For project: app (/p/app) · page http://localhost:5173/"),
             "{summary}"
         );
-        let (_, loaded) = crate::handoff::load_bundle(&dir).unwrap();
-        assert_eq!(loaded.destination.unwrap().via, "localhost");
-        assert_eq!(
-            crate::handoff::recorded_destination(&dir).as_deref(),
-            Some("ses_app")
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_bundle_that_named_a_session_still_loads_without_a_project() {
+        let dir =
+            std::env::temp_dir().join(format!("pointo-old-{}.pointo", crate::make_bundle_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let json = serde_json::json!({
+            "version": 1, "id": "x", "createdAtMs": 1, "durationMs": 2000,
+            "target": {"mode": "display", "displayId": 1,
+                "frame": {"x": 0.0, "y": 0.0, "width": 100.0, "height": 100.0, "scale": 1.0}},
+            "transcript": {"source": "none", "text": "", "segments": []},
+            "strokes": [], "marks": [], "events": [], "keyframes": [],
+            "contactSheet": "contact-sheet.png",
+            "destination": {"session": "ses_old", "title": "UP DOWN", "via": "sdk",
+                "url": "http://localhost:5173/", "directory": "/p/app"}
+        });
+        std::fs::write(dir.join("pointo.json"), json.to_string()).unwrap();
+        let (_, bundle) = crate::handoff::load_bundle(&dir).unwrap();
+        // The old `directory` is the project the session was chosen by.
+        assert_eq!(bundle.destination.as_ref().unwrap().project, "/p/app");
+
+        let session_only = json["destination"].as_object().unwrap().clone();
+        let mut only = json.clone();
+        only["destination"] = serde_json::json!({"session": session_only["session"], "via": "sdk"});
+        std::fs::write(dir.join("pointo.json"), only.to_string()).unwrap();
+        let (_, bundle) = crate::handoff::load_bundle(&dir).unwrap();
+        let dest = bundle.destination.unwrap();
+        assert!(!dest.is_project());
+        assert!(
+            !crate::sketch::summary_markdown(&crate::handoff::load_bundle(&dir).unwrap().1, &dir)
+                .contains("For project")
         );
         std::fs::remove_dir_all(dir).unwrap();
     }

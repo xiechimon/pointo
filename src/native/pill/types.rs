@@ -55,7 +55,7 @@ pub enum PillAction {
     Paste(Option<[f32; 2]>),
     Inspect,
     DismissCompleted,
-    /// A session chip on the Completed island (smart routing), by position.
+    /// A project chip on the Completed island, by position.
     Route(usize),
 }
 

@@ -17,7 +17,7 @@
     { "title": "Capture", "detail": "⌥⇧S, the picker, a cabled iPhone or ScrawlKit", "group": "start" },
     { "title": "Record", "detail": "Screen, voice, clicks and ⇧ ink on one clock", "group": "record" },
     { "title": "Bundle", "detail": "Keyframes, contact sheet, summary.md, scrawl.json", "group": "agent" },
-    { "title": "Deliver", "detail": "Clipboard and ⌥⇧V, or straight to a session", "group": "delivery" },
+    { "title": "Deliver", "detail": "Clipboard and ⌥⇧V, or straight to a project folder", "group": "delivery" },
     { "title": "Agent", "detail": "The skill, then scrawl zoom for a closer look", "group": "cli" }
   ],
   "features": [
@@ -426,56 +426,38 @@
     },
 
     {
-      "id": "devsite-routing",
+      "id": "project-delivery",
       "group": "delivery",
-      "name": "Dev-site captures to their session",
-      "says": "A capture that ends on a localhost dev site goes to that project's newest OpenCode session, and is still copied.",
-      "status": "stable@0.3.4",
-      "platforms": ["mac"],
-      "note": "Reads the browser's tab URL, which only the Mac does; /sdk.js registrations route everywhere.",
-      "config": [{ "key": "autoSend", "value": "false", "does": "Keep dev-site captures on the clipboard" }],
-      "docs": ["README.md#sending-captures-of-a-dev-site-to-its-session", "docs/iphone-and-routing.md"]
+      "name": "Captures to the project folder",
+      "says": "A capture is copied into <project>/.pointo/captures/ (the newest named by .pointo/latest), where any coding agent working in that folder reads it, and is still copied to the clipboard.",
+      "status": "main",
+      "platforms": ["mac", "windows"],
+      "added": "2026-11-14",
+      "note": "The Mac picks the project from the pinned folder, the page's registration, the dev server's folder or the terminal's folder; iPhone recordings go to the pinned or most recent project.",
+      "config": [
+        { "key": "autoSend", "value": "false", "does": "Keep captures on the clipboard unless a project is picked on the pill" },
+        { "key": "project", "value": "\"~/code/app\"", "does": "Pin every capture to one project folder" },
+        { "key": "recentProjects", "value": "[\"/abs/app\"]", "does": "Recent projects, offered as chips (kept by Pointo)" }
+      ],
+      "docs": ["docs/iphone-and-routing.md"]
     },
     {
       "id": "sdk-js",
       "group": "delivery",
       "name": "/sdk.js page registration",
-      "says": "A dev page that loads Scrawl's /sdk.js names its session or project folder.",
-      "status": "stable@0.3.4",
-      "platforms": ["mac", "windows", "linux"],
-      "docs": ["README.md#sending-captures-of-a-dev-site-to-its-session"]
-    },
-    {
-      "id": "smart-routing",
-      "group": "delivery",
-      "name": "Smart routing",
-      "says": "Weighs more clues (tab, Ghostty pane, window title, transcript) and sends with a 3 s undo, or offers a choice.",
-      "status": "experiment:smartRouting",
-      "platforms": ["mac"],
-      "added": "2026-10-19",
-      "config": [{ "key": "routing", "value": "{\"apps\": {…}, \"servers\": {…}}", "does": "Checkouts for apps and folders for file servers" }],
-      "docs": ["docs/routing.md"]
-    },
-    {
-      "id": "delivery-retries",
-      "group": "delivery",
-      "name": "Retries",
-      "says": "A send OpenCode didn't take is retried every 15 s, backing off to 30 min, for a day.",
+      "says": "A dev page that loads Pointo's /sdk.js names its project folder (data-directory).",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "docs": ["docs/iphone-and-routing.md"]
     },
     {
-      "id": "agent-host",
+      "id": "delivery-retries",
       "group": "delivery",
-      "name": "Agent on another Mac",
-      "says": "Sends captures to the OpenCode server on another Mac over SSH, copying the bundle there first.",
+      "name": "Retries",
+      "says": "A delivery that failed is retried every 15 s, backing off to 30 min, for a day.",
       "status": "stable@0.3.4",
-      "platforms": ["mac", "windows"],
-      "config": [
-        { "key": "agentHost", "value": "\"studio\"", "does": "SSH host whose OpenCode holds the sessions" },
-        { "key": "agentOpencode", "value": "\"opencode2\"", "does": "The opencode command on that host" }
-      ]
+      "platforms": ["mac", "windows", "linux"],
+      "docs": ["docs/iphone-and-routing.md"]
     },
     {
       "id": "remote-agents",
@@ -721,10 +703,10 @@
       "id": "cli-send",
       "group": "cli",
       "name": "send and route",
-      "says": "Queue a capture into a session (refusing a different one than recorded without --reroute); see where a URL would route.",
+      "says": "Deliver a capture to a project folder (--project, else the one it was recorded for or the ladder picks); see which folder a URL would route to.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/pointo/SKILL.md", "README.md#sending-captures-of-a-dev-site-to-its-session"]
+      "docs": ["skills/pointo/SKILL.md", "docs/iphone-and-routing.md"]
     },
     {
       "id": "cli-reprocess",

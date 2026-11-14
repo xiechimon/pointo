@@ -666,7 +666,10 @@ pub struct Timeline {
     pub app: Option<String>,
     #[serde(default)]
     pub bundle_id: Option<String>,
+    /// The session an older ScrawlKit addressed the recording to. Still parsed so older phones
+    /// keep working, and ignored: the folder to deliver to is the pinned or most recent project.
     #[serde(default)]
+    #[allow(dead_code)]
     pub session: Option<String>,
     #[serde(default)]
     pub recorded_at: Option<String>,
@@ -1056,7 +1059,8 @@ pub type IngestCallback = Arc<dyn Fn(PathBuf, ScrawlBundle, Option<String>) + Se
 #[derive(Clone, Default)]
 pub struct IngestConfig {
     pub copy_clipboard: bool,
-    pub route_opencode: bool,
+    /// Deliver bundles to a project folder (`project_target`) instead of only saving them.
+    pub deliver: bool,
     pub on_bundle: Option<IngestCallback>,
     /// Where bundles are built and pending deliveries retried; the default captures folder if
     /// unset.
@@ -1073,10 +1077,11 @@ impl IngestConfig {
 }
 
 /// The steps of an ingest that reach outside the process, swappable in tests so they never
-/// build real movies or post to a real OpenCode session.
+/// build real movies or write into a real project folder.
 #[derive(Clone, Copy)]
 struct IngestHooks {
-    resolve: fn(Option<&str>, Option<&str>) -> Result<(String, String)>,
+    /// The project folder a recording goes to: the pinned one, else the most recent.
+    target: fn() -> Option<PathBuf>,
     /// Movie, timeline, bundle directory → the built bundle.
     build: fn(&Path, &Path, &Path) -> Result<(PathBuf, Option<ScrawlBundle>)>,
     forward: crate::delivery::Forward,
@@ -1085,12 +1090,12 @@ struct IngestHooks {
 impl Default for IngestHooks {
     fn default() -> Self {
         Self {
-            resolve: crate::handoff::resolve_opencode_session,
+            target: project_target,
             build: |movie, timeline, bundle_dir| {
                 let (dir, bundle, _) = import(movie, Some(timeline), bundle_dir, None)?;
                 Ok((dir, Some(bundle)))
             },
-            forward: crate::handoff::send_bundle_to_session,
+            forward: crate::project::forward,
         }
     }
 }
@@ -1193,13 +1198,8 @@ fn normalize_http_base_url(raw: &str) -> Result<String> {
     Ok(trimmed.to_owned())
 }
 
-/// Formats `<scheme>://pointo?url=<urlencoded base>[&url=<second>]&token=<token>[&session=ses_…]`.
-pub fn format_setup_link(
-    scheme: &str,
-    urls: &[String],
-    token: &str,
-    session: Option<&str>,
-) -> Result<String> {
+/// Formats `<scheme>://pointo?url=<urlencoded base>[&url=<second>]&token=<token>`.
+pub fn format_setup_link(scheme: &str, urls: &[String], token: &str) -> Result<String> {
     let scheme = scheme.trim().trim_end_matches("://").trim_end_matches(':');
     ensure!(
         !scheme.is_empty()
@@ -1223,29 +1223,25 @@ pub fn format_setup_link(
         "At least one http:// or https:// base URL is required"
     );
 
-    let mut query = Vec::with_capacity(clean_urls.len() + 2);
+    let mut query = Vec::with_capacity(clean_urls.len() + 1);
     for url in &clean_urls {
         query.push(format!("url={}", crate::handoff::query_escape(url)));
     }
     query.push(format!("token={}", crate::handoff::query_escape(token)));
-    if let Some(session) = session.map(str::trim).filter(|s| !s.is_empty()) {
-        query.push(format!("session={}", crate::handoff::query_escape(session)));
-    }
     Ok(format!("{scheme}://pointo?{}", query.join("&")))
 }
 
 /// Starts Pointo's background ScrawlKit ingest inside the GUI app: an HTTP server on
 /// `0.0.0.0:47777` the phone uploads to, and a cabled-iPhone `devicectl` watcher for when the
 /// network can't reach the Mac. Each recording becomes a `.pointo` bundle, lands on the clipboard
-/// and is queued into the OpenCode session matching the app.
+/// and is delivered to the project folder (`project_target`).
 pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     if let Err(err) = crate::handoff::ensure_ingest_token() {
         scrawl_log(format!("ingest token setup failed: {err:#}"));
     }
-    let route_opencode = std::env::var_os("SCRAWL_NO_OPENCODE").is_none();
     let config = IngestConfig {
         copy_clipboard: true,
-        route_opencode,
+        deliver: true,
         on_bundle: Some(Arc::new(move |dir, bundle, status| {
             let _ = ui_sender.send(LiveOverlayEvent::IngestedBundle {
                 dir,
@@ -1267,13 +1263,12 @@ pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
 }
 
 /// Runs the headless ScrawlKit ingest server (`pointo serve`): same HTTP auth, dedupe, bundle
-/// building, and OpenCode routing as the GUI app, without touching the clipboard or HUD.
-pub fn run_ingest_server(port: u16, usb: bool, no_opencode: bool) -> Result<()> {
+/// building, and project delivery as the GUI app, without touching the clipboard or HUD.
+pub fn run_ingest_server(port: u16, usb: bool) -> Result<()> {
     let _ = crate::handoff::ensure_ingest_token()?;
-    let route_opencode = !no_opencode && std::env::var_os("SCRAWL_NO_OPENCODE").is_none();
     let config = IngestConfig {
         copy_clipboard: false,
-        route_opencode,
+        deliver: true,
         on_bundle: None,
         ..IngestConfig::default()
     };
@@ -1290,7 +1285,7 @@ fn serve_http(port: u16, config: IngestConfig) -> Result<()> {
     scrawl_log(format!("ingest server listening on {addr}"));
     crate::web::set_serving();
     // Only the process that owns the port retries deliveries, so two never race over a bundle.
-    if config.route_opencode {
+    if config.deliver {
         crate::delivery::spawn_retries(config.captures_dir(), config.hooks.forward, mark_sent);
     }
     let connections = crate::ingest_http::Connections::default();
@@ -1395,7 +1390,8 @@ fn wait_for_ingest(key: &str, wait: Duration) -> Outcome {
 }
 
 /// Takes in a received recording whose files are in `staging` (removed when done): builds its
-/// bundle and sends it to its session on a thread, and waits up to `wait` to say how that went.
+/// bundle and delivers it to its project folder on a thread, and waits up to `wait` to say how
+/// that went.
 /// A copy of a recording already being taken in waits for that one instead.
 fn ingest_recording(
     staging: PathBuf,
@@ -1406,7 +1402,7 @@ fn ingest_recording(
     wait: Duration,
 ) -> (Outcome, String) {
     let key = ingest_key(timeline);
-    let (session, title) = ingest_target(timeline, config);
+    let (project, title) = ingest_target(config);
     let fresh = {
         let mut map = ingested();
         if map.contains_key(&key) {
@@ -1432,7 +1428,7 @@ fn ingest_recording(
                 let built = build_ingested(
                     &movie,
                     &timeline_path,
-                    session.as_deref(),
+                    project.as_deref(),
                     &title,
                     &key,
                     &config,
@@ -1476,28 +1472,42 @@ fn ingest_recording(
     (outcome, title)
 }
 
-/// The OpenCode session a recording goes to (if one resolves) and the name the phone shows.
-fn ingest_target(timeline: &Timeline, config: &IngestConfig) -> (Option<String>, String) {
-    if !config.route_opencode {
+/// The pinned project folder, else the most recent one (the timeline's `session` is ignored).
+fn project_target() -> Option<PathBuf> {
+    pick_target(
+        crate::handoff::pinned_project(),
+        crate::handoff::recent_projects(),
+    )
+}
+
+fn pick_target(pinned: Option<PathBuf>, recent: Vec<PathBuf>) -> Option<PathBuf> {
+    pinned.or_else(|| recent.into_iter().next())
+}
+
+/// The project folder a recording goes to (if one resolves) and the name the phone shows.
+fn ingest_target(config: &IngestConfig) -> (Option<String>, String) {
+    if !config.deliver {
         return (None, "Mac".to_owned());
     }
-    let app = timeline.app.as_deref().or(timeline.bundle_id.as_deref());
-    match (config.hooks.resolve)(timeline.session.as_deref(), app) {
-        Ok((id, title)) => (Some(id), title),
-        Err(err) => {
-            scrawl_log(format!("ingest: no OpenCode session ({err:#})"));
+    match (config.hooks.target)() {
+        Some(folder) => (
+            Some(folder.display().to_string()),
+            crate::project::folder_name(&folder),
+        ),
+        None => {
+            scrawl_log("ingest: no project folder yet; the recording is only saved");
             (None, "Mac".to_owned())
         }
     }
 }
 
 /// Builds the bundle for a received recording, optionally copies it to the clipboard, queues it
-/// into `session` (leaving a pending delivery to retry if that fails), and notifies the GUI HUD
+/// into `project` (leaving a pending delivery to retry if that fails), and notifies the GUI HUD
 /// if running inside the app.
 fn build_ingested(
     movie: &Path,
     timeline_path: &Path,
-    session: Option<&str>,
+    project: Option<&str>,
     title: &str,
     key: &str,
     config: &IngestConfig,
@@ -1509,9 +1519,9 @@ fn build_ingested(
     if config.copy_clipboard {
         let _ = crate::handoff::copy_bundle_to_clipboard(&dir);
     }
-    let delivery = match session {
-        Some(session) if config.route_opencode => {
-            crate::delivery::deliver(&dir, session, title, Some(key), config.hooks.forward)
+    let delivery = match project {
+        Some(project) if config.deliver => {
+            crate::delivery::deliver(&dir, project, title, Some(key), config.hooks.forward)
         }
         _ => Delivery::Saved,
     };
@@ -1713,7 +1723,7 @@ fn usb_failed(key: &str) -> Duration {
 
 /// Takes in recordings the phone marked `.ready` but has no `.sent` for (in `Documents/Pointo` or
 /// the legacy `Documents/Tether` directory). Once the bundle is built and sent (or 15 s pass),
-/// writes back `.delivery` (the same JSON an HTTP upload gets) and then `.sent` (the session's
+/// writes back `.delivery` (the same JSON an HTTP upload gets) and then `.sent` (the project's
 /// name, all that ScrawlKit builds before `.delivery` read).
 fn poll_usb_app_containers(apps: &[String], config: &IngestConfig) -> Result<()> {
     if apps.is_empty() {
@@ -1946,7 +1956,7 @@ mod tests {
 
     #[test]
     fn timeline_parses_app_context_and_screens() {
-        let json = r#"{"app":"OpenCode","bundleId":"ai.opencode.mobilecode","version":"354",
+        let json = r#"{"app":"Notes","bundleId":"dev.example.notes","version":"354",
             "shortVersion":"1.4","duration":20,
             "context":{"server":"studio","session":"ses_1","build":7,"gone":null},
             "contextChanges":[{"t":9.5,"key":"session","value":null},{"t":4.25,"key":"session","value":"ses_2"}],
@@ -1994,15 +2004,9 @@ mod tests {
 
     #[test]
     fn phone_target_keeps_the_bundle_id_apart_from_the_display_name() {
-        let target = phone_target(
-            "iPhone",
-            Some("OpenCode"),
-            Some("ai.opencode.mobilecode"),
-            10,
-            20,
-        );
-        assert_eq!(target.app.as_deref(), Some("OpenCode"));
-        assert_eq!(target.bundle_id.as_deref(), Some("ai.opencode.mobilecode"));
+        let target = phone_target("iPhone", Some("Notes"), Some("dev.example.notes"), 10, 20);
+        assert_eq!(target.app.as_deref(), Some("Notes"));
+        assert_eq!(target.bundle_id.as_deref(), Some("dev.example.notes"));
         // Older timelines only had the name.
         let old = phone_target("iPhone", Some("UpDown"), Some(""), 10, 20);
         assert_eq!(old.app.as_deref(), Some("UpDown"));
@@ -2047,23 +2051,22 @@ mod tests {
     }
 
     #[test]
-    fn setup_link_formats_and_escapes_urls_token_and_session() {
+    fn setup_link_formats_and_escapes_urls_and_token() {
         let urls = vec![
             "http://100.64.0.12:47777/".to_owned(),
             "http://192.168.1.20:47777".to_owned(),
             "http://100.64.0.12:47777".to_owned(),
         ];
-        let link =
-            format_setup_link("updown://", &urls, "deadbeef0123", Some("ses_abc123")).unwrap();
+        let link = format_setup_link("updown://", &urls, "deadbeef0123").unwrap();
         assert_eq!(
             link,
-            "updown://pointo?url=http%3A%2F%2F100.64.0.12%3A47777&url=http%3A%2F%2F192.168.1.20%3A47777&token=deadbeef0123&session=ses_abc123"
+            "updown://pointo?url=http%3A%2F%2F100.64.0.12%3A47777&url=http%3A%2F%2F192.168.1.20%3A47777&token=deadbeef0123"
         );
 
-        assert!(format_setup_link("updown", &[], "tok", None).is_err());
-        assert!(format_setup_link("updown", &["ftp://1.2.3.4:47777".into()], "tok", None).is_err());
-        assert!(format_setup_link("updown", &["http://1.2.3.4:47777".into()], "", None).is_err());
-        assert!(format_setup_link("", &["http://1.2.3.4:47777".into()], "tok", None).is_err());
+        assert!(format_setup_link("updown", &[], "tok").is_err());
+        assert!(format_setup_link("updown", &["ftp://1.2.3.4:47777".into()], "tok").is_err());
+        assert!(format_setup_link("updown", &["http://1.2.3.4:47777".into()], "").is_err());
+        assert!(format_setup_link("", &["http://1.2.3.4:47777".into()], "tok").is_err());
     }
 
     fn send_raw_http_request(request: &[u8], expected_token: &str) -> String {
@@ -2138,25 +2141,26 @@ mod tests {
         Ok((bundle_dir.to_owned(), None))
     }
 
-    /// Never reaches OpenCode: `ses_down` fails like an unreachable server.
-    fn fake_forward(_: &Path, session: &str) -> Result<()> {
-        ensure!(
-            session != "ses_down",
-            "OpenCode API failed: connection refused"
-        );
+    /// Never writes into a real project: `/p/down` fails like a folder that went away.
+    fn fake_forward(_: &Path, project: &str) -> Result<()> {
+        ensure!(project != "/p/down", "No such folder: /p/down");
         Ok(())
     }
 
-    fn fake_resolve(session: Option<&str>, _app: Option<&str>) -> Result<(String, String)> {
-        Ok((session.unwrap_or("ses_up").to_owned(), "UP DOWN".to_owned()))
+    fn up() -> Option<PathBuf> {
+        Some(PathBuf::from("/p/up"))
     }
 
-    fn test_config(captures: &Path, route_opencode: bool) -> IngestConfig {
+    fn down() -> Option<PathBuf> {
+        Some(PathBuf::from("/p/down"))
+    }
+
+    fn test_config(captures: &Path, deliver: bool) -> IngestConfig {
         IngestConfig {
-            route_opencode,
+            deliver,
             captures: Some(captures.to_owned()),
             hooks: IngestHooks {
-                resolve: fake_resolve,
+                target: up,
                 build: fake_build,
                 forward: fake_forward,
             },
@@ -2235,18 +2239,18 @@ mod tests {
     }
 
     #[test]
-    fn ingest_answers_sent_only_after_opencode_took_it() {
+    fn ingest_answers_sent_only_after_the_project_took_it() {
         let captures = temp_captures();
         let (status, body) = post_ingest(
             &test_config(&captures, true),
-            serde_json::json!({"recordedAt": "2026-10-18T10:00:00Z-sent", "session": "ses_up"}),
+            serde_json::json!({"recordedAt": "2026-10-18T10:00:00Z-sent", "session": "ses_ignored"}),
             b"movie",
             None,
         );
         assert_eq!(status, "HTTP/1.1 200 OK");
         assert_eq!(
             body,
-            serde_json::json!({"ok": true, "delivered": true, "state": "sent", "sessionTitle": "UP DOWN"})
+            serde_json::json!({"ok": true, "delivered": true, "state": "sent", "sessionTitle": "up"})
         );
         std::fs::remove_dir_all(captures).unwrap();
     }
@@ -2254,25 +2258,25 @@ mod tests {
     #[test]
     fn a_failed_forward_is_queued_on_the_mac_and_retried() {
         let captures = temp_captures();
-        let config = test_config(&captures, true);
-        let timeline =
-            serde_json::json!({"recordedAt": "2026-10-18T10:00:00Z-queued", "session": "ses_down"});
+        let mut config = test_config(&captures, true);
+        config.hooks.target = down;
+        let timeline = serde_json::json!({"recordedAt": "2026-10-18T10:00:00Z-queued"});
         let (status, body) = post_ingest(&config, timeline.clone(), b"movie", None);
         assert_eq!(status, "HTTP/1.1 200 OK");
         assert_eq!(body["delivered"], false);
         assert_eq!(body["state"], "queued");
-        assert_eq!(body["sessionTitle"], "UP DOWN");
-        assert_eq!(body["error"], "OpenCode API failed: connection refused");
+        assert_eq!(body["sessionTitle"], "down");
+        assert_eq!(body["error"], "No such folder: /p/down");
         let bundle = bundles(&captures).pop().unwrap();
         let pending: crate::delivery::Pending =
             serde_json::from_slice(&std::fs::read(bundle.join(crate::delivery::PENDING)).unwrap())
                 .unwrap();
-        assert_eq!(pending.session, "ses_down");
+        assert_eq!(pending.project, "/p/down");
         assert_eq!(pending.attempts, 1);
 
-        // OpenCode is back (the session answers now): the Mac's retry goes through.
+        // The folder is back: the Mac's retry goes through.
         let report = crate::delivery::retry_due(&captures, u64::MAX / 2, |dir, _| {
-            fake_forward(dir, "ses_up")
+            fake_forward(dir, "/p/up")
         });
         assert_eq!(report.sent.len(), 1);
         assert!(!bundle.join(crate::delivery::PENDING).exists());
@@ -2310,13 +2314,22 @@ mod tests {
         assert_eq!(status, "HTTP/1.1 200 OK");
         assert_eq!(
             body,
-            serde_json::json!({"ok": true, "delivered": false, "state": "processing", "sessionTitle": "UP DOWN"})
+            serde_json::json!({"ok": true, "delivered": false, "state": "processing", "sessionTitle": "up"})
         );
         // The same recording over the other address waits for the first build.
         let (_, body) = post_ingest(&config, timeline, b"slow", Some(10));
         assert_eq!(body["state"], "sent");
         assert_eq!(bundles(&captures).len(), 1);
         std::fs::remove_dir_all(captures).unwrap();
+    }
+
+    #[test]
+    fn a_recording_goes_to_the_pinned_project_else_the_most_recent() {
+        let path = |p: &str| Some(PathBuf::from(p));
+        let recent = || vec![PathBuf::from("/p/new"), PathBuf::from("/p/old")];
+        assert_eq!(pick_target(path("/p/pinned"), recent()), path("/p/pinned"));
+        assert_eq!(pick_target(None, recent()), path("/p/new"));
+        assert_eq!(pick_target(None, Vec::new()), None);
     }
 
     #[test]

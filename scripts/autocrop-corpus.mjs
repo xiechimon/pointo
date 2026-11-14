@@ -1,7 +1,7 @@
 // Simulated Screen captures with ground truth, for tuning and testing auto-crop.
 //
 // Each scenario is a short script of what someone did on a 1728×1117 pt MacBook Pro screen:
-// windows (a terminal running OpenCode, a browser app, an editor, chat, Finder, Notes), the menu
+// windows (a terminal running a coding agent, a browser app, an editor, chat, Finder, Notes), the menu
 // bar and Dock, narration with word timings, Shift-drawn ink, clicks, drags, scrolls, human-ish
 // cursor motion, windows moving and focusing. The script renders every distinct screen state
 // with Playwright at Pointo's Screen sampling size (2560 px wide) and writes `scenario.json`
@@ -39,7 +39,7 @@ const words = (n, k = 0) => Array.from({ length: n }, (_, i) => lorem[(i * 7 + k
 
 function terminal(o) {
   const lines = [
-    `<div class="tui-head"><b>opencode</b><span>~/code/acme</span><span>claude-opus-4</span><span class="dim">48.2k tokens · $0.41</span></div>`,
+    `<div class="tui-head"><b>agent</b><span>~/code/acme</span><span>claude-opus-4</span><span class="dim">48.2k tokens · $0.41</span></div>`,
     `<div class="msg user">Run the settings tests and fix whatever is failing in the account card.</div>`,
     `<div class="msg">I'll run the test suite for the settings package first.</div>`,
     `<div class="tool" data-t="tool"><div class="tool-h">▸ Bash <span class="dim">bun test src/settings</span></div>
@@ -285,11 +285,11 @@ const FULLWIN = { x: 0, y: MENU, w: SW, h: SH - MENU };
 const ALL = [];
 const def = (name, description, duration, build) => ALL.push({ name, description, duration, build });
 
-def('maximized-terminal', 'One maximized OpenCode terminal; ink on a failing test, then the prompt', 14_000, (s) => {
-  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'opencode — ~/code/acme' });
+def('maximized-terminal', 'One maximized agent terminal; ink on a failing test, then the prompt', 14_000, (s) => {
+  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'agent — ~/code/acme' });
   s.at(0, (st) => { st.wins.term = { ...FULLWIN }; st.order = ['term']; });
   s.rest(0, 1_500, 'term#tool');
-  s.say(300, 'So OpenCode ran the settings tests,');
+  s.say(300, 'So the agent ran the settings tests,');
   s.circle(2_200, 'term#error', 950);
   s.say(2_400, 'and this one is failing, the header inset.');
   s.underline(5_200, 'term#expect');
@@ -323,7 +323,7 @@ def('side-by-side', 'Editor and browser side by side; all the activity is in the
 });
 
 def('arrow-across', 'Ink in the browser, then an arrow from the browser to the terminal', 13_000, (s) => {
-  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'opencode — ~/code/acme' });
+  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'agent — ~/code/acme' });
   s.win('web', { kind: 'browser', app: 'Safari', bundleId: 'com.apple.Safari', title: 'Settings · acme' });
   s.at(0, (st) => { st.wins.term = { x: 30, y: 70, w: 820, h: 760 }; st.wins.web = { x: 800, y: 120, w: 900, h: 820 }; st.order = ['web', 'term']; st.dock = true; });
   s.say(300, 'Look at the account card in the browser,');
@@ -443,7 +443,7 @@ def('window-drag', 'Dragging the Notes window across the screen, then inking in 
 
 def('overlapping-front', 'Three overlapping windows; all the activity is on the front one', 12_000, (s) => {
   s.win('ed', { kind: 'editor', app: 'Zed', bundleId: 'dev.zed.Zed', title: 'AccountCard.tsx — acme' });
-  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'opencode — ~/code/acme' });
+  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'agent — ~/code/acme' });
   s.win('slack', { kind: 'chat', app: 'Slack', bundleId: 'com.tinyspeck.slackmacgap', title: 'deploys — Anomaly' });
   s.at(0, (st) => { st.wins.slack = { x: 80, y: 80, w: 900, h: 700 }; st.wins.term = { x: 300, y: 180, w: 1000, h: 760 }; st.wins.ed = { x: 640, y: 260, w: 1000, h: 780 }; st.order = ['ed', 'term', 'slack']; });
   s.rest(0, 1_600, 'ed#tab');
@@ -463,7 +463,7 @@ def('overlapping-front', 'Three overlapping windows; all the activity is on the 
 def('three-window-hop', 'Thirty seconds hopping between editor, browser and terminal', 30_000, (s) => {
   s.win('ed', { kind: 'editor', app: 'Zed', bundleId: 'dev.zed.Zed', title: 'AccountCard.tsx — acme' });
   s.win('web', { kind: 'browser', app: 'Safari', bundleId: 'com.apple.Safari', title: 'Settings · acme' });
-  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'opencode — ~/code/acme' });
+  s.win('term', { kind: 'terminal', app: 'Ghostty', bundleId: 'com.mitchellh.ghostty', title: 'agent — ~/code/acme' });
   s.at(0, (st) => { st.wins.ed = { x: 0, y: MENU, w: 860, h: 560 }; st.wins.term = { x: 0, y: MENU + 560, w: 860, h: SH - MENU - 560 }; st.wins.web = { x: 860, y: MENU, w: 868, h: SH - MENU }; st.order = ['ed', 'web', 'term']; });
   s.rest(0, 1_200, 'ed#tab');
   s.say(300, 'First the component, this margin,');
@@ -478,7 +478,7 @@ def('three-window-hop', 'Thirty seconds hopping between editor, browser and term
   s.say(11_200, 'the header is half outside it.');
   s.click(17_200, 'term#prompt');
   s.at(17_260, (st) => { st.order = ['term', 'web', 'ed']; });
-  s.say(17_400, 'And OpenCode already found it,');
+  s.say(17_400, 'And the agent already found it,');
   s.underline(19_000, 'term#expect', 500);
   s.rest(19_500, 23_000, 'term#expect');
   s.say(19_600, 'expected zero got minus twenty six.');

@@ -215,25 +215,14 @@ pub fn zoom(
     count: usize,
     cropped: bool,
 ) -> Result<ZoomSheet> {
-    let pending = dir.join(crate::handoff::MEDIA_PENDING);
-    // A bundle copied from another Mac gets its video a few seconds after the rest; wait for it.
-    let waited = std::time::Instant::now();
-    while pending.exists() && waited.elapsed() < std::time::Duration::from_secs(120) {
-        std::thread::sleep(std::time::Duration::from_millis(250));
-    }
     let video = bundle
         .video
         .as_ref()
         .map(|v| dir.join(v))
         .filter(|p| p.is_file())
         .with_context(|| {
-            if pending.exists() {
-                "The bundle's video is still copying from the other Mac; try again in a minute"
-                    .to_owned()
-            } else {
-                crate::retention::missing_media_reason(dir)
-                    .unwrap_or_else(|| "The bundle has no video to zoom into".to_owned())
-            }
+            crate::retention::missing_media_reason(dir)
+                .unwrap_or_else(|| "The bundle has no video to zoom into".to_owned())
         })?;
     let ((from_ms, to_ms), mark) = match &focus {
         Focus::At(at) => {

@@ -919,7 +919,7 @@ impl MetalPipelines {
         let mut blur_boxes: Vec<BlurBox> = Vec::with_capacity(frame.elems.len());
         let mut comp_elems: Vec<CompositeElem> = Vec::with_capacity(frame.elems.len());
 
-        // Tiles are packed in rows as wide as they need, so a long lead or session chip isn't cut.
+        // Tiles are packed in rows as wide as they need, so a long lead or project chip isn't cut.
         let (mut slot_x, mut slot_y, mut row_h) = (4.0_f32, 4.0_f32, 0.0_f32);
         // The composite shader reads at most 16.
         for elem in frame.elems.iter().take(16) {
@@ -1491,13 +1491,13 @@ mod tests {
             ("1-copied", completed("Copied", &[])),
             (
                 "2-ask",
-                completed("Copied", &["Send to DESKTOP", "OPENCODE IOS"]),
+                completed("Copied", &["Send to pointo-web", "docs-site"]),
             ),
             (
                 "3-undo-window",
-                completed("Sending to DESKTOP…", &["Send to OPENCODE IOS"]),
+                completed("Sending to pointo-web…", &["Send to docs-site"]),
             ),
-            ("4-sent", completed("Sent to OPENCODE IOS", &[])),
+            ("4-sent", completed("Sent to docs-site", &[])),
         ];
         let out = std::env::var_os("SCRAWL_PILL_STILLS").map(std::path::PathBuf::from);
         if let Some(dir) = &out {

@@ -1,7 +1,7 @@
-//! What became of a ScrawlKit recording once the Mac took it in, what the phone is told about
-//! it, and the retries that finish the job when OpenCode didn't take the bundle.
+//! What became of a recording once the Mac took it in, what the phone is told about it, and the
+//! retries that finish the job when the bundle couldn't be copied into its project folder.
 //!
-//! The phone uploads once. When the bundle is built but queuing it into the session fails, the
+//! The phone uploads once. When the bundle is built but delivering it to the project fails, the
 //! Mac keeps a `.deliver.json` in the bundle and tries again with backoff (15 s doubling to
 //! 30 min) for a day, then renames it `.deliver-failed.json`. Retention leaves a bundle with a
 //! pending delivery alone.
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::capture::scrawl_log;
 
-/// A bundle whose forward to OpenCode is still being retried.
+/// A bundle whose delivery to its project folder is still being retried.
 pub const PENDING: &str = ".deliver.json";
 /// A bundle whose forward was given up on.
 pub const FAILED: &str = ".deliver-failed.json";
@@ -25,11 +25,11 @@ const SCAN_EVERY: Duration = Duration::from_secs(15);
 /// What happened once a received recording's bundle was built.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Delivery {
-    /// Queued into the OpenCode session `title`.
+    /// Delivered to the project folder named `title`.
     Sent { title: String },
-    /// Saved on the Mac; queuing it into `title` failed and is retried (`PENDING`).
+    /// Saved on the Mac; delivering it to `title` failed and is retried (`PENDING`).
     Queued { title: String, error: String },
-    /// Saved on the Mac and sent nowhere (no session resolved, or routing is off).
+    /// Saved on the Mac and sent nowhere (no project resolved, or routing is off).
     Saved,
 }
 
@@ -54,8 +54,9 @@ pub enum Outcome {
     Failed(String),
 }
 
-/// The JSON body for an outcome. `title` is the session the recording is meant for ("Mac"
-/// when it isn't routed). Phones from before `delivered` treat any 2xx as sent.
+/// The JSON body for an outcome. `title` is the project folder's name the recording is meant for
+/// ("Mac" when it isn't routed); the field keeps its `sessionTitle` name for ScrawlKit apps.
+/// Phones from before `delivered` treat any 2xx as sent.
 pub fn reply_json(outcome: &Outcome, title: &str) -> serde_json::Value {
     let (delivered, state, error) = match outcome {
         Outcome::Done(Delivery::Sent { .. }) => (true, "sent", None),
@@ -88,11 +89,12 @@ pub fn short(error: &str) -> String {
     }
 }
 
-/// `PENDING`: where to send a bundle and how the tries have gone. Times are epoch ms.
+/// `PENDING`: where to deliver a bundle and how the tries have gone. Times are epoch ms.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pending {
-    pub session: String,
+    /// The project folder, as an absolute path.
+    pub project: String,
     pub title: String,
     /// The recording's ingest key (`recordedAt`), so a later duplicate upload hears it was sent.
     #[serde(default)]
@@ -105,9 +107,9 @@ pub struct Pending {
 
 impl Pending {
     /// After the first failed send at `now`.
-    pub fn new(session: &str, title: &str, key: Option<&str>, error: &str, now: u64) -> Self {
+    pub fn new(project: &str, title: &str, key: Option<&str>, error: &str, now: u64) -> Self {
         Self {
-            session: session.to_owned(),
+            project: project.to_owned(),
             title: title.to_owned(),
             key: key.map(str::to_owned),
             attempts: 1,
@@ -139,25 +141,25 @@ pub fn backoff_ms(attempts: u32) -> u64 {
 
 pub type Forward = fn(&Path, &str) -> Result<()>;
 
-/// Queues the bundle at `dir` into `session` through `forward`. If that fails, leaves a `PENDING`
-/// marker so the port owner retries it, and says so.
+/// Delivers the bundle at `dir` to the folder `project` through `forward`. If that fails, leaves
+/// a `PENDING` marker so the port owner retries it, and says so.
 pub fn deliver(
     dir: &Path,
-    session: &str,
+    project: &str,
     title: &str,
     key: Option<&str>,
     forward: Forward,
 ) -> Delivery {
-    match forward(dir, session) {
+    match forward(dir, project) {
         Ok(()) => Delivery::Sent {
             title: title.to_owned(),
         },
         Err(err) => {
             let error = format!("{err:#}");
             scrawl_log(format!(
-                "deliver: OpenCode send to {title} failed ({error}); retrying from the Mac"
+                "deliver: delivery to {title} failed ({error}); retrying from the Mac"
             ));
-            let pending = Pending::new(session, title, key, &error, crate::now_epoch_ms());
+            let pending = Pending::new(project, title, key, &error, crate::now_epoch_ms());
             if let Err(err) = pending.write(dir) {
                 scrawl_log(format!("deliver: {err:#}"));
             }
@@ -201,7 +203,7 @@ pub fn retry_due(captures: &Path, now: u64, forward: Forward) -> Report {
         if pending.next_at > now {
             continue;
         }
-        match forward(&dir, &pending.session) {
+        match forward(&dir, &pending.project) {
             Ok(()) => {
                 let _ = std::fs::remove_file(dir.join(PENDING));
                 scrawl_log(format!(
@@ -274,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn replies_say_whether_the_recording_reached_its_session() {
+    fn replies_say_whether_the_recording_reached_its_project() {
         let sent = reply_json(
             &Outcome::Done(Delivery::Sent {
                 title: "UP DOWN".into(),
@@ -288,13 +290,13 @@ mod tests {
         let queued = reply_json(
             &Outcome::Done(Delivery::Queued {
                 title: "UP DOWN".into(),
-                error: "OpenCode API failed: connection refused\nmore".into(),
+                error: "No such folder\nmore".into(),
             }),
             "UP DOWN",
         );
         assert_eq!(queued["delivered"], false);
         assert_eq!(queued["state"], "queued");
-        assert_eq!(queued["error"], "OpenCode API failed: connection refused");
+        assert_eq!(queued["error"], "No such folder");
         assert_eq!(
             reply_json(&Outcome::Done(Delivery::Saved), "Mac")["state"],
             "saved"
@@ -322,10 +324,10 @@ mod tests {
     static UP: AtomicBool = AtomicBool::new(false);
     static TRIES: AtomicUsize = AtomicUsize::new(0);
 
-    fn flaky_forward(_: &Path, session: &str) -> Result<()> {
-        assert_eq!(session, "ses_retry");
+    fn flaky_forward(_: &Path, project: &str) -> Result<()> {
+        assert_eq!(project, "/p/retry");
         TRIES.fetch_add(1, Ordering::SeqCst);
-        anyhow::ensure!(UP.load(Ordering::SeqCst), "OpenCode API failed: offline");
+        anyhow::ensure!(UP.load(Ordering::SeqCst), "folder unavailable");
         Ok(())
     }
 
@@ -334,7 +336,7 @@ mod tests {
         let captures = temp_captures();
         let bundle = captures.join("pointo-1-a.pointo");
         std::fs::create_dir_all(&bundle).unwrap();
-        Pending::new("ses_retry", "Retry", Some("k"), "offline", 1_000)
+        Pending::new("/p/retry", "Retry", Some("k"), "offline", 1_000)
             .write(&bundle)
             .unwrap();
 
@@ -348,7 +350,7 @@ mod tests {
         assert_eq!(report.retrying, 1);
         let pending = Pending::read(&bundle).unwrap();
         assert_eq!((pending.attempts, pending.next_at), (2, 46_000));
-        assert_eq!(pending.last_error, "OpenCode API failed: offline");
+        assert_eq!(pending.last_error, "folder unavailable");
 
         UP.store(true, Ordering::SeqCst);
         let report = retry_due(&captures, 46_000, flaky_forward);
@@ -360,7 +362,7 @@ mod tests {
     }
 
     fn down(_: &Path, _: &str) -> Result<()> {
-        anyhow::bail!("OpenCode API failed: offline")
+        anyhow::bail!("folder unavailable")
     }
 
     #[test]
@@ -368,7 +370,7 @@ mod tests {
         let captures = temp_captures();
         let bundle = captures.join("pointo-2-b.pointo");
         std::fs::create_dir_all(&bundle).unwrap();
-        let mut pending = Pending::new("ses_x", "X", None, "offline", 0);
+        let mut pending = Pending::new("/p/x", "X", None, "offline", 0);
         pending.next_at = GIVE_UP_AFTER_MS;
         pending.write(&bundle).unwrap();
         let report = retry_due(&captures, GIVE_UP_AFTER_MS, down);
