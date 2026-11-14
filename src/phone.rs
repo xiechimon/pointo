@@ -1526,9 +1526,9 @@ fn build_ingested(
         _ => Delivery::Saved,
     };
     let status = delivery.status(if config.copy_clipboard {
-        "Copied to clipboard"
+        "已复制到剪贴板"
     } else {
-        "Saved bundle"
+        "已保存录制包"
     });
     scrawl_log(format!("ingest: {} ({status})", dir.display()));
     if let (Some(on_bundle), Some(bundle)) = (&config.on_bundle, bundle) {

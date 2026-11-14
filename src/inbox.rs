@@ -34,7 +34,7 @@ impl InboxEntry {
         }
     }
 
-    /// `UpDown · 0:25 · 5 frames · 2 min ago`
+    /// `UpDown · 0:25 · 5 帧 · 2 分钟前`
     pub fn label(&self, now_ms: u64) -> String {
         let name = self.app.as_deref().unwrap_or(match self.source.as_str() {
             "iphone" => "iPhone",

@@ -409,20 +409,20 @@ impl ElemId {
 
     pub const fn accessibility_label(self) -> &'static str {
         match self {
-            Self::Lead => "Recording timer",
+            Self::Lead => "录制计时",
             Self::DividerLead | Self::DividerClose => "",
-            Self::ChipArea => "Area",
-            Self::ChipWindow => "Window",
-            Self::ChipScreen => "Screen",
-            Self::ChipIphone => "iPhone",
-            Self::Record => "Record",
-            Self::Close | Self::Cancel => "Cancel",
-            Self::Finish => "Finish",
-            Self::Processing => "Processing",
-            Self::DoneLead => "Completed",
-            Self::Paste => "Paste",
-            Self::Inspect => "Inspect",
-            Self::Route0 | Self::Route1 => "Send to project",
+            Self::ChipArea => SelectionMode::Area.label(),
+            Self::ChipWindow => SelectionMode::Window.label(),
+            Self::ChipScreen => SelectionMode::Screen.label(),
+            Self::ChipIphone => SelectionMode::Iphone.label(),
+            Self::Record => crate::ui::LABEL_RECORD,
+            Self::Close | Self::Cancel => crate::ui::LABEL_CANCEL,
+            Self::Finish => crate::ui::LABEL_FINISH,
+            Self::Processing => "处理中",
+            Self::DoneLead => "已完成",
+            Self::Paste => crate::ui::LABEL_PASTE,
+            Self::Inspect => crate::ui::LABEL_INSPECT,
+            Self::Route0 | Self::Route1 => "发送到项目",
         }
     }
 }
@@ -507,16 +507,16 @@ pub struct Metrics {
 impl Default for Metrics {
     fn default() -> Self {
         Self {
-            area: 30.0,
-            window: 50.0,
-            screen: 44.0,
+            area: 26.0,
+            window: 26.0,
+            screen: 52.0,
             iphone: 43.0,
-            record: 46.0,
-            cancel: 44.0,
-            finish: 38.0,
-            processing: 78.0,
-            paste: 36.0,
-            inspect: 47.0,
+            record: 26.0,
+            cancel: 26.0,
+            finish: 26.0,
+            processing: 52.0,
+            paste: 26.0,
+            inspect: 26.0,
             clock_000: 29.0,
             clock_0000: 37.0,
         }

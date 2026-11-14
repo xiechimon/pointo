@@ -85,9 +85,9 @@ impl Preset {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Week => "Video for 7 Days",
-            Self::Month => "Video for 30 Days",
-            Self::Forever => "Forever",
+            Self::Week => "视频保留 7 天",
+            Self::Month => "视频保留 30 天",
+            Self::Forever => "永久保留",
         }
     }
 

@@ -210,7 +210,7 @@ pub fn paste_label() -> String {
         .and_then(|label| label.clone())
         .unwrap_or_else(|| ShortcutConfig::default_paste().label);
     if label.is_empty() {
-        "the paste shortcut".to_owned()
+        "粘贴快捷键".to_owned()
     } else {
         label
     }
@@ -275,24 +275,24 @@ impl Rejection {
     pub fn message(&self) -> String {
         match self {
             Self::NoModifier if cfg!(target_os = "windows") => {
-                "Hold Ctrl, Alt or Win with the key.".to_owned()
+                "需要同时按住 Ctrl、Alt 或 Win。".to_owned()
             }
-            Self::NoModifier => "Hold ⌘, ⌥ or ⌃ with the key.".to_owned(),
-            Self::UnsupportedKey => "Pointo can't use that key. Try a letter or number.".to_owned(),
+            Self::NoModifier => "需要同时按住 ⌘、⌥ 或 ⌃。".to_owned(),
+            Self::UnsupportedKey => "Pointo 不能用这个键，试试字母或数字。".to_owned(),
             Self::Reserved(label) if cfg!(target_os = "windows") => {
                 if label.starts_with("Ctrl+") && !label.contains("Alt+") && !label.contains("Win+")
                 {
-                    format!("Apps use {label}. Add Alt.")
+                    format!("{label} 已被其他 App 使用，再加上 Alt。")
                 } else {
-                    format!("Windows uses {label}.")
+                    format!("{label} 已被 Windows 使用。")
                 }
             }
             Self::Reserved(label) if label.starts_with('⌘') && !label.contains(['⌃', '⌥']) => {
-                format!("Apps use {label}. Add ⌥ or ⌃.")
+                format!("{label} 已被其他 App 使用，再加上 ⌥ 或 ⌃。")
             }
-            Self::Reserved(label) => format!("macOS uses {label}."),
-            Self::Taken(kind) => format!("{} already uses this.", kind.name()),
-            Self::Refused => "Another app has this shortcut.".to_owned(),
+            Self::Reserved(label) => format!("{label} 已被 macOS 使用。"),
+            Self::Taken(kind) => format!("「{}」已在用这个组合。", kind.name()),
+            Self::Refused => "其他 App 占用了这个快捷键。".to_owned(),
         }
     }
 }
@@ -665,19 +665,17 @@ impl CommandLineView {
         match state {
             State::Installed { link, homebrew } => {
                 view.path = Some(tilde(link));
-                view.caption = "Agents and your terminal can run pointo to read captures, zoom \
-                                into a moment and export video."
+                view.caption = "AI 代理和终端可以运行 pointo 来读取录制、放大某个时刻、导出视频。"
                     .to_owned();
                 if *homebrew {
                     view.button = None;
-                    view.caption = "Installed with Homebrew. Agents and your terminal can run \
-                                    pointo to read captures, zoom into a moment and export video."
+                    view.caption = "已通过 Homebrew 安装。AI 代理和终端可以运行 pointo 来读取录制、放大某个时刻、导出视频。"
                         .to_owned();
                 } else {
                     view.button = Some("uninstall");
                     if !usually_on_path(link) {
                         view.caption = format!(
-                            "If your shell can't find pointo, add {} to your PATH.",
+                            "如果终端找不到 pointo，请把 {} 加到 PATH。",
                             folder(link)
                         );
                     }
@@ -685,13 +683,13 @@ impl CommandLineView {
             }
             State::Missing { link } => {
                 view.caption = format!(
-                    "Links pointo into {}, so agents and your terminal can run it.",
+                    "把 pointo 链接到 {}，AI 代理和终端就能运行它。",
                     folder(link)
                 );
             }
             State::Stale { link } => {
                 view.caption = format!(
-                    "{} points to another copy of Pointo. Install links it to this one.",
+                    "{} 指向另一份 Pointo。点“安装”会改为链接到这一份。",
                     tilde(link)
                 );
             }
@@ -699,7 +697,7 @@ impl CommandLineView {
                 view.button = None;
                 view.error = true;
                 view.caption = format!(
-                    "{} is another program, so Pointo leaves it alone.",
+                    "{} 是另一个程序，Pointo 不会动它。",
                     tilde(link)
                 );
             }
@@ -707,12 +705,12 @@ impl CommandLineView {
                 view.enabled = false;
                 view.error = true;
                 view.caption =
-                    "There's no folder on your PATH that Pointo can write to.".to_owned();
+                    "PATH 里没有 Pointo 可以写入的文件夹。".to_owned();
             }
             State::Unavailable => {
                 view.enabled = false;
                 view.caption =
-                    "The command-line tool works in the installed Pointo.app.".to_owned();
+                    "命令行工具只在已安装的 Pointo.app 里可用。".to_owned();
             }
         }
         if let Some(error) = error {
@@ -787,8 +785,8 @@ fn microphone_view(
     let empty = crate::mic::Inputs::default();
     let pick = Pick::new(choice, inputs.unwrap_or(&empty));
     let default_title = match inputs.and_then(crate::mic::Inputs::default_input) {
-        Some(input) => format!("System default ({})", input.name),
-        None => "System default".to_owned(),
+        Some(input) => format!("系统默认（{}）", input.name),
+        None => "系统默认".to_owned(),
     };
     let mut options = vec![option("default", default_title, true)];
     if let Some(inputs) = inputs.filter(|i| !i.devices.is_empty()) {
@@ -805,7 +803,7 @@ fn microphone_view(
     if let (Some(choice), true, Pick::Missing { .. }) = (choice, loaded, &pick) {
         options.push(option(
             &choice.id,
-            format!("{} (not connected)", choice.name),
+            format!("{}（未连接）", choice.name),
             false,
         ));
     }
@@ -814,7 +812,7 @@ fn microphone_view(
         value: match (choice, &pick) {
             (_, Pick::Chosen(input)) => input.name.clone(),
             (Some(choice), _) => choice.name.clone(),
-            (None, _) => "System default".to_owned(),
+            (None, _) => "系统默认".to_owned(),
         },
         options,
         note: if loaded { pick.note() } else { None },
@@ -929,25 +927,25 @@ fn preset_id(preset: crate::retention::Preset) -> &'static str {
 fn retention_note(policy: &crate::retention::Policy) -> String {
     let days = |n: u32| {
         if n == 1 {
-            "1 day".to_owned()
+            "1 天".to_owned()
         } else {
-            format!("{n} days")
+            format!("{n} 天")
         }
     };
     let bin = if cfg!(target_os = "windows") {
-        "Recycle Bin"
+        "回收站"
     } else {
-        "Trash"
+        "废纸篓"
     };
     match (policy.media_days, policy.bundle_days) {
         (None, None) => String::new(),
         (Some(media), Some(bundle)) => format!(
-            "Video and audio go to the {bin} after {}, the rest of each capture after {}.",
+            "视频和音频 {}后移到{bin}，其余内容 {}后移到{bin}。",
             days(media),
             days(bundle)
         ),
-        (Some(media), None) => format!("Video and audio go to the {bin} after {}.", days(media)),
-        (None, Some(bundle)) => format!("Captures go to the {bin} after {}.", days(bundle)),
+        (Some(media), None) => format!("视频和音频 {}后移到{bin}。", days(media)),
+        (None, Some(bundle)) => format!("录制 {}后移到{bin}。", days(bundle)),
     }
 }
 
@@ -1167,7 +1165,7 @@ impl Panel {
     fn note_cli(&mut self, verb: &str, result: anyhow::Result<()>) {
         self.cli_error = result.err().map(|error| {
             crate::capture::scrawl_log(format!("Command-line tool: {verb}: {error:#}"));
-            format!("Couldn't {verb} it: {error}.")
+            format!("{}失败：{error}", if verb == "install" { "安装" } else { "卸载" })
         });
     }
 
@@ -1918,7 +1916,7 @@ mod tests {
         );
         assert_eq!(
             Rejection::Taken(ShortcutKind::Paste).message(),
-            "Paste last capture already uses this."
+            "「粘贴最近一次录制」已在用这个组合。"
         );
     }
 
@@ -1934,7 +1932,7 @@ mod tests {
         );
         assert_eq!(
             no(pressed(R, CARBON_CMD_KEY, "r")).message(),
-            "Apps use ⌘R. Add ⌥ or ⌃."
+            "⌘R 已被其他 App 使用，再加上 ⌥ 或 ⌃。"
         );
         assert_eq!(
             no(pressed(21, CARBON_CMD_KEY | CARBON_SHIFT_KEY, "4")),
@@ -1942,11 +1940,11 @@ mod tests {
         );
         assert_eq!(
             no(pressed(SPACE, CARBON_CONTROL_KEY, " ")).message(),
-            "macOS uses ⌃Space."
+            "⌃Space 已被 macOS 使用。"
         );
         assert_eq!(
             Rejection::NoModifier.message(),
-            "Hold ⌘, ⌥ or ⌃ with the key."
+            "需要同时按住 ⌘、⌥ 或 ⌃。"
         );
     }
 
@@ -1962,19 +1960,19 @@ mod tests {
         );
         assert_eq!(
             no(pressed(R, CARBON_CONTROL_KEY | CARBON_SHIFT_KEY, "r")).message(),
-            "Apps use Ctrl+Shift+R. Add Alt."
+            "Ctrl+Shift+R 已被其他 App 使用，再加上 Alt。"
         );
         assert_eq!(
             no(pressed(R, CARBON_CMD_KEY, "r")).message(),
-            "Windows uses Win+R."
+            "Win+R 已被 Windows 使用。"
         );
         assert_eq!(
             no(pressed(0x53, CARBON_CMD_KEY | CARBON_SHIFT_KEY, "s")).message(),
-            "Windows uses Win+Shift+S."
+            "Win+Shift+S 已被 Windows 使用。"
         );
         assert_eq!(
             no(pressed(0x73, CARBON_OPTION_KEY, "")).message(),
-            "Windows uses Alt+F4."
+            "Alt+F4 已被 Windows 使用。"
         );
         assert_eq!(
             no(pressed(SPACE, CARBON_OPTION_KEY, " ")),
@@ -1991,7 +1989,7 @@ mod tests {
         );
         assert_eq!(
             Rejection::NoModifier.message(),
-            "Hold Ctrl, Alt or Win with the key."
+            "需要同时按住 Ctrl、Alt 或 Win。"
         );
     }
 
@@ -2183,7 +2181,7 @@ mod tests {
         assert_eq!(host.shortcuts, Shortcuts::default());
         assert_eq!(
             panel.view(&host).shortcuts[1].error.as_deref(),
-            Some("Another app has this shortcut.")
+            Some("其他 App 占用了这个快捷键。")
         );
         assert!(!dir.0.join("config.json").exists(), "nothing saved");
         // Esc cancels and resumes the hotkeys; the old message goes when recording starts again.
@@ -2363,8 +2361,9 @@ mod tests {
         assert_eq!(
             view.retention.note,
             format!(
-                "Video and audio go to the {} after 30 days, the rest of each capture after 90 days.",
-                if WIN { "Recycle Bin" } else { "Trash" }
+                "视频和音频 30 天后移到{}，其余内容 90 天后移到{}。",
+                if WIN { "回收站" } else { "废纸篓" },
+                if WIN { "回收站" } else { "废纸篓" }
             )
         );
         let config = read_json(&host.path);
@@ -2525,7 +2524,7 @@ mod tests {
         let mic = panel.view(&host).microphone;
         assert_eq!(
             (mic.selected.as_str(), mic.value.as_str()),
-            ("default", "System default")
+            ("default", "系统默认")
         );
         assert_eq!((mic.note, mic.meter), (None, None), "nothing listed yet");
 
@@ -2535,7 +2534,7 @@ mod tests {
         assert_eq!(
             titles,
             [
-                "System default (MacBook Pro Microphone)",
+                "系统默认（MacBook Pro Microphone）",
                 "",
                 "MacBook Pro Microphone",
                 "Shure MV7"
@@ -2575,12 +2574,12 @@ mod tests {
         assert_eq!(mic.value, "Shure MV7");
         assert_eq!(
             mic.note.as_deref(),
-            Some("Shure MV7 isn't connected. Using MacBook Pro Microphone.")
+            Some("Shure MV7 未连接，正在使用 MacBook Pro Microphone。")
         );
         let last = mic.options.last().unwrap();
         assert_eq!(
             (last.id.as_str(), last.title.as_str(), last.enabled),
-            ("usb-1", "Shure MV7 (not connected)", false)
+            ("usb-1", "Shure MV7（未连接）", false)
         );
         assert_eq!(mic.meter.as_deref(), Some("BuiltInMicrophoneDevice"));
 
@@ -2739,7 +2738,7 @@ mod tests {
         assert_eq!((row.button, row.enabled), (Some("install"), false));
         assert_eq!(
             row.caption,
-            "The command-line tool works in the installed Pointo.app."
+            "命令行工具只在已安装的 Pointo.app 里可用。"
         );
         assert_eq!(
             panel.view(&host).skill_command,
@@ -2756,7 +2755,7 @@ mod tests {
             (Some("install"), true, None)
         );
         assert!(
-            row.caption.starts_with("Links pointo into "),
+            row.caption.starts_with("把 pointo 链接到 "),
             "{}",
             row.caption
         );
@@ -2771,7 +2770,7 @@ mod tests {
         assert_eq!(row.button, Some("uninstall"));
         assert_eq!(row.path.as_deref(), Some(link.to_str().unwrap()));
         // Not Homebrew's or /usr/local's bin, so it may not be on PATH.
-        assert!(row.caption.contains("to your PATH"), "{}", row.caption);
+        assert!(row.caption.contains("加到 PATH"), "{}", row.caption);
         assert!(!row.error);
 
         panel.on(Action::UninstallCli, &mut host);
@@ -2784,13 +2783,13 @@ mod tests {
         assert_eq!((row.button, row.error), (None, true));
         assert!(
             row.caption
-                .ends_with("is another program, so Pointo leaves it alone.")
+                .ends_with("是另一个程序，Pointo 不会动它。")
         );
         panel.on(Action::InstallCli, &mut host);
         assert_eq!(std::fs::read_to_string(&link).unwrap(), "other");
         let row = panel.view(&host).command_line;
         assert!(
-            row.error && row.caption.starts_with("Couldn't install it: "),
+            row.error && row.caption.starts_with("安装失败："),
             "{}",
             row.caption
         );

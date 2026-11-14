@@ -67,6 +67,17 @@ const CHIP_GAP: f32 = 2.0;
 const DIVIDER_MX: f32 = 6.0;
 const LEAD_TRAIL: f32 = 8.0;
 const HUD_TEXT: f32 = 13.0;
+
+// The HUD's button labels. The GPUI row and the native pill (`native::pill`) both read these,
+// so they measure and draw the same words.
+pub(crate) const LABEL_RECORD: &str = "录制";
+pub(crate) const LABEL_CANCEL: &str = "取消";
+pub(crate) const LABEL_FINISH: &str = "完成";
+pub(crate) const LABEL_PROCESSING: &str = "处理中…";
+pub(crate) const LABEL_PASTE: &str = "粘贴";
+pub(crate) const LABEL_INSPECT: &str = "查看";
+/// What a route chip's text starts with when it is the suggested destination ("发送到 APP").
+pub(crate) const SEND_TO_PREFIX: &str = "发送到 ";
 // Selection-mode segments: line icon, then label.
 const SEG_PX: f32 = 10.0;
 const SEG_ICON: f32 = 14.0;
@@ -222,24 +233,53 @@ fn clock_template(clock: &str) -> String {
 /// iPhone ones count the inbox.
 fn completed_label(inbox_count: usize, note: Option<&str>) -> String {
     match inbox_count {
-        0 => note.unwrap_or("Copied").to_owned(),
-        1 => "From iPhone".to_owned(),
-        n => format!("{n} from iPhone"),
+        0 => note.unwrap_or("已复制").to_owned(),
+        1 => "来自 iPhone".to_owned(),
+        n => format!("{n} 条来自 iPhone"),
     }
 }
 
 /// How long an automatically routed capture waits, showing "Sending to …", before it is sent.
 const SMART_SEND_UNDO: Duration = Duration::from_millis(3_000);
 
+/// Columns a character takes in a title: CJK and fullwidth forms are about twice as wide as
+/// Latin letters, so they count 2.
+fn display_cols(c: char) -> usize {
+    let cp = c as u32;
+    let wide = matches!(cp,
+        0x1100..=0x115F
+        | 0x2E80..=0x303E
+        | 0x3041..=0x33FF
+        | 0x3400..=0x4DBF
+        | 0x4E00..=0x9FFF
+        | 0xA000..=0xA4CF
+        | 0xAC00..=0xD7A3
+        | 0xF900..=0xFAFF
+        | 0xFE30..=0xFE6F
+        | 0xFF00..=0xFF60
+        | 0xFFE0..=0xFFE6
+        | 0x1F300..=0x1FAFF
+        | 0x20000..=0x3FFFD);
+    if wide { 2 } else { 1 }
+}
+
+/// Cuts `title` to `max` display columns (Latin 1, CJK 2), ending in "…" when it was cut.
 fn truncate_title(title: &str, max: usize) -> String {
-    if title.chars().count() > max {
-        format!(
-            "{}…",
-            title.chars().take(max - 1).collect::<String>().trim_end()
-        )
-    } else {
-        title.to_owned()
+    let cols = |s: &str| s.chars().map(display_cols).sum::<usize>();
+    if cols(title) <= max {
+        return title.to_owned();
     }
+    let mut kept = String::new();
+    let mut used = 0;
+    for c in title.chars() {
+        let w = display_cols(c);
+        if used + w > max - 1 {
+            break;
+        }
+        kept.push(c);
+        used += w;
+    }
+    format!("{}…", kept.trim_end())
 }
 
 /// A project folder's name short enough for the island.
@@ -250,9 +290,9 @@ fn island_title(title: &str) -> String {
 /// The Completed island's lead once a local capture's send is done.
 fn completed_delivery_note(delivery: &crate::delivery::Delivery, title: &str) -> String {
     match delivery {
-        crate::delivery::Delivery::Sent { .. } => format!("Sent to {title}"),
-        crate::delivery::Delivery::Queued { .. } => format!("Copied · couldn't reach {title}"),
-        crate::delivery::Delivery::Saved => "Copied".to_owned(),
+        crate::delivery::Delivery::Sent { .. } => format!("已发送到 {title}"),
+        crate::delivery::Delivery::Queued { .. } => format!("已复制 · 没能发送到 {title}"),
+        crate::delivery::Delivery::Saved => "已复制".to_owned(),
     }
 }
 
@@ -288,8 +328,8 @@ fn recording_trail_widths(window: &Window, chips: bool, iphone: bool) -> Vec<f32
             .collect()
     } else {
         vec![
-            chip_width(window, "Cancel", FontWeight::MEDIUM),
-            chip_width(window, "Finish", FontWeight::SEMIBOLD),
+            chip_width(window, LABEL_CANCEL, FontWeight::MEDIUM),
+            chip_width(window, LABEL_FINISH, FontWeight::SEMIBOLD),
         ]
     }
 }
@@ -304,7 +344,7 @@ fn trail_keys(
     let names: Vec<String> = if chips {
         SelectionMode::available(iphone)
             .iter()
-            .map(|m| format!("chip:{}", m.label()))
+            .map(|m| format!("chip:{}", m.trace_name()))
             .collect()
     } else {
         ["cancel", "finish"].map(String::from).to_vec()
@@ -375,7 +415,7 @@ fn island_content_width(
                 .collect();
             let record = mode
                 .shows_record()
-                .then(|| chip_width(window, "Record", FontWeight::SEMIBOLD));
+                .then(|| chip_width(window, LABEL_RECORD, FontWeight::SEMIBOLD));
             selecting_row_width(&labels, record)
         }
         IslandPhase::Recording => {
@@ -395,7 +435,7 @@ fn island_content_width(
         IslandPhase::Processing => {
             CHIP_H
                 + 6.0
-                + measure_text(window, "Processing…", HUD_TEXT, FontWeight::SEMIBOLD)
+                + measure_text(window, LABEL_PROCESSING, HUD_TEXT, FontWeight::SEMIBOLD)
                 + CHIP_PX
         }
         IslandPhase::Completed { inbox_count, .. } => {
@@ -409,12 +449,12 @@ fn island_content_width(
                 )
                 + LEAD_TRAIL
                 + divider
-                + chip_width(window, "Paste", FontWeight::SEMIBOLD)
+                + chip_width(window, LABEL_PASTE, FontWeight::SEMIBOLD)
                 + routes
                     .iter()
                     .map(|label| chip_width(window, label, FontWeight::MEDIUM) + CHIP_GAP)
                     .sum::<f32>()
-                + chip_width(window, "Inspect", FontWeight::MEDIUM)
+                + chip_width(window, LABEL_INSPECT, FontWeight::MEDIUM)
                 + CHIP_H
                 + 3.0 * CHIP_GAP
         }
@@ -451,7 +491,7 @@ fn start_video_export() {
             *status = text;
         }
     };
-    say(Some("Exporting…".into()));
+    say(Some("正在导出…".into()));
     let spawned = std::thread::Builder::new()
         .name("pointo-export".into())
         .spawn(move || {
@@ -462,19 +502,19 @@ fn start_video_export() {
                         ..Default::default()
                     };
                     crate::export::export(&dir, &bundle, &options, &mut |fraction| {
-                        say(Some(format!("Exporting {}%", (fraction * 100.0) as u32)));
+                        say(Some(format!("正在导出 {}%", (fraction * 100.0) as u32)));
                     })
                 },
             );
             match result {
                 Ok(exported) => {
                     scrawl_log(format!("Exported {}", crate::export::describe(&exported)));
-                    say(Some("Exported".into()));
+                    say(Some("已导出".into()));
                     let _ = crate::handoff::reveal_path(&exported.path);
                 }
                 Err(error) => {
                     scrawl_log(format!("Video export failed: {error:#}"));
-                    say(Some("Export failed".into()));
+                    say(Some("导出失败".into()));
                 }
             }
             std::thread::sleep(Duration::from_secs(4));
@@ -542,7 +582,18 @@ impl SelectionMode {
         }
     }
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Area => "区域",
+            Self::Window => "窗口",
+            Self::Screen => "整个屏幕",
+            Self::Iphone => "iPhone",
+        }
+    }
+
+    /// The English name motion traces key a mode's chip by (`chip:Area`); the visible
+    /// `label` is translated, the traces are not.
+    pub(crate) fn trace_name(self) -> &'static str {
         match self {
             Self::Area => "Area",
             Self::Window => "Window",
@@ -2021,7 +2072,7 @@ impl ScrawlCoordinator {
                         .is_some_and(|(shown, _)| *shown == dir)
                 {
                     let names: Vec<&str> = chips.iter().map(|c| c.name.as_str()).collect();
-                    self.review_status = Some(format!("Copied · for {}?", names.join(" or ")));
+                    self.review_status = Some(format!("已复制 · 发送到 {}？", names.join(" 或 ")));
                 }
             }
         }
@@ -2067,7 +2118,7 @@ impl ScrawlCoordinator {
     ) {
         self.pending_send = Some(dir.clone());
         if self.completed_dir.as_deref() == Some(dir.as_path()) {
-            self.completed_note = Some(format!("Sending to {}…", island_title(&dest.name())));
+            self.completed_note = Some(format!("正在发送到 {}…", island_title(&dest.name())));
         }
         cx.spawn(async move |entity, cx| {
             cx.background_executor().timer(SMART_SEND_UNDO).await;
@@ -2113,14 +2164,14 @@ impl ScrawlCoordinator {
     ) {
         let title = island_title(&dest.name());
         if self.completed_dir.as_deref() == Some(dir.as_path()) {
-            self.completed_note = Some(format!("Sending to {title}…"));
+            self.completed_note = Some(format!("正在发送到 {title}…"));
         }
         if self
             .review_bundle
             .as_ref()
             .is_some_and(|(shown, _)| *shown == dir)
         {
-            self.review_status = Some(format!("Sending to {title}…"));
+            self.review_status = Some(format!("正在发送到 {title}…"));
         }
         let (sender, receiver) = flume::bounded(1);
         let send_dir = dir.clone();
@@ -2159,7 +2210,7 @@ impl ScrawlCoordinator {
                     .as_ref()
                     .is_some_and(|(shown, _)| *shown == dir)
                 {
-                    coord.review_status = Some(delivery.status("Copied to clipboard"));
+                    coord.review_status = Some(delivery.status("已复制到剪贴板"));
                 }
                 cx.notify();
             });
@@ -2613,7 +2664,7 @@ impl ScrawlCoordinator {
     /// the capsule goes through exactly the states a real one does.
     fn start_lab_recording(&mut self, target: TargetInfo, cx: &mut Context<Self>) {
         if let IslandPhase::Selecting { mode } = self.island_phase {
-            motion::trace_event(format!("record:{}", mode.label()));
+            motion::trace_event(format!("record:{}", mode.trace_name()));
         }
         self.iphone_preview = None;
         self.selection_drag = None;
@@ -2983,7 +3034,7 @@ impl RouteChip {
             .map(|(i, project)| {
                 Self::to(project, |name| {
                     if i == 0 {
-                        format!("Send to {name}")
+                        format!("{SEND_TO_PREFIX}{name}")
                     } else {
                         name.to_owned()
                     }
@@ -2999,7 +3050,7 @@ impl RouteChip {
             .iter()
             .find(|project| project.display().to_string() != current.project)
             .map(|project| {
-                let mut chip = Self::to(project, |name| format!("Send to {name}"));
+                let mut chip = Self::to(project, |name| format!("{SEND_TO_PREFIX}{name}"));
                 chip.dest.url.clone_from(&current.url);
                 chip
             })
@@ -3259,7 +3310,7 @@ impl Render for HudPillWindow {
             let modes = SelectionMode::available(has_iphone);
             let mut widths: Vec<f32> = modes.iter().map(|&m| segment_width(window, m)).collect();
             if mode.shows_record() {
-                widths.push(chip_width(window, "Record", FontWeight::SEMIBOLD));
+                widths.push(chip_width(window, LABEL_RECORD, FontWeight::SEMIBOLD));
             }
             widths.extend([layout.divider_w, CHIP_H]);
             trail_offsets(layout.row_left(), &widths)
@@ -3335,8 +3386,7 @@ impl Render for HudPillWindow {
                     }),
                     SelectionMode::available(has_iphone)
                         .iter()
-                        .map(|m| m.label())
-                        .map(|label| format!("chip:{label}"))
+                        .map(|m| format!("chip:{}", m.trace_name()))
                         .chain(record.then(|| "record".to_owned()))
                         .chain(["divider.close".to_owned(), "close".to_owned()])
                         .enumerate()
@@ -3357,7 +3407,7 @@ impl Render for HudPillWindow {
                 ))
                 .when(record, |row| {
                     row.child(
-                        primary_chip("sel-record", "Record")
+                        primary_chip("sel-record", LABEL_RECORD)
                             .opacity(alpha(n_modes))
                             .on_click(move |_, _, cx| {
                                 c_record.update(cx, |coord, cx| coord.record_selected_mode(cx));
@@ -3409,7 +3459,7 @@ impl Render for HudPillWindow {
             )
             .child(island_divider())
             .child(
-                primary_chip("hud-paste", "Paste")
+                primary_chip("hud-paste", LABEL_PASTE)
                     .on_mouse_down(MouseButton::Left, move |_, _, cx| {
                         let start = current_mouse_screen();
                         c_paste_down.update(cx, |coord, _| {
@@ -3443,7 +3493,7 @@ impl Render for HudPillWindow {
                 })
             }))
             .child(
-                pill_chip("hud-inspect", "Inspect").on_click(move |_, _, cx| {
+                pill_chip("hud-inspect", LABEL_INSPECT).on_click(move |_, _, cx| {
                     c_inspect.update(cx, |coord, cx| coord.inspect_completed_bundle(cx));
                 }),
             )
@@ -3586,7 +3636,7 @@ impl Render for HudPillWindow {
                                 .ml(px(6.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(rgb(TEXT_COLOR))
-                                .child("Processing…"),
+                                .child(LABEL_PROCESSING),
                         ),
                 )
             }
@@ -3760,7 +3810,7 @@ impl HudPillWindow {
         let c_finish = self.coordinator.clone();
         group
             .child(
-                pill_chip("hud-cancel", "Cancel")
+                pill_chip("hud-cancel", LABEL_CANCEL)
                     .opacity(alpha(0))
                     .when(interactive, |d| {
                         d.on_click(move |_, _, cx| {
@@ -3769,7 +3819,7 @@ impl HudPillWindow {
                     }),
             )
             .child(
-                primary_chip("hud-done", "Finish")
+                primary_chip("hud-done", LABEL_FINISH)
                     .opacity(alpha(1))
                     .when(interactive, |d| {
                         d.on_click(move |_, _, cx| {
@@ -4034,12 +4084,12 @@ impl Render for TargetPickerWindow {
             }),
             SelectionMode::Screen => Some((
                 [0.0, 0.0, screen[0], screen[1]],
-                "Full screen · Click to record".to_string(),
+                "整个屏幕 · 点击开始录制".to_string(),
             )),
             SelectionMode::Iphone => iphone_rect.map(|[rx, ry, rw, rh]| {
                 (
                     [(rx - origin[0]) * k, (ry - origin[1]) * k, rw * k, rh * k],
-                    format!("{iphone_name} · Click to record"),
+                    format!("{iphone_name} · 点击开始录制"),
                 )
             }),
         }
@@ -4404,20 +4454,20 @@ impl Render for BundleReviewWindow {
                         .flex()
                         .gap_2()
                         .child(
-                            hint_button("empty-record", "Record", Some(shortcut_label), true)
+                            hint_button("empty-record", "开始录制", Some(shortcut_label), true)
                                 .on_click(move |_, _, cx| {
                                     c_start.update(cx, |coord, cx| coord.record_or_finish(cx));
                                 }),
                         )
                         .child(
-                            action_button("empty-demo", "Load Demo Bundle", false).on_click(
+                            action_button("empty-demo", "加载示例录制包", false).on_click(
                                 move |_, _, cx| {
                                     if let Ok((dir, bundle, _)) = crate::generate_demo_bundle(None)
                                     {
                                         c_demo.update(cx, |coord, cx| {
                                             coord.set_review_bundle(
                                                 (dir, bundle),
-                                                Some("Generated demo bundle".into()),
+                                                Some("已生成示例录制包".into()),
                                             );
                                             cx.notify();
                                         });
@@ -4436,7 +4486,7 @@ impl Render for BundleReviewWindow {
                 format!("{app} — “{win}”")
             }
             (Some(app), _) => app.clone(),
-            _ => format!("Display {}", bundle.target.display_id),
+            _ => format!("显示器 {}", bundle.target.display_id),
         };
         let timeline = timeline(&bundle);
 
@@ -4547,7 +4597,7 @@ impl Render for BundleReviewWindow {
                                     .child(
                                         tab_chip(
                                             "tab-contact-sheet",
-                                            "Contact Sheet",
+                                            "总览图",
                                             tab == ReviewTab::ContactSheet,
                                         )
                                         .on_click(
@@ -4562,7 +4612,7 @@ impl Render for BundleReviewWindow {
                                     .child(
                                         tab_chip(
                                             "tab-keyframes",
-                                            "Keyframes",
+                                            "关键帧",
                                             tab == ReviewTab::Keyframes,
                                         )
                                         .on_click(
@@ -4582,15 +4632,10 @@ impl Render for BundleReviewWindow {
                                     .text_size(px(12.0))
                                     .text_color(rgb(MUTED_COLOR))
                                     .child(format!(
-                                        "{} · {} · {} {}",
+                                        "{} · {} · {} 个关键帧",
                                         target_label,
                                         format_clock(bundle.duration_ms),
                                         bundle.keyframes.len(),
-                                        if bundle.keyframes.len() == 1 {
-                                            "keyframe"
-                                        } else {
-                                            "keyframes"
-                                        }
                                     )),
                             ),
                     )
@@ -4604,9 +4649,9 @@ impl Render for BundleReviewWindow {
                                 hint_button(
                                     "btn-shortcut",
                                     if recording_shortcut {
-                                        "Press shortcut…"
+                                        "按下快捷键…"
                                     } else {
-                                        "Shortcut"
+                                        "快捷键"
                                     },
                                     (!recording_shortcut).then_some(shortcut_label),
                                     false,
@@ -4622,7 +4667,7 @@ impl Render for BundleReviewWindow {
                             .child(
                                 action_button(
                                     "btn-reveal",
-                                    &format!("Show in {}", platform::FILE_MANAGER),
+                                    &format!("在{}中显示", platform::FILE_MANAGER),
                                     false,
                                 )
                                 .on_click(move |_, _, cx| {
@@ -4630,8 +4675,8 @@ impl Render for BundleReviewWindow {
                                     let manager = platform::FILE_MANAGER;
                                     c_send.update(cx, |coord, cx| {
                                         coord.review_status = Some(match res {
-                                            Ok(()) => format!("Opened in {manager}"),
-                                            Err(e) => format!("Show in {manager} failed: {e}"),
+                                            Ok(()) => format!("已在{manager}中打开"),
+                                            Err(e) => format!("无法在{manager}中显示：{e}"),
                                         });
                                         cx.notify();
                                     });
@@ -4640,10 +4685,10 @@ impl Render for BundleReviewWindow {
                             .child(
                                 action_button(
                                     "btn-copy",
-                                    if status.as_deref() == Some("Copied ✓") {
-                                        "Copied"
+                                    if status.as_deref() == Some("已复制 ✓") {
+                                        "已复制"
                                     } else {
-                                        "Copy"
+                                        "复制"
                                     },
                                     true,
                                 )
@@ -4654,8 +4699,8 @@ impl Render for BundleReviewWindow {
                                             coord.mark_handled(&copy_dir);
                                         }
                                         coord.review_status = Some(match res {
-                                            Ok(()) => "Copied ✓".into(),
-                                            Err(e) => format!("Copy failed: {e}"),
+                                            Ok(()) => "已复制 ✓".into(),
+                                            Err(e) => format!("复制失败：{e}"),
                                         });
                                         cx.notify();
                                     });
@@ -4701,7 +4746,7 @@ impl Render for BundleReviewWindow {
                             .py(px(18.0))
                             .flex()
                             .flex_col()
-                            .child(sidebar_heading("Transcript"))
+                            .child(sidebar_heading("转写文字"))
                             .child(
                                 div()
                                     .p_3()
@@ -4714,13 +4759,13 @@ impl Render for BundleReviewWindow {
                                     .map(|d| {
                                         let text = bundle.transcript.text.trim();
                                         if text.is_empty() {
-                                            d.text_color(rgb(MUTED_COLOR)).child("No speech")
+                                            d.text_color(rgb(MUTED_COLOR)).child("没有语音")
                                         } else {
                                             d.text_color(rgb(TEXT_COLOR)).child(format!("“{text}”"))
                                         }
                                     }),
                             )
-                            .child(div().mt(px(20.0)).child(sidebar_heading("Timeline")))
+                            .child(div().mt(px(20.0)).child(sidebar_heading("时间线")))
                             .child(
                                 div().mx(px(-8.0)).flex().flex_col().gap(px(1.0)).children(
                                     timeline
@@ -4755,7 +4800,7 @@ impl BundleReviewWindow {
             div()
                 .p_6()
                 .text_color(rgb(MUTED_COLOR))
-                .child("Contact sheet image unavailable.")
+                .child("总览图不可用。")
                 .into_any_element()
         }
     }
@@ -5800,10 +5845,10 @@ mod tests {
     #[test]
     fn clock_template_is_width_stable() {
         assert_eq!(clock_template("12:34"), "00:00");
-        assert_eq!(completed_label(0, None), "Copied");
-        assert_eq!(completed_label(0, Some("Sent to POINTO")), "Sent to POINTO");
-        assert_eq!(completed_label(1, Some("Sent to POINTO")), "From iPhone");
-        assert_eq!(completed_label(3, None), "3 from iPhone");
+        assert_eq!(completed_label(0, None), "已复制");
+        assert_eq!(completed_label(0, Some("已发送到 POINTO")), "已发送到 POINTO");
+        assert_eq!(completed_label(1, Some("已发送到 POINTO")), "来自 iPhone");
+        assert_eq!(completed_label(3, None), "3 条来自 iPhone");
         assert_eq!(island_title("pointo"), "pointo");
         assert_eq!(
             island_title("a-very-long-project-folder-name"),
@@ -5813,18 +5858,36 @@ mod tests {
             chip_title("a-very-long-project-folder-name"),
             "a-very-long-pro…"
         );
+        // CJK counts two columns, so a Chinese folder name is cut where it would fill the same
+        // width as the Latin one, not after the same number of characters.
+        assert_eq!(island_title("我的项目"), "我的项目");
+        assert_eq!(
+            island_title("一个非常非常长的项目文件夹名称一二三四五"),
+            "一个非常非常长的项目文…"
+        );
+        assert_eq!(chip_title("一个非常非常长的项目文件夹"), "一个非常非常长…");
+        assert_eq!(chip_title("app-网站"), "app-网站");
+        assert_eq!(chip_title("project-文档文档文档文档"), "project-文档文…");
+        assert!(
+            ["一个非常非常长的项目文件夹名称", "mixed-混合-name-的-very-long-one"]
+                .iter()
+                .all(|t| {
+                    let cols = |s: &str| s.chars().map(display_cols).sum::<usize>();
+                    cols(&chip_title(t)) <= 16 && cols(&island_title(t)) <= 24
+                })
+        );
         let queued = crate::delivery::Delivery::Queued {
             title: "pointo".into(),
             error: "offline".into(),
         };
         assert_eq!(
             completed_delivery_note(&queued, "pointo"),
-            "Copied · couldn't reach pointo"
+            "已复制 · 没能发送到 pointo"
         );
         let sent = crate::delivery::Delivery::Sent {
             title: "pointo".into(),
         };
-        assert_eq!(completed_delivery_note(&sent, "pointo"), "Sent to pointo");
+        assert_eq!(completed_delivery_note(&sent, "pointo"), "已发送到 pointo");
     }
 
     #[test]
@@ -5836,7 +5899,7 @@ mod tests {
         // Not delivered: at most two recent projects, the first as "Send to".
         let offers = RouteChip::offers(&recent);
         let labels: Vec<&str> = offers.iter().map(|c| c.label.as_str()).collect();
-        assert_eq!(labels, ["Send to app", "site"]);
+        assert_eq!(labels, ["发送到 app", "site"]);
         assert_eq!(offers[1].dest.project, "/p/site");
         assert_eq!(offers[1].dest.via, "chosen");
         assert!(RouteChip::offers(&[]).is_empty());
@@ -5849,7 +5912,7 @@ mod tests {
         };
         let chips = RouteChip::switches(&recent, &current("/p/app"));
         assert_eq!(chips.len(), 1);
-        assert_eq!(chips[0].label, "Send to site");
+        assert_eq!(chips[0].label, "发送到 site");
         assert_eq!(chips[0].dest.url.as_deref(), Some("http://localhost:5173/"));
         assert_eq!(
             RouteChip::switches(&recent, &current("/p/site"))[0]

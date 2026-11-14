@@ -24,7 +24,7 @@ use objc2::msg_send;
 use objc2::runtime::{AnyClass, AnyObject};
 
 use super::model::{HUD_TEXT, Metrics};
-use crate::ui::SelectionMode;
+use crate::ui::{LABEL_CANCEL, LABEL_FINISH, LABEL_INSPECT, LABEL_PASTE, LABEL_PROCESSING, LABEL_RECORD, SelectionMode};
 
 pub const ATLAS_W: u32 = 1024;
 pub const ATLAS_H: u32 = 512;
@@ -116,16 +116,16 @@ pub fn measure_text_pt(text: &str, size_pt: f32, weight: f64, monospaced_digits:
 /// Measures all standard capsule strings with CoreText to build a `Metrics` table.
 pub fn measure_metrics() -> Metrics {
     Metrics {
-        area: measure_text_pt("Area", HUD_TEXT, WEIGHT_MEDIUM, false),
-        window: measure_text_pt("Window", HUD_TEXT, WEIGHT_MEDIUM, false),
-        screen: measure_text_pt("Screen", HUD_TEXT, WEIGHT_MEDIUM, false),
-        iphone: measure_text_pt("iPhone", HUD_TEXT, WEIGHT_MEDIUM, false),
-        record: measure_text_pt("Record", HUD_TEXT, WEIGHT_SEMIBOLD, false),
-        cancel: measure_text_pt("Cancel", HUD_TEXT, WEIGHT_MEDIUM, false),
-        finish: measure_text_pt("Finish", HUD_TEXT, WEIGHT_SEMIBOLD, false),
-        processing: measure_text_pt("Processing…", HUD_TEXT, WEIGHT_SEMIBOLD, false),
-        paste: measure_text_pt("Paste", HUD_TEXT, WEIGHT_SEMIBOLD, false),
-        inspect: measure_text_pt("Inspect", HUD_TEXT, WEIGHT_MEDIUM, false),
+        area: measure_text_pt(SelectionMode::Area.label(), HUD_TEXT, WEIGHT_MEDIUM, false),
+        window: measure_text_pt(SelectionMode::Window.label(), HUD_TEXT, WEIGHT_MEDIUM, false),
+        screen: measure_text_pt(SelectionMode::Screen.label(), HUD_TEXT, WEIGHT_MEDIUM, false),
+        iphone: measure_text_pt(SelectionMode::Iphone.label(), HUD_TEXT, WEIGHT_MEDIUM, false),
+        record: measure_text_pt(LABEL_RECORD, HUD_TEXT, WEIGHT_SEMIBOLD, false),
+        cancel: measure_text_pt(LABEL_CANCEL, HUD_TEXT, WEIGHT_MEDIUM, false),
+        finish: measure_text_pt(LABEL_FINISH, HUD_TEXT, WEIGHT_SEMIBOLD, false),
+        processing: measure_text_pt(LABEL_PROCESSING, HUD_TEXT, WEIGHT_SEMIBOLD, false),
+        paste: measure_text_pt(LABEL_PASTE, HUD_TEXT, WEIGHT_SEMIBOLD, false),
+        inspect: measure_text_pt(LABEL_INSPECT, HUD_TEXT, WEIGHT_MEDIUM, false),
         clock_000: measure_text_pt("0:00", HUD_TEXT, WEIGHT_SEMIBOLD, true),
         clock_0000: measure_text_pt("00:00", HUD_TEXT, WEIGHT_SEMIBOLD, true),
     }
@@ -360,16 +360,16 @@ impl GlyphAtlas {
         }
 
         for (text, size_pt, weight) in [
-            ("Area", HUD_TEXT, WEIGHT_MEDIUM),
-            ("Window", HUD_TEXT, WEIGHT_MEDIUM),
-            ("Screen", HUD_TEXT, WEIGHT_MEDIUM),
-            ("iPhone", HUD_TEXT, WEIGHT_MEDIUM),
-            ("Record", HUD_TEXT, WEIGHT_SEMIBOLD),
-            ("Cancel", HUD_TEXT, WEIGHT_MEDIUM),
-            ("Finish", HUD_TEXT, WEIGHT_SEMIBOLD),
-            ("Processing…", HUD_TEXT, WEIGHT_SEMIBOLD),
-            ("Paste", HUD_TEXT, WEIGHT_SEMIBOLD),
-            ("Inspect", HUD_TEXT, WEIGHT_MEDIUM),
+            (SelectionMode::Area.label(), HUD_TEXT, WEIGHT_MEDIUM),
+            (SelectionMode::Window.label(), HUD_TEXT, WEIGHT_MEDIUM),
+            (SelectionMode::Screen.label(), HUD_TEXT, WEIGHT_MEDIUM),
+            (SelectionMode::Iphone.label(), HUD_TEXT, WEIGHT_MEDIUM),
+            (LABEL_RECORD, HUD_TEXT, WEIGHT_SEMIBOLD),
+            (LABEL_CANCEL, HUD_TEXT, WEIGHT_MEDIUM),
+            (LABEL_FINISH, HUD_TEXT, WEIGHT_SEMIBOLD),
+            (LABEL_PROCESSING, HUD_TEXT, WEIGHT_SEMIBOLD),
+            (LABEL_PASTE, HUD_TEXT, WEIGHT_SEMIBOLD),
+            (LABEL_INSPECT, HUD_TEXT, WEIGHT_MEDIUM),
         ] {
             let (w, h, size_pt, bytes) = rasterize_text(text, size_pt, weight, false, scale);
             let sprite = atlas.pack(w, h, size_pt, &bytes);
@@ -377,7 +377,7 @@ impl GlyphAtlas {
         }
 
         atlas.update_clock("0:00");
-        atlas.update_completed("Copied");
+        atlas.update_completed("已复制");
         atlas
     }
 
@@ -522,7 +522,7 @@ mod tests {
     fn coretext_metrics_and_monospaced_clock_digits_are_stable() {
         let m = measure_metrics();
         assert!(m.area >= 20.0 && m.area <= 45.0, "area={}", m.area);
-        assert!(m.window > m.area, "window={} area={}", m.window, m.area);
+        assert!(m.screen > m.area, "screen={} area={}", m.screen, m.area);
         // Monospaced digits must give identical widths for 0:00, 1:11, and 4:59.
         let w_000 = measure_text_pt("0:00", HUD_TEXT, WEIGHT_SEMIBOLD, true);
         let w_111 = measure_text_pt("1:11", HUD_TEXT, WEIGHT_SEMIBOLD, true);

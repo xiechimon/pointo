@@ -39,7 +39,10 @@ use objc2_quartz_core::{CALayer, CATransaction};
 
 use self::atlas::{GlyphAtlas, IconKind};
 use self::model::{CHIP_H, CHIP_PX, ElemId, FrameState, PANEL_H, PANEL_W, PillModel, Pres};
-use crate::ui::{SelectionMode, motion};
+use crate::ui::{
+    LABEL_CANCEL, LABEL_FINISH, LABEL_INSPECT, LABEL_PASTE, LABEL_PROCESSING, LABEL_RECORD,
+    SEND_TO_PREFIX, SelectionMode, motion,
+};
 
 const OFFSCREEN_W_PT: f32 = 960.0;
 const OFFSCREEN_H_PT: f32 = 256.0;
@@ -161,7 +164,7 @@ define_class!(
 
         #[unsafe(method_id(accessibilityLabel))]
         fn accessibility_label(&self) -> Retained<NSString> {
-            NSString::from_str("Pointo Recording Controls")
+            NSString::from_str("Pointo 录制控制")
         }
     }
 );
@@ -1191,9 +1194,9 @@ fn emit_elem_prims(
         }
         ElemId::Record | ElemId::Finish | ElemId::Paste => {
             let label = match elem.id {
-                ElemId::Record => "Record",
-                ElemId::Finish => "Finish",
-                ElemId::Paste => "Paste",
+                ElemId::Record => LABEL_RECORD,
+                ElemId::Finish => LABEL_FINISH,
+                ElemId::Paste => LABEL_PASTE,
                 _ => unreachable!(),
             };
             let tx = atlas.label(label);
@@ -1245,9 +1248,9 @@ fn emit_elem_prims(
         }
         ElemId::Route0 | ElemId::Route1 => {
             let index = usize::from(elem.id == ElemId::Route1);
-            // "Send to DESKTOP" is a suggestion: a faint fill sets it apart from the runner-up
+            // "发送到 DESKTOP" is a suggestion: a faint fill sets it apart from the runner-up
             // without competing with Paste.
-            let suggestion = atlas.route_text(index).starts_with("Send to ");
+            let suggestion = atlas.route_text(index).starts_with(SEND_TO_PREFIX);
             let rest = if suggestion { 0.07 } else { 0.0 };
             if is_glass {
                 let smoke_a = 0.20 + rest + 0.12 * elem.hover + 0.06 * elem.press;
@@ -1270,9 +1273,9 @@ fn emit_elem_prims(
         }
         ElemId::Cancel | ElemId::Inspect => {
             let label = if elem.id == ElemId::Cancel {
-                "Cancel"
+                LABEL_CANCEL
             } else {
-                "Inspect"
+                LABEL_INSPECT
             };
             if is_glass {
                 let smoke_a = 0.20 + 0.12 * elem.hover + 0.06 * elem.press;
@@ -1348,7 +1351,7 @@ fn emit_elem_prims(
                     [0.961, 0.961, 0.969, da],
                 );
             }
-            let tx = atlas.label("Processing…");
+            let tx = atlas.label(LABEL_PROCESSING);
             push_sprite(
                 out,
                 [
@@ -1488,16 +1491,16 @@ mod tests {
             routes: routes.iter().map(|r| (*r).to_owned()).collect(),
         };
         let states = [
-            ("1-copied", completed("Copied", &[])),
+            ("1-copied", completed("已复制", &[])),
             (
                 "2-ask",
-                completed("Copied", &["Send to pointo-web", "docs-site"]),
+                completed("已复制", &["发送到 pointo-web", "docs-site"]),
             ),
             (
                 "3-undo-window",
-                completed("Sending to pointo-web…", &["Send to docs-site"]),
+                completed("正在发送到 pointo-web…", &["发送到 docs-site"]),
             ),
-            ("4-sent", completed("Sent to docs-site", &[])),
+            ("4-sent", completed("已发送到 docs-site", &[])),
         ];
         let out = std::env::var_os("SCRAWL_PILL_STILLS").map(std::path::PathBuf::from);
         if let Some(dir) = &out {
@@ -1538,6 +1541,81 @@ mod tests {
                     &dir.join(format!("morph-{:03}ms.png", (t * 1000.0) as u32)),
                 )
                 .unwrap();
+            }
+        }
+    }
+
+    /// The Selecting, Recording and Processing capsules and long Chinese project names, drawn
+    /// offscreen; with `SCRAWL_PILL_STILLS=DIR` the stills are written there. Chinese labels
+    /// must stay inside the shell, not be cut or overflow.
+    #[test]
+    fn chinese_island_states_render_offscreen() {
+        let mut pipelines = MetalPipelines::new(2.0).expect("MetalPipelines::new failed");
+        let mut model = PillModel::new(atlas::measure_metrics());
+        let completed = |label: &str, routes: &[&str]| Pres::Completed {
+            label: label.into(),
+            routes: routes.iter().map(|r| (*r).to_owned()).collect(),
+        };
+        let states = [
+            (
+                "5-selecting-area",
+                Pres::Selecting {
+                    mode: SelectionMode::Area,
+                    has_iphone: false,
+                },
+            ),
+            (
+                "6-selecting-screen-iphone",
+                Pres::Selecting {
+                    mode: SelectionMode::Screen,
+                    has_iphone: true,
+                },
+            ),
+            (
+                "7-recording",
+                Pres::Recording {
+                    chips: false,
+                    has_iphone: false,
+                },
+            ),
+            (
+                "8-recording-chips",
+                Pres::Recording {
+                    chips: true,
+                    has_iphone: true,
+                },
+            ),
+            ("9-processing", Pres::Processing),
+            (
+                "10-long-chinese-names",
+                completed(
+                    "正在发送到 一个非常非常长的项目…",
+                    &["发送到 另一个很长的项目…"],
+                ),
+            ),
+            (
+                "11-sent-chinese-name",
+                completed("已发送到 我的项目", &[]),
+            ),
+        ];
+        let out = std::env::var_os("SCRAWL_PILL_STILLS").map(std::path::PathBuf::from);
+        if let Some(dir) = &out {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        for (name, pres) in &states {
+            pipelines.atlas.update_clock("0:12");
+            model.set_clock("0:12");
+            let frame = still(&mut pipelines, &mut model, pres, 1.5);
+            assert!(model.is_at_rest(), "{name} didn't settle");
+            let (_, items) = model::layout_of(pres, "0:12", model.labels, &model.metrics);
+            let width = items.last().map_or(0.0, |i| i.rect[0] + i.rect[2]) - items[0].rect[0];
+            assert!(width < PANEL_W - 40.0, "{name}: {width}");
+            assert!(
+                frame.rgba.chunks_exact(4).any(|px| px[0] < 0x30),
+                "{name} drew nothing"
+            );
+            if let Some(dir) = &out {
+                crate::render::save_png(&frame, &dir.join(format!("{name}.png"))).unwrap();
             }
         }
     }
