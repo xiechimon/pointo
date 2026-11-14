@@ -2108,7 +2108,7 @@ mod tests {
         let mut silent = bundle.clone();
         silent.transcript = TranscriptData {
             source: "offline".into(),
-            missing: Some(crate::speech_model::missing("downloading", "en_US", None)),
+            missing: Some(crate::speech_model::missing("downloading", None)),
             ..Default::default()
         };
         let summary = summary_markdown(&silent, std::path::Path::new("/recordings/test"));

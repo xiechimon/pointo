@@ -19,14 +19,12 @@ mod feature_map;
 mod handoff;
 #[cfg_attr(target_os = "windows", path = "win/helper.rs")]
 mod helper;
-mod hex;
 mod icons;
 mod inbox;
 mod ingest_http;
 mod keyframes;
 #[cfg(target_os = "macos")]
 mod laser_overlay;
-mod live_transcribe;
 mod mic;
 mod model;
 mod native;
@@ -51,6 +49,7 @@ mod sketch;
 mod sparkle;
 mod local_asr;
 mod speech_model;
+mod speech_text;
 mod transcribe;
 mod ui;
 mod web;
@@ -89,66 +88,7 @@ struct Cli {
 
 fn parse_engine(name: &str) -> Result<crate::transcribe::Engine, String> {
     crate::transcribe::Engine::parse(name)
-        .ok_or_else(|| "expected `apple`, `hex` or `command`".to_owned())
-}
-
-/// `pointo hex status`: connection, models and what the next recording would use.
-fn hex_status() {
-    let preferred = transcribe::Engine::configured();
-    println!("Preferred transcriber: {}", preferred.name());
-    // Never runs the program; argv is not printed.
-    let command = handoff::transcribe_command();
-    if preferred == transcribe::Engine::Command {
-        match &command {
-            Ok(program) => println!("Command: {}", program.name()),
-            Err(unusable) => println!("Command: not usable ({unusable})"),
-        }
-    }
-    let next = |hex_model: Option<&str>| match (preferred, hex_model, &command) {
-        (transcribe::Engine::Command, _, Ok(program)) => format!("Command ({})", program.name()),
-        (transcribe::Engine::Hex, Some(model), _) => format!("Hex ({model})"),
-        (transcribe::Engine::Apple, _, _) => transcribe::APPLE_ENGINE_TITLE.to_owned(),
-        _ => transcribe::LOCAL_ENGINE_TITLE.to_owned(),
-    };
-    let configured = handoff::hex_model();
-    println!(
-        "Hex model setting: {}",
-        configured.as_deref().unwrap_or("(automatic)")
-    );
-    let paths = hex::discovery_paths();
-    let status = match hex::Client::connect_any(&paths)
-        .and_then(|(client, path)| Ok((client.status()?, path)))
-    {
-        Ok((status, path)) => {
-            println!("Discovery file: {}", path.display());
-            status
-        }
-        Err(error) => {
-            let tried: Vec<_> = paths
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect();
-            println!("Discovery files tried: {}", tried.join(", "));
-            println!("Hex: not connected ({error:#})");
-            println!("Next recording uses: {}", next(None));
-            return;
-        }
-    };
-    println!("Hex: connected, version {}", status.version);
-    for model in &status.models {
-        let state = match (model.installed, model.verified) {
-            (true, true) => "ready",
-            (true, false) => "installed, not verified",
-            _ => "not installed",
-        };
-        println!("  {}\t{state}", model.id);
-    }
-    let chosen = hex::pick_model(&status.models, configured.as_deref());
-    println!(
-        "Hex model in use: {}",
-        chosen.as_deref().unwrap_or("none ready")
-    );
-    println!("Next recording uses: {}", next(chosen.as_deref()));
+        .ok_or_else(|| "expected `qwen` or `command`".to_owned())
 }
 
 #[derive(Subcommand)]
@@ -179,12 +119,6 @@ fn mic_list() {
     if let Some(note) = pick.note() {
         println!("{note}");
     }
-}
-
-#[derive(Subcommand)]
-enum HexCommand {
-    /// Whether Hex is connected, its version, ready models and the transcriber Pointo will use.
-    Status,
 }
 
 #[derive(Subcommand)]
@@ -276,7 +210,7 @@ enum Command {
         /// Copy the summary to the clipboard.
         #[arg(long)]
         clipboard: bool,
-        /// Transcribe with `apple`, `hex` or `command` instead of the configured transcriber.
+        /// Transcribe with `qwen` or `command` instead of the configured transcriber.
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
     },
@@ -291,8 +225,8 @@ enum Command {
         #[arg(long)]
         watch: Option<u64>,
     },
-    /// Transcribe a bundle's audio again with the local speech model (Qwen3-ASR, or Apple Speech when chosen), in place: its transcript, each
-    /// keyframe's words, `pointo.json` and `summary.md`. Pointo does this by itself for captures
+    /// Transcribe a bundle's audio again with the local speech model (Qwen3-ASR), in place: its
+    /// transcript, each keyframe's words, `pointo.json` and `summary.md`. Pointo does this by itself for captures
     /// made while the speech model was still downloading.
     Retranscribe {
         /// Path to `.pointo` bundle directory or `latest`.
@@ -310,11 +244,7 @@ enum Command {
         /// captures) to benchmark finish-to-done wall clock.
         #[arg(long, hide = true)]
         bench: Option<u32>,
-        /// With `--bench` on a Screen capture: play the audio into a live transcription at this
-        /// many times real time first, as if recording, so the finish only transcribes the tail.
-        #[arg(long, hide = true, requires = "bench")]
-        live_speed: Option<f64>,
-        /// Transcribe with `apple`, `hex` or `command` instead of the configured transcriber.
+        /// Transcribe with `qwen` or `command` instead of the configured transcriber.
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
         /// Turn an experiment on for this run, as `"experiments"` in `config.json` would
@@ -350,11 +280,6 @@ enum Command {
     Mic {
         #[command(subcommand)]
         command: MicCommand,
-    },
-    /// Check the Hex transcriber: is it running, which models are ready, which one Pointo uses.
-    Hex {
-        #[command(subcommand)]
-        command: HexCommand,
     },
     /// Print the agent-ready summary or JSON manifest for a `.pointo` bundle (or `latest`).
     Inspect {
@@ -1718,7 +1643,6 @@ fn main() -> Result<()> {
             bundle,
             out,
             bench,
-            live_speed,
             transcriber,
             experiments,
         } => {
@@ -1829,20 +1753,10 @@ fn main() -> Result<()> {
                             ..Default::default()
                         };
                         let iter_wav = wav_bytes.clone();
-                        let live = match (live_speed, &iter_wav) {
-                            (Some(speed), Some(wav)) => {
-                                Some(live_transcribe::simulate(wav, speed)?)
-                            }
-                            _ => None,
-                        };
                         let t0 = std::time::Instant::now();
                         let recorded = iter_wav
                             .map(audio::recorded_audio_from_wav)
-                            .transpose()?
-                            .map(|mut recorded| {
-                                recorded.live = live_transcribe::Slot::new(live);
-                                recorded
-                            });
+                            .transpose()?;
                         iter_activity.stop_started = Some(t0);
                         iter_activity.stop_ms = Some(t0.elapsed().as_millis() as u64);
                         finalize_capture_bundle(
@@ -2016,12 +1930,6 @@ fn main() -> Result<()> {
             }
             mic::save_in(&handoff::default_config_path(), &id, &inputs)?;
             mic_list();
-            Ok(())
-        }
-        Command::Hex {
-            command: HexCommand::Status,
-        } => {
-            hex_status();
             Ok(())
         }
         Command::Devices => {

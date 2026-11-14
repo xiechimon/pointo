@@ -703,11 +703,6 @@ impl OnboardingWindow {
                 "摄像头",
                 "显示并录制数据线连接的 iPhone".to_owned(),
             ),
-            Permission::SpeechRecognition => (
-                crate::icons::MIC,
-                "语音识别",
-                "在这台电脑上把你说的话转成文字".to_owned(),
-            ),
         };
         let granted = row.status == Status::Granted;
         let denied = row.status == Status::Denied;

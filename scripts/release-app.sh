@@ -76,8 +76,6 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" <<PLIST
   <string>Pointo 录下你的讲解，把转写文字和关键帧对齐。</string>
   <key>NSCameraUsageDescription</key>
   <string>Pointo 显示并录制用数据线连接的 iPhone 屏幕。</string>
-  <key>NSSpeechRecognitionUsageDescription</key>
-  <string>Pointo 在这台 Mac 上转写你的讲解。</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Pointo 读取你录制的浏览器标签页地址，用来把开发中网页的录制投递到对应的项目。</string>
   <key>SUEnableAutomaticChecks</key>

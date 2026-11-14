@@ -53,12 +53,6 @@ struct SettingsShortcut: Decodable, Equatable, Identifiable {
   var off: Bool { label.isEmpty }
 }
 
-struct SettingsModelOption: Decodable, Equatable {
-  var id: String
-  var title: String
-  var chosen: Bool
-}
-
 struct SettingsMenuOption: Decodable, Equatable {
   var id: String
   var title: String
@@ -77,33 +71,24 @@ struct SettingsMicrophone: Decodable, Equatable {
 }
 
 struct SettingsTranscriber: Decodable, Equatable {
-  var engine = "apple"
-  var hexTitle = "Hex（未运行）"
-  var hexEnabled = false
-  var language = "en"
-  var appleLocale = "auto"
-  var models: [SettingsModelOption] = []
+  /// "qwen", or "command" while transcribeCommand is the engine and usable.
+  var engine = "qwen"
+  /// The spoken language Qwen3-ASR is asked for: "auto" or a language id such as "zh-CN".
+  var language = "auto"
   var speech: SpeechStatus?
-
-  static func languageMenu(saved: String, speech: SpeechStatus?) -> (value: String, selected: String, options: [(id: String, title: String, enabled: Bool)], note: String?) {
-    func name(_ id: String) -> String { Locale(identifier: "zh-Hans").localizedString(forIdentifier: id) ?? id }
-    let effective = speech?.locale ?? Locale.current.identifier
-    let automatic = "自动（\(name(saved == "auto" ? effective : Locale.current.identifier))）"
-    let supported = (speech?.locales ?? []).map { (id: $0, title: name($0), enabled: true) }
-      .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-    var options: [(id: String, title: String, enabled: Bool)] = [("auto", automatic, true), ("-", "", false)] + supported
-    if saved == "auto" { return ("自动", "auto", options, nil) }
-    if let match = supported.first(where: { Locale(identifier: $0.id).language.maximalIdentifier == Locale(identifier: saved).language.maximalIdentifier }) {
-      return (match.title, match.id, options, nil)
-    }
-    let unknown = supported.isEmpty
-    let title = unknown ? name(saved) : "\(name(saved))（不可用）"
-    options.append((saved, title, unknown))
-    let note = unknown ? nil : "这台 Mac 上没有\(name(saved))，改用\(name(effective))。"
-    return (title, saved, options, note)
-  }
-  /// The program's file name while transcribeCommand is usable.
+  /// The program's file name while transcribeCommand is the engine and usable.
   var command: String? = nil
+
+  /// What the Language menu offers; a saved id that isn't one of these (say "zh-TW") shows as
+  /// the choice with the same first part.
+  static let languages: [(id: String, title: String)] = [("auto", "自动识别"), ("zh-CN", "普通话"), ("yue", "粤语"), ("en-US", "English")]
+
+  var chosenLanguage: (id: String, title: String) {
+    let primary = { (id: String) in id.split(separator: "-").first.map(String.init) ?? id }
+    return Self.languages.first { $0.id == language }
+      ?? Self.languages.first { $0.id != "auto" && primary($0.id) == primary(language) }
+      ?? Self.languages[0]
+  }
 }
 
 struct SettingsOption: Decodable, Equatable {
@@ -979,13 +964,8 @@ struct SettingsView: View {
 
   private var recording: some View {
     let t = state.transcriber
-    let language = SettingsTranscriber.languageMenu(saved: t.appleLocale, speech: t.speech)
-    var engines: [(id: String, title: String, enabled: Bool)] = [("qwen", "Qwen3-ASR（本机）", true), ("apple", "Apple Speech", true)]
-    let qwenLanguages: [(id: String, title: String, enabled: Bool)] = [("auto", "自动识别", true), ("zh-CN", "普通话", true), ("yue", "粤语", true), ("en-US", "English", true)]
-    let qwenLanguage = qwenLanguages.first { $0.id == t.appleLocale } ?? qwenLanguages[0]
-    engines.append(("hex", t.hexTitle, t.hexEnabled))
-    if let command = t.command { engines.append(("command", "命令（\(command)）", true)) }
-    let chosenModel = t.models.first(where: \.chosen)
+    let language = t.chosenLanguage
+    let theme = SettingsTheme(scheme)
     let mic = state.microphone
     return VStack(spacing: 0) {
       SettingsGroup {
@@ -1006,52 +986,23 @@ struct SettingsView: View {
       Color.clear.frame(height: 20)
       SettingsGroup {
         SettingsRow(title: "语音转写") {
-          SettingsPopup(value: engines.first { $0.id == t.engine }?.title ?? "Qwen3-ASR（本机）", options: engines, selected: t.engine) {
-            model.set("transcriber", $0)
-          }
+          Text(t.command.map { "命令（\($0)）" } ?? "Qwen3-ASR（本机）")
+            .font(.system(size: 14))
+            .foregroundStyle(theme.secondary)
         }
         if t.engine == "qwen" {
           SettingsSeparator()
           SettingsRow(title: "语言") {
-            SettingsPopup(value: qwenLanguage.title, options: qwenLanguages, selected: qwenLanguage.id) {
-              model.set("appleLocale", $0)
+            SettingsPopup(value: language.title, options: SettingsTranscriber.languages.map { ($0.id, $0.title, true) }, selected: language.id) {
+              model.set("language", $0)
             }
           }
         }
-        if t.engine == "apple" {
-          SettingsSeparator()
-          SettingsRow(title: "语言") {
-            SettingsPopup(value: language.value, options: language.options, selected: language.selected) {
-              model.set("appleLocale", $0)
-            }
-          }
-        }
-        if t.engine == "hex", !t.models.isEmpty {
-          SettingsSeparator()
-          SettingsRow(title: "Hex 模型") {
-            SettingsPopup(
-              value: chosenModel?.title ?? "选择",
-              options: t.models.map { ($0.id, $0.title, true) },
-              selected: chosenModel?.id
-            ) { model.set("hexModel", $0) }
-          }
-        }
-        if t.engine == "hex" {
-          SettingsSeparator()
-          HexLanguageField(model: model, language: t.language)
-        }
       }
-      SettingsCaption(text: t.engine == "qwen"
-        ? "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型。"
-        : t.engine == "command"
-        ? "「命令」会运行 config.json 里的 transcribeCommand。失败时，这次录制改用 Apple Speech。"
-        : t.hexEnabled || t.engine == "hex"
-        ? "Apple Speech 会标出每个字的时间。Hex 使用你在 Hex 里已有的模型，字词时间是估算的。"
-        : "Apple Speech 在这台 Mac 上运行，并标出每个字的时间。Hex 运行时会出现在这里。")
-      if t.engine == "apple", let note = language.note {
-        SettingsCaption(text: note)
-      }
-      if t.engine == "apple" || t.engine == "qwen", t.speech?.notReady == true, let line = t.speech?.line {
+      SettingsCaption(text: t.engine == "command"
+        ? "「命令」会运行 config.json 里的 transcribeCommand。失败时，这次录制改用 Qwen3-ASR。"
+        : "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型。")
+      if t.speech?.notReady == true, let line = t.speech?.line {
         SettingsCaption(text: line)
       }
       SettingsHeader("实验功能")
@@ -1291,7 +1242,6 @@ struct PermissionLine: View {
     case "microphone": "用来听到你说话"
     case "accessibility": "用于 ⌘Z 和 \(paste)"
     case "camera": "用来显示数据线连接的 iPhone"
-    case "speech-recognition": "用来把你说的话转成文字"
     default: ""
     }
   }
@@ -1302,7 +1252,6 @@ struct PermissionLine: View {
     case "microphone": (Color(red: 1, green: 0.62, blue: 0.3), Color(red: 0.95, green: 0.44, blue: 0.12))
     case "accessibility": (Color(red: 0.36, green: 0.66, blue: 1), Color(red: 0.16, green: 0.45, blue: 0.95))
     case "camera": (Color(red: 0.36, green: 0.82, blue: 0.56), Color(red: 0.16, green: 0.66, blue: 0.4))
-    case "speech-recognition": (Color(red: 1, green: 0.42, blue: 0.56), Color(red: 0.9, green: 0.24, blue: 0.4))
     default: (Color(white: 0.62), Color(white: 0.45))
     }
   }
@@ -1645,24 +1594,15 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       "general-paste-cleared": (rest + [(1, { $0.show(pasteListening, at: 1) }), (1.5, { $0.type("paste", "⌫", at: 1.5) }), (1.52, { $0.show(pasteOff, at: 1.52) })], 1.7),
       "general-paste-off": ([(0, { $0.show(pasteOff, at: 0) })], 5),
     ]
-    var hex = base
-    hex.transcriber = SettingsTranscriber(engine: "hex", hexTitle: "Hex", hexEnabled: true, language: "nl", models: [
-      SettingsModelOption(id: "parakeet-tdt-0.6b-v3", title: "Parakeet TDT v3", chosen: true),
-      SettingsModelOption(id: "whisper-large-v3-turbo", title: "Whisper Large v3 Turbo", chosen: false),
-    ])
-    hex.videoExport = true
     var downloading = base
-    downloading.transcriber.speech = SpeechStatus(state: "downloading", locale: "en_US", progress: 0.42)
-    let locales = ["de-DE", "en-GB", "en-US", "es-ES", "fr-FR", "ja-JP", "ko-KR", "yue-CN", "zh-CN", "zh-TW"]
+    downloading.transcriber.speech = SpeechStatus(state: "downloading", progress: 0.42)
+    var failed = base
+    failed.transcriber.speech = SpeechStatus(state: "failed", error: "offline")
     var ready = base
-    ready.transcriber.speech = SpeechStatus(state: "ready", locale: "en_US", progress: 1, locales: locales)
+    ready.transcriber.speech = SpeechStatus(state: "ready", progress: 1)
     var language = base
-    language.transcriber.appleLocale = "zh-TW"
-    language.transcriber.speech = SpeechStatus(state: "ready", locale: "zh_TW", progress: 1, locales: locales)
-    var languageLoading = language
-    languageLoading.transcriber.speech = nil
-    var languageUnsupported = ready
-    languageUnsupported.transcriber.appleLocale = "xx-XX"
+    language.transcriber.language = "yue"
+    language.transcriber.speech = SpeechStatus(state: "ready", progress: 1)
     var command = base
     command.transcriber = SettingsTranscriber(engine: "command", command: "whisper-pointo")
     var missing = base
@@ -1716,15 +1656,13 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       ("general-paste-off", .general, pasteOff),
       ("general-lower-playback", .general, lowered),
       ("recording", .recording, base),
-      ("recording-hex", .recording, hex),
       ("recording-mic-chosen", .recording, micChosen),
       ("recording-mic-missing", .recording, micMissing),
       ("recording-mic-not-allowed", .recording, micNotAllowed),
       ("recording-downloading", .recording, downloading),
+      ("recording-failed", .recording, failed),
       ("recording-ready", .recording, ready),
       ("recording-language", .recording, language),
-      ("recording-language-loading", .recording, languageLoading),
-      ("recording-language-unsupported", .recording, languageUnsupported),
       ("recording-command", .recording, command),
       ("storage", .storage, base),
       ("storage-custom", .storage, storageCustom),
@@ -1773,7 +1711,6 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
   }
 }
 
-/// Commit on Return or Apply, so intermediate edits never reach the transcriber.
 /// Sends the level when the slider is let go, not on every step of the drag.
 private struct PlaybackLevelRow: View {
   @Environment(\.settingsTheme) private var theme
@@ -1806,43 +1743,5 @@ private struct PlaybackLevelRow: View {
         .frame(width: 40, alignment: .trailing)
     }
     .onChange(of: level) { _, value in draft = Double(value) }
-  }
-}
-
-private struct HexLanguageField: View {
-  @ObservedObject var model: SettingsModel
-  let language: String
-  @State private var draft: String
-
-  init(model: SettingsModel, language: String) {
-    self.model = model
-    self.language = language
-    _draft = State(initialValue: language)
-  }
-
-  private var normalized: String { draft.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-  private var valid: Bool {
-    normalized.isEmpty || normalized.range(of: "^[a-z][a-z0-9-]{0,34}$", options: .regularExpression) != nil
-  }
-  private func apply() {
-    if valid { model.set("hexLanguage", normalized) }
-  }
-  var body: some View {
-    SettingsRow(title: "Hex 语言") {
-      // ImageRenderer cannot draw AppKit-backed text fields; keep previews readable.
-      if model.rendering {
-        Text(language).frame(width: 120, alignment: .leading)
-      } else {
-        TextField("en", text: $draft)
-          .textFieldStyle(.roundedBorder)
-          .frame(width: 120)
-          .onSubmit { apply() }
-          .accessibilityLabel("Hex 语言代码")
-      }
-      Button("应用") { apply() }
-        .disabled(!valid || (normalized.isEmpty ? "en" : normalized) == language)
-    }
-    .help("语言代码，例如 en、nl 或 auto。是否支持取决于 Hex 模型，有些模型会忽略它。这不会跟随 Hex 的听写语言。")
-    .onChange(of: language) { _, value in draft = value }
   }
 }

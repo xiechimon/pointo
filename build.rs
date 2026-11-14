@@ -166,7 +166,7 @@ fn compile_metal_shader(src_rel: &str, name: &str) {
     );
 }
 
-/// Builds `pointo-helper` (Swift: SpeechAnalyzer, iPhone capture, movie decoding) beside the
+/// Builds `pointo-helper` (Swift: iPhone capture, movie decoding, the onboarding and Settings windows) beside the
 /// `pointo` binary, where `helper::path` and `scripts/install-app.sh` look for it.
 fn compile_helper() {
     let manifest_dir = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());

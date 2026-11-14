@@ -11,8 +11,6 @@ pub struct RecordedAudio {
     pub sample_count: usize,
     pub duration_ms: u64,
     pub wav_bytes: Vec<u8>,
-    /// The transcription that ran while recording, if one did (`live_transcribe`).
-    pub live: crate::live_transcribe::Slot,
 }
 
 pub struct AudioRecorder {
@@ -20,7 +18,6 @@ pub struct AudioRecorder {
     stop_sender: Option<std::sync::mpsc::Sender<()>>,
     samples: Arc<Mutex<Vec<f32>>>,
     error: Arc<Mutex<Option<String>>>,
-    live: Option<crate::live_transcribe::Live>,
 }
 
 impl AudioRecorder {
@@ -45,20 +42,11 @@ impl AudioRecorder {
                 Ok(())
             })
             .context("Could not spawn microphone worker")?;
-        let live = crate::live_transcribe::wanted()
-            .then(|| crate::live_transcribe::Live::start(Arc::clone(&samples)))
-            .and_then(|live| {
-                live.inspect_err(|error| {
-                    crate::capture::scrawl_log(format!("Live transcription: {error:#}"));
-                })
-                .ok()
-            });
         Ok(Self {
             worker: Some(worker),
             stop_sender: Some(stop_sender),
             samples,
             error,
-            live,
         })
     }
 
@@ -193,7 +181,6 @@ impl AudioRecorder {
             sample_count,
             duration_ms,
             wav_bytes,
-            live: crate::live_transcribe::Slot::new(self.live.take()),
         })
     }
 }
@@ -271,7 +258,6 @@ pub fn recorded_audio_from_wav(wav_bytes: Vec<u8>) -> Result<RecordedAudio> {
         sample_count,
         duration_ms: sample_count as u64 * 1_000 / u64::from(SAMPLE_RATE),
         wav_bytes,
-        live: Default::default(),
     })
 }
 
@@ -281,13 +267,6 @@ pub fn decode_wav_16k(wav_bytes: &[u8]) -> Result<Vec<f32>> {
         .into_samples::<i16>()
         .map(|sample| Ok(f32::from(sample?) / 32_768.0))
         .collect()
-}
-
-/// Decodes a 16 kHz mono 16-bit WAV into its raw samples.
-pub fn decode_wav_pcm16(wav_bytes: &[u8]) -> Result<Vec<i16>> {
-    Ok(wav_16k_reader(wav_bytes)?
-        .into_samples::<i16>()
-        .collect::<Result<_, _>>()?)
 }
 
 fn wav_16k_reader(wav_bytes: &[u8]) -> Result<hound::WavReader<Cursor<&[u8]>>> {
@@ -411,7 +390,6 @@ mod tests {
             stop_sender: Some(stop_sender),
             samples,
             error: Arc::new(Mutex::new(None)),
-            live: None,
         }
         .stop()
         .unwrap();
@@ -431,7 +409,6 @@ mod tests {
             stop_sender: None,
             samples: Arc::new(Mutex::new(samples)),
             error: Arc::new(Mutex::new(Some("Device disconnected".into()))),
-            live: None,
         };
         assert_eq!(recorder(vec![0.1; 160]).stop().unwrap().sample_count, 160);
         assert!(recorder(Vec::new()).stop().is_err());
@@ -444,7 +421,6 @@ mod tests {
             stop_sender: None,
             samples: Arc::new(Mutex::new(Vec::new())),
             error: Arc::new(Mutex::new(None)),
-            live: None,
         };
         assert!(
             recorder

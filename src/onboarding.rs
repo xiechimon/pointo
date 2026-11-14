@@ -5,9 +5,7 @@
 //!
 //! Screen Recording, Microphone and Accessibility are required and asked for together on the
 //! permissions screen, Screen Recording first. Camera (the cabled iPhone) is asked for the first
-//! time it's used, in the same window with just that row (`Flow::fix`). On macOS 15, where
-//! transcripts come from SFSpeechRecognizer, Speech Recognition is an optional fourth row, so
-//! its prompt comes up here rather than after the first capture. Until the required ones
+//! time it's used, in the same window with just that row (`Flow::fix`). Until the required ones
 //! are on, ⌥⇧S starts nothing: it brings this window forward once the keys are up (`Gate`).
 //!
 //! A Screen Recording grant may only reach a running copy of Pointo after it relaunches, and
@@ -32,9 +30,6 @@ pub enum Permission {
     InputMonitoring,
     Accessibility,
     Camera,
-    /// SFSpeechRecognizer's own permission, for transcripts on macOS 15. Optional, and only on
-    /// the screen when the helper reports it (SpeechAnalyzer on macOS 26 needs none).
-    SpeechRecognition,
 }
 
 impl Permission {
@@ -47,23 +42,8 @@ impl Permission {
         Permission::Accessibility,
     ];
 
-    /// The tour's checklist: the required ones, then Speech Recognition where it's asked for.
-    pub const TOUR: [Permission; 4] = [
-        Permission::ScreenRecording,
-        Permission::Microphone,
-        Permission::Accessibility,
-        Permission::SpeechRecognition,
-    ];
-
     pub fn required(self) -> bool {
         Self::REQUIRED.contains(&self)
-    }
-
-    /// Whether this Mac asks for it at all: Speech Recognition only when the helper reports it
-    /// (macOS before 26).
-    pub fn asked(self, grants: Option<&Grants>) -> bool {
-        self != Permission::SpeechRecognition
-            || grants.is_some_and(|g| g.statuses.contains_key(&self))
     }
 
     /// Privacy lists the app can be dragged into: Grant flies the drag panel to System
@@ -298,7 +278,7 @@ impl Flow {
     /// it works, and a later step never shows before it's done. A tour resumed on the
     /// permissions screen (after a relaunch) stays there, so the window comes back where it was.
     pub fn tour(start: Step, grants: Option<Grants>) -> Self {
-        let mut flow = Self::new(Mode::Tour, start, Permission::TOUR.to_vec(), grants);
+        let mut flow = Self::new(Mode::Tour, start, Permission::REQUIRED.to_vec(), grants);
         flow.step = if start.position() > Step::Permissions.position()
             && flow.grants.is_some()
             && !flow.done()
@@ -471,10 +451,7 @@ impl Flow {
 
     /// The rows this Mac asks for.
     fn shown(&self) -> impl Iterator<Item = Permission> + '_ {
-        self.asks
-            .iter()
-            .copied()
-            .filter(|p| p.asked(self.grants.as_ref()))
+        self.asks.iter().copied()
     }
 
     /// What must be granted before Continue: a tour's required rows, every row of a fix.
@@ -686,7 +663,7 @@ pub struct Progress {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resume: Option<Step>,
     /// Every permission seen granted, so a later loss reopens the permissions screen.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "known_permissions")]
     pub granted: BTreeSet<Permission>,
     /// When Pointo last relaunched itself for Screen Recording (Unix ms), so it never does it
     /// twice in a row (`relaunch_allowed`).
@@ -698,6 +675,18 @@ pub struct Progress {
     /// The how-it-works demo was skipped, watched or drawn on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tutorial: Option<Tutorial>,
+}
+
+/// The permissions in a saved list that Pointo still knows. A config from before Pointo dropped
+/// Apple Speech may have listed `speech-recognition`, which must not reset the rest of the progress.
+fn known_permissions<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BTreeSet<Permission>, D::Error> {
+    let saved = Vec::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(saved
+        .into_iter()
+        .filter_map(|value| serde_json::from_value(value).ok())
+        .collect())
 }
 
 impl Progress {
@@ -802,7 +791,6 @@ pub fn read_grants() -> Option<Grants> {
         statuses,
         screen_needs_relaunch: screen && !crate::capture::screen_capture_usable(true),
     };
-    crate::speech_model::note_grants(&grants);
     Some(grants)
 }
 
@@ -1194,50 +1182,6 @@ mod tests {
         assert_eq!(flow.step(), Step::Permissions);
         assert_eq!(flow.on(Input::Back), Effect::None);
         assert_eq!(flow.step(), Step::HowItWorks);
-    }
-
-    #[test]
-    fn speech_recognition_is_an_optional_row_only_where_the_helper_reports_it() {
-        use Permission::SpeechRecognition;
-        // macOS 26: the helper doesn't report it, so it isn't on the screen or in Settings.
-        assert!(!SpeechRecognition.asked(Some(&grants(&[]))));
-        assert!(!SpeechRecognition.asked(None));
-        let flow = Flow::tour(Step::Permissions, Some(grants(&[])));
-        assert!(!rows(&flow).contains(&SpeechRecognition));
-
-        // macOS 15: a fourth row after the required ones, asked for with Apple's prompt.
-        let mut asking = grants(&[]);
-        asking
-            .statuses
-            .insert(SpeechRecognition, Status::NotDetermined);
-        let mut flow = Flow::tour(Step::Permissions, Some(asking));
-        assert_eq!(
-            rows(&flow),
-            [
-                ScreenRecording,
-                Microphone,
-                Accessibility,
-                SpeechRecognition
-            ]
-        );
-        let row = flow.view().rows[3].clone();
-        assert!(!row.required);
-        assert_eq!(
-            flow.on(Input::Grant(SpeechRecognition)),
-            Effect::Request(SpeechRecognition)
-        );
-        assert_eq!(
-            flow.on(Input::Grant(SpeechRecognition)),
-            Effect::OpenSettings(SpeechRecognition)
-        );
-
-        // It never holds up Continue.
-        let mut required = grants(&ALL);
-        required.statuses.insert(SpeechRecognition, Status::Denied);
-        tick(&mut flow, &required, 0);
-        assert!(flow.view().ready);
-        assert_eq!(flow.on(Input::Continue), Effect::None);
-        assert_eq!(flow.step(), Step::TryIt);
     }
 
     #[test]
@@ -1755,6 +1699,15 @@ mod tests {
         assert_eq!(Progress::load_from(&path).resume, Some(Step::Permissions));
         std::fs::write(&path, r#"{"onboarding":{"resume":"draw"}}"#).unwrap();
         assert_eq!(Progress::load_from(&path).resume, Some(Step::HowItWorks));
+        // A macOS 15 config from before Speech Recognition was dropped keeps the rest.
+        std::fs::write(
+            &path,
+            r#"{"onboarding":{"seen":true,"granted":["microphone","speech-recognition"]}}"#,
+        )
+        .unwrap();
+        let old = Progress::load_from(&path);
+        assert!(old.seen);
+        assert_eq!(old.granted, [Microphone].into_iter().collect());
         let _ = std::fs::remove_dir_all(dir);
     }
 

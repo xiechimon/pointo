@@ -2,7 +2,6 @@ import AVFoundation
 import AppKit
 import ApplicationServices
 import CoreGraphics
-import Speech
 import SwiftUI
 
 // `pointo-helper onboarding`: the welcome window. Pointo decides what it shows
@@ -31,28 +30,18 @@ enum Permissions {
       default: return "not-determined"
       }
     }
-    var statuses = [
+    return [
       "screen-recording": CGPreflightScreenCaptureAccess() ? "granted" : "not-determined",
       "microphone": av(.audio),
       "accessibility": AXIsProcessTrusted() ? "granted" : "not-determined",
       "camera": av(.video),
     ]
-    // Only SFSpeechRecognizer, the macOS 15 transcriber, needs it; SpeechAnalyzer doesn't.
-    if !SpeechModel.analyzer {
-      switch SFSpeechRecognizer.authorizationStatus() {
-      case .authorized: statuses["speech-recognition"] = "granted"
-      case .denied, .restricted: statuses["speech-recognition"] = "denied"
-      default: statuses["speech-recognition"] = "not-determined"
-      }
-    }
-    return statuses
   }
 
   static func request(_ permission: String) {
     switch permission {
     case "microphone": AVCaptureDevice.requestAccess(for: .audio) { _ in }
     case "camera": AVCaptureDevice.requestAccess(for: .video) { _ in }
-    case "speech-recognition": SFSpeechRecognizer.requestAuthorization { _ in }
     case "accessibility":
       let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
       _ = AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary)
@@ -74,7 +63,6 @@ enum Permissions {
     }
     let anchor = switch permission {
     case "camera": "Privacy_Camera"
-    case "speech-recognition": "Privacy_SpeechRecognition"
     default: "Privacy_Microphone"
     }
     if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?\(anchor)") {
@@ -101,48 +89,28 @@ struct PermissionRow: Decodable, Equatable, Identifiable {
   var granted: Bool { status == "granted" }
 }
 
-/// Apple's speech model, which Pointo installs in the background (`src/speech_model.rs`).
+/// The speech model (Qwen3-ASR), which Pointo downloads in the background (`src/speech_model.rs`).
 struct SpeechStatus: Decodable, Equatable {
   var state = "unknown"
-  var engine: String?
-  var locale: String?
   var progress = 0.0
-  var locales: [String]?
   var error: String?
-
-  private var language: String {
-    locale.flatMap { Locale(identifier: "zh-Hans").localizedString(forIdentifier: $0) } ?? "你的语言"
-  }
 
   private var percent: String { progress > 0 ? " \(Int(progress * 100))%" : "" }
   var percentInParens: String { progress > 0 ? "（\(Int(progress * 100))%）" : "" }
-
-  /// The helper's own macOS 15 messages (`Recognizer.permissionProblem` / `dictationProblem` in
-  /// Media.swift stay English: they also reach summary.md through Rust), shown in Chinese here.
-  private static func chinese(_ message: String) -> String {
-    if message.hasPrefix("Turn on Dictation") { return "请在「系统设置 › 键盘」里打开听写，才会有转写文字。" }
-    if message.hasPrefix("Speech Recognition is off") { return "语音识别已关闭，请在「系统设置 › 隐私与安全性」里打开。" }
-    if message.hasPrefix("Speech Recognition isn't allowed yet") { return "还没允许语音识别，所以录制不会有转写文字。" }
-    return message
-  }
 
   /// One line for onboarding and Settings, or nil when there's nothing to say.
   var line: String? {
     switch state {
     case "checking": return "正在检查语音模型…"
     case "downloading": return "正在下载语音模型…\(percent)"
-    case "ready": return "语音模型已就绪（\(language)）"
-    case "unavailable": return "这台 Mac 上没有\(language)的 Apple 语音模型"
-    // macOS 15: the error says what to turn on (Speech Recognition, or Dictation's model).
-    case "needsPermission": return error.map(Self.chinese) ?? "还没允许语音识别，所以录制不会有转写文字。"
-    case "failed" where engine == "SFSpeechRecognizer" && error != nil: return error.map(Self.chinese)
+    case "ready": return "语音模型已就绪"
     case "failed": return "语音模型没下载成功，Pointo 会再试。"
     default: return nil
     }
   }
 
   /// Still on its way, or not coming: worth a line on the Microphone row and Try it.
-  var notReady: Bool { ["checking", "downloading", "failed", "unavailable", "needsPermission"].contains(state) }
+  var notReady: Bool { ["checking", "downloading", "failed"].contains(state) }
 }
 
 struct OnboardingState: Decodable, Equatable {
@@ -446,8 +414,6 @@ func permissionInfo(_ permission: String, paste: String) -> PermissionInfo {
     return PermissionInfo(symbol: "accessibility", name: accessibilityName, why: "录制时用 ⌘Z 撤销，用 \(paste) 粘贴")
   case "camera":
     return PermissionInfo(symbol: "iphone", name: "摄像头", why: "显示并录制数据线连接的 iPhone")
-  case "speech-recognition":
-    return PermissionInfo(symbol: "waveform", name: "语音识别", why: "在这台 Mac 上把你说的话转成文字")
   default:
     return PermissionInfo(symbol: "lock", name: permission, why: "")
   }
@@ -610,7 +576,7 @@ struct OnboardingView: View {
           note(pickerNoteText).padding(.top, 12)
         }
         if state.speech?.notReady == true, let line = state.speech?.line {
-          note((state.speech?.state == "downloading" || state.speech?.state == "checking") && state.speech?.engine != "SFSpeechRecognizer"
+          note(state.speech?.state == "downloading" || state.speech?.state == "checking"
             ? "语音模型还在下载\(state.speech?.percentInParens ?? "")。如果录完时还没下好，Pointo 会稍后把转写文字补进这次录制。"
             : line)
             .padding(.top, 12)
@@ -682,7 +648,7 @@ struct OnboardingView: View {
           if i > 0 { divider }
           PermissionRowView(
             row: row, paste: model.paste, showOptional: !state.fix,
-            detail: row.permission == speechRow && state.speech?.notReady == true ? state.speech?.line : nil,
+            detail: row.permission == "microphone" && state.speech?.notReady == true ? state.speech?.line : nil,
             next: row.permission == next,
             buttonFrame: { model.buttonFrames[row.permission] = $0 },
             grant: { model.grant(row.permission) }
@@ -695,12 +661,6 @@ struct OnboardingView: View {
           .padding(.top, 14)
       }
     }
-  }
-
-  /// The row that carries the speech model's line: Speech Recognition where it's asked for
-  /// (macOS 15), else Microphone.
-  private var speechRow: String {
-    state.rows.contains { $0.permission == "speech-recognition" } ? "speech-recognition" : "microphone"
   }
 
   private var pickerNoteText: String {
@@ -1053,9 +1013,6 @@ final class Onboarding: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let all = [row("screen-recording", "granted"), row("microphone", "granted"), row("accessibility", "granted")]
     let fallback = [row("screen-recording", "granted", relaunch: true), row("microphone", "granted"), row("accessibility", "granted")]
     let lost = [row("screen-recording", "granted"), row("microphone", "granted"), row("accessibility")]
-    let sequoia = none + [row("speech-recognition")]
-    let sequoiaNoDictation = all + [row("speech-recognition", "granted")]
-    let noDictation = SpeechStatus(state: "failed", engine: "SFSpeechRecognizer", locale: "en_US", error: "Turn on Dictation in System Settings › Keyboard for transcripts.")
     let samples: [(String, OnboardingState, Double)] = [
       ("welcome", OnboardingState(step: "welcome", index: 0), 0.25),
       ("how-it-works", OnboardingState(step: "how-it-works", index: 1), 0),
@@ -1073,11 +1030,10 @@ final class Onboarding: NSObject, NSApplicationDelegate, NSWindowDelegate {
       ("permissions-denied", OnboardingState(step: "permissions", index: 2, rows: denied), 0),
       ("permissions-all", OnboardingState(step: "permissions", index: 2, rows: all, ready: true), 0),
       ("permissions-reopen-fallback", OnboardingState(step: "permissions", index: 2, rows: fallback), 0),
-      ("permissions-picker-note", OnboardingState(step: "permissions", index: 2, rows: some, pickerNote: true, speech: SpeechStatus(state: "downloading", locale: "en_US", progress: 0.42)), 0.3),
-      ("permissions-macos15", OnboardingState(step: "permissions", index: 2, rows: sequoia, speech: SpeechStatus(state: "needsPermission", engine: "SFSpeechRecognizer", locale: "en_US")), 0),
-      ("permissions-macos15-no-dictation", OnboardingState(step: "permissions", index: 2, rows: sequoiaNoDictation, ready: true, speech: noDictation), 0),
+      ("permissions-picker-note", OnboardingState(step: "permissions", index: 2, rows: some, pickerNote: true, speech: SpeechStatus(state: "downloading", progress: 0.42)), 0.3),
+      ("permissions-download-failed", OnboardingState(step: "permissions", index: 2, rows: all, ready: true, speech: SpeechStatus(state: "failed", error: "offline")), 0),
       ("try-it", OnboardingState(step: "try-it", index: 2, count: 3), 0.3),
-      ("try-it-downloading", OnboardingState(step: "try-it", index: 2, count: 3, pickerNote: true, speech: SpeechStatus(state: "downloading", locale: "en_US", progress: 0.42)), 0.3),
+      ("try-it-downloading", OnboardingState(step: "try-it", index: 2, count: 3, pickerNote: true, speech: SpeechStatus(state: "downloading", progress: 0.42)), 0.3),
       ("done", OnboardingState(step: "done", index: 3), 0),
       ("fix-required", OnboardingState(step: "permissions", index: 0, count: 1, rows: lost, fix: true), 0),
       ("fix-screen-reopening", OnboardingState(step: "permissions", index: 0, count: 1, rows: reopening, fix: true), 0.3),

@@ -113,20 +113,13 @@ struct Shortcut {
     error: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
-struct ModelOption {
-    id: String,
-    title: String,
-    chosen: bool,
-}
-
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase", default)]
+#[serde(default)]
 struct Transcriber {
+    /// "qwen" or "command".
     engine: String,
-    hex_title: String,
-    hex_enabled: bool,
-    models: Vec<ModelOption>,
+    /// The program's file name while `transcribeCommand` is the engine and usable.
+    command: Option<String>,
     speech: Speech,
 }
 
@@ -1202,81 +1195,30 @@ impl SettingsWindow {
 
     fn recording_pane(&self, theme: Theme, state: &ViewState, cx: &mut Context<Self>) -> Div {
         let t = &state.transcriber;
-        let hex = t.engine == "hex";
-        let local = format!("{}（本机）", crate::transcribe::LOCAL_ENGINE_TITLE);
-        let engines = vec![
-            ("qwen".to_owned(), local.clone(), true),
-            ("hex".to_owned(), t.hex_title.clone(), t.hex_enabled),
-        ];
-        let chosen = t.models.iter().find(|m| m.chosen);
-        let mut rows = vec![
+        let engine = match &t.command {
+            Some(command) => format!("命令（{command}）"),
+            None => format!("{}（本机）", crate::transcribe::LOCAL_ENGINE_TITLE),
+        };
+        let rows = vec![
             row(
                 theme,
                 "语音转写",
                 true,
-                popup(
-                    theme,
-                    "settings-transcriber",
-                    if hex { "Hex" } else { &local },
-                )
-                .on_click(cx.listener({
-                    let selected = t.engine.clone();
-                    move |view, event: &ClickEvent, _, cx| {
-                        view.open_menu(
-                            "transcriber",
-                            engines.clone(),
-                            Some(selected.clone()),
-                            event,
-                        );
-                        cx.notify();
-                    }
-                })),
+                div()
+                    .text_size(px(14.0))
+                    .text_color(theme.text())
+                    .opacity(0.85)
+                    .child(engine),
             )
             .into_any_element(),
         ];
-        if hex && !t.models.is_empty() {
-            let options: Vec<(String, String, bool)> = t
-                .models
-                .iter()
-                .map(|m| (m.id.clone(), m.title.clone(), true))
-                .collect();
-            let selected = chosen.map(|m| m.id.clone());
-            rows.push(
-                row(
-                    theme,
-                    "Hex 模型",
-                    true,
-                    popup(
-                        theme,
-                        "settings-hex-model",
-                        chosen.map_or("选择", |m| m.title.as_str()),
-                    )
-                    .on_click(cx.listener(
-                        move |view, event: &ClickEvent, _, cx| {
-                            view.open_menu("hexModel", options.clone(), selected.clone(), event);
-                            cx.notify();
-                        },
-                    )),
-                )
-                .into_any_element(),
-            );
-        }
-        let note = match (WINDOWS, t.hex_enabled || hex) {
-            (true, true) => {
-                "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说。Hex 使用你在 Hex 里装好的模型。"
-            }
-            (true, false) => {
-                "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型；Hex 运行时也会出现在这里。"
-            }
-            (false, true) => {
-                "Apple Speech 会标出每个词的时间。Hex 使用你在 Hex 里装好的模型，词的时间是估算的。"
-            }
-            (false, false) => {
-                "Apple Speech 在这台 Mac 上运行，会标出每个词的时间。Hex 运行时也会出现在这里。"
-            }
+        let note = if t.engine == "command" {
+            "「命令」会运行 config.json 里的 transcribeCommand。失败时，这次录制改用 Qwen3-ASR。"
+        } else {
+            "Qwen3-ASR 在这台电脑上运行，听得懂普通话、粤语和中英混说，录音不会上传。首次使用会下载约 850 MB 的模型。"
         };
         let speech = match t.speech.state.as_str() {
-            _ if !WINDOWS || hex => None,
+            _ if !WINDOWS => None,
             "downloading" => Some((
                 format!(
                     "正在下载语音模型：{:.0}%",
@@ -1498,12 +1440,6 @@ impl SettingsWindow {
                 "用来显示数据线连接的 iPhone".to_owned(),
                 crate::icons::IPHONE,
                 GREEN,
-            ),
-            Permission::SpeechRecognition => (
-                "语音识别",
-                "用来把你说的话转成文字".to_owned(),
-                crate::icons::MIC,
-                ORANGE,
             ),
         };
         let granted = row.status == Status::Granted;

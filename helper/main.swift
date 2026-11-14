@@ -3,9 +3,6 @@
 //   pointo-helper devices                               cabled iPhones/iPads (USB registry) as JSON
 //   pointo-helper mirror --out FILE.mov [--device ID] [--microphone UID --microphone-name NAME]
 //                                                       live mirror window + native recording (JSON lines)
-//   pointo-helper transcribe FILE [--locale ID]          SpeechAnalyzer transcript with word timings
-//   pointo-helper transcribe-stream [--locale ID]        the same while recording: PCM on stdin, JSON lines (LiveTranscribe.swift)
-//   pointo-helper speech-model [--install] [--locale ID] the speech model's status; install it (JSON lines)
 //   pointo-helper frames MOVIE --out-dir DIR (--every MS | --at MS,MS…) [--max-edge PX]
 //   pointo-helper audio MOVIE OUT.wav                   16 kHz mono PCM of every audio track, mixed
 //   pointo-helper probe MOVIE                           duration and video size
@@ -116,14 +113,6 @@ case "mirror":
     output: out, previewOnly: preview, hiddenPreview: hidden, deviceID: option("--device", in: arguments),
     microphone: option("--microphone", in: arguments).map { ($0, option("--microphone-name", in: arguments) ?? $0) }
   )
-case "transcribe":
-  guard arguments.count >= 2 else { fail("transcribe needs a file") }
-  runAsync { emit(try await Transcriber.transcribe(URL(filePath: arguments[1]), preferred: option("--locale", in: arguments))) }
-case "transcribe-stream":
-  runAsync { try await LiveTranscriber.run(preferred: option("--locale", in: arguments)) }
-case "speech-model":
-  let install = arguments.contains("--install")
-  runAsync { await SpeechModel.run(install: install, preferred: option("--locale", in: arguments)) }
 case "frames":
   guard arguments.count >= 2, let dir = option("--out-dir", in: arguments) else {
     fail("frames needs MOVIE --out-dir DIR (--every MS | --at MS,MS…)")
@@ -169,5 +158,5 @@ case "qr":
   }
   emit(["qr": qr])
 default:
-  fail("usage: pointo-helper devices|mirror|transcribe|transcribe-stream|speech-model|frames|audio|probe|export|shrink|permission-panel|permissions|sck-probe|onboarding|settings|qr …")
+  fail("usage: pointo-helper devices|mirror|frames|audio|probe|export|shrink|permission-panel|permissions|sck-probe|onboarding|settings|qr …")
 }
