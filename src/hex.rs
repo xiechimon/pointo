@@ -548,6 +548,12 @@ fn tokens(text: &str) -> Vec<String> {
     out
 }
 
+/// Whether two neighbouring characters from different words need a space between them: not
+/// between two CJK characters or beside CJK punctuation.
+pub fn spaced(last: char, first: char) -> bool {
+    !((is_cjk(last) && is_cjk(first)) || is_cjk_punctuation(last) || is_cjk_punctuation(first))
+}
+
 /// Joins words (or transcript pieces) the way the language writes them: no space between two CJK
 /// characters or beside CJK punctuation, a space everywhere else (`打开 Settings 页面`).
 pub fn join_tokens<'a>(tokens: impl IntoIterator<Item = &'a str>) -> String {
@@ -557,10 +563,7 @@ pub fn join_tokens<'a>(tokens: impl IntoIterator<Item = &'a str>) -> String {
             text.push_str(token);
             continue;
         };
-        let tight = (is_cjk(last) && is_cjk(first))
-            || is_cjk_punctuation(last)
-            || is_cjk_punctuation(first);
-        if !tight {
+        if spaced(last, first) {
             text.push(' ');
         }
         text.push_str(token);

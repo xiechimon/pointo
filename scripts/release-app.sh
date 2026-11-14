@@ -5,8 +5,10 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-prepare}"
 VERSION="${SCRAWL_VERSION:-$(sed -n 's/^version = "\(.*\)"/\1/p' "${REPO_DIR}/Cargo.toml" | head -1)}"
 BUILD_NUMBER="${SCRAWL_BUILD_NUMBER:-1}"
-BASE_URL="${SCRAWL_RELEASE_BASE_URL:-https://xiechimon.github.io/pointo}"
-SPARKLE_PUBLIC_KEY="mIek27lttJe8cIBqVZFhh6reRKjpTx1h9ZY9OKWPtuM="
+# The update feed lives on the project site (GitHub Pages); the files on GitHub Releases.
+BASE_URL="${POINTO_SITE_URL:-https://xiechimon.github.io/pointo}"
+REPO_SLUG="${POINTO_REPO:-xiechimon/pointo}"
+SPARKLE_PUBLIC_KEY="f1/njbYaKbKsSsU/uNfo6cIB/bHYqHuU3nFjZkx4Bus="
 
 DIST_DIR="${REPO_DIR}/dist"
 UPDATES_DIR="${DIST_DIR}/updates"
@@ -118,46 +120,46 @@ rm -f "${DIST_DIR}/${DMG_NAME}" "${DIST_DIR}/${LATEST_DMG}" "${DIST_DIR}/${ZIP_N
 hdiutil create -quiet -fs APFS -format ULFO -volname Pointo -srcfolder "${DIST_DIR}/staging" "${DIST_DIR}/${DMG_NAME}"
 codesign --force --timestamp --sign "${IDENTITY}" "${DIST_DIR}/${DMG_NAME}"
 
-# Notarize the DMG (it carries the app), then staple the tickets to both so Gatekeeper accepts
-# them offline. Uses the App Store Connect API key for the same team.
-NOTARY_KEY_ID="${SCRAWL_NOTARY_KEY_ID:-JC52MN949W}"
-NOTARY_ISSUER="${SCRAWL_NOTARY_ISSUER:-69a6de84-f0e3-47e3-e053-5b8c7c11a4d1}"
-NOTARY_KEY="${SCRAWL_NOTARY_KEY:-${HOME}/.appstoreconnect/private_keys/AuthKey_${NOTARY_KEY_ID}.p8}"
-if [[ "${IDENTITY}" != "-" && -f "${NOTARY_KEY}" ]]; then
-  xcrun notarytool submit "${DIST_DIR}/${DMG_NAME}" --key "${NOTARY_KEY}" --key-id "${NOTARY_KEY_ID}" \
-    --issuer "${NOTARY_ISSUER}" --wait --timeout 30m
+# Notarize only with a Developer ID identity and an App Store Connect API key of your own
+# (POINTO_NOTARY_KEY_ID, POINTO_NOTARY_ISSUER, POINTO_NOTARY_KEY = path to the .p8). Without them the
+# DMG is signed but not notarized, and first launch needs Control-click > Open.
+if [[ -n "${POINTO_NOTARY_KEY_ID:-}" && -n "${POINTO_NOTARY_ISSUER:-}" && -f "${POINTO_NOTARY_KEY:-}" ]]; then
+  xcrun notarytool submit "${DIST_DIR}/${DMG_NAME}" --key "${POINTO_NOTARY_KEY}" \
+    --key-id "${POINTO_NOTARY_KEY_ID}" --issuer "${POINTO_NOTARY_ISSUER}" --wait --timeout 30m
   xcrun stapler staple "${DIST_DIR}/${DMG_NAME}"
   xcrun stapler staple "${APP_BUNDLE}"
   spctl -a -vv -t install "${DIST_DIR}/${DMG_NAME}"
 else
-  echo "warning: not notarized (no Developer ID identity or notary key); downloads will be blocked by Gatekeeper" >&2
+  echo "note: not notarized (set POINTO_NOTARY_* with a Developer ID to notarize)" >&2
 fi
 cp -f "${DIST_DIR}/${DMG_NAME}" "${DIST_DIR}/${LATEST_DMG}"
 
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${APP_BUNDLE}" "${DIST_DIR}/${ZIP_NAME}"
 cp -f "${DIST_DIR}/${ZIP_NAME}" "${UPDATES_DIR}/${ZIP_NAME}"
 
-if security find-generic-password -s 'https://sparkle-project.org' -a ed25519 -w >/dev/null 2>&1; then
-  security find-generic-password -s 'https://sparkle-project.org' -a ed25519 -w \
+# Sparkle's EdDSA key for Pointo lives in the login keychain (account "pointo", made once with
+# `generate_keys --account pointo`); its public half is SPARKLE_PUBLIC_KEY above.
+if security find-generic-password -s 'https://sparkle-project.org' -a pointo -w >/dev/null 2>&1; then
+  security find-generic-password -s 'https://sparkle-project.org' -a pointo -w \
     | "${SPARKLE_DIR}/bin/generate_appcast" \
       --ed-key-file - \
-      --download-url-prefix "${BASE_URL}/releases/" \
+      --download-url-prefix "https://github.com/${REPO_SLUG}/releases/download/v${VERSION}/" \
       "${UPDATES_DIR}"
+else
+  echo "warning: no Sparkle key (account pointo) in the keychain; appcast not updated" >&2
 fi
 
 echo "Prepared ${DIST_DIR}/${DMG_NAME} and ${DIST_DIR}/${ZIP_NAME}"
 
-if [[ -d "${REPO_DIR}/site/public" ]]; then
-  mkdir -p "${REPO_DIR}/site/public/releases"
-  cp -f "${DIST_DIR}/${DMG_NAME}" "${REPO_DIR}/site/public/releases/${DMG_NAME}"
-  cp -f "${DIST_DIR}/${LATEST_DMG}" "${REPO_DIR}/site/public/releases/${LATEST_DMG}"
-  cp -f "${DIST_DIR}/${ZIP_NAME}" "${REPO_DIR}/site/public/releases/${ZIP_NAME}"
-  cp -f "${DIST_DIR}/${ZIP_NAME}" "${REPO_DIR}/site/public/releases/Pointo-latest-arm64.zip"
-  if [[ -f "${UPDATES_DIR}/appcast.xml" ]]; then
-    cp -f "${UPDATES_DIR}/appcast.xml" "${REPO_DIR}/site/public/appcast.xml"
-  fi
+if [[ -f "${UPDATES_DIR}/appcast.xml" ]]; then
+  mkdir -p "${REPO_DIR}/site/public"
+  cp -f "${UPDATES_DIR}/appcast.xml" "${REPO_DIR}/site/public/appcast.xml"
 fi
 
+# publish: a GitHub release v${VERSION} with the DMG, the stable-name DMG and the update zip.
+# Commit and push site/public/appcast.xml afterwards so the Pages deploy serves the new feed.
 if [[ "${MODE}" == "publish" ]]; then
-  (cd "${REPO_DIR}/site" && bun run build && bunx wrangler@latest deploy)
+  gh release create "v${VERSION}" --repo "${REPO_SLUG}" --title "Pointo ${VERSION}" \
+    --notes-file "${POINTO_RELEASE_NOTES:-/dev/null}" \
+    "${DIST_DIR}/${DMG_NAME}" "${DIST_DIR}/${LATEST_DMG}" "${DIST_DIR}/${ZIP_NAME}"
 fi

@@ -323,7 +323,8 @@ fn spoken_cue(word: &str) -> Option<(&'static str, f32, bool)> {
 
 fn ends_clause(text: &str, clause_words: usize) -> bool {
     let trimmed = text.trim_end_matches(['"', '\'', '”', '’', ')', ']']);
-    trimmed.ends_with(['.', '!', '?', ';', ':']) || (clause_words >= 3 && trimmed.ends_with(','))
+    trimmed.ends_with(['.', '!', '?', ';', ':', '。', '！', '？', '；', '：'])
+        || (clause_words >= 3 && trimmed.ends_with([',', '，']))
 }
 
 fn word_count(text: &str) -> usize {
@@ -433,7 +434,11 @@ pub fn said_per_keyframe(
             index -= 1;
         }
         let open = text[index].ends_with(['(', '[', '“']);
-        if !text[index].is_empty() && !attached && !open {
+        let cjk_tight = match (text[index].chars().last(), unit.chars().next()) {
+            (Some(last), Some(first)) => !crate::hex::spaced(last, first),
+            _ => false,
+        };
+        if !text[index].is_empty() && !attached && !open && !cjk_tight {
             text[index].push(' ');
         }
         text[index].push_str(unit);
@@ -912,6 +917,19 @@ fn scene_candidate(frame: usize, span: (u64, u64), diff: f32) -> Candidate {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn chinese_keyframe_words_are_joined_without_spaces_and_clauses_end_at_full_stops() {
+        let (segments, words) = crate::hex::spread_words("你看这个按钮。打开 Settings 页面", 0, 2_000);
+        let transcript = TranscriptData {
+            segments,
+            words,
+            ..Default::default()
+        };
+        let said = said_per_keyframe(&[0, 1_200], &[], &transcript);
+        assert_eq!(said[0].as_deref(), Some("你看这个按钮。"));
+        assert_eq!(said[1].as_deref(), Some("打开 Settings 页面"));
+    }
+
     use super::*;
 
     fn frame(t: u64, gray: u8) -> RgbaFrame {

@@ -291,7 +291,7 @@ enum Command {
         #[arg(long)]
         watch: Option<u64>,
     },
-    /// Transcribe a bundle's audio again with Apple Speech, in place: its transcript, each
+    /// Transcribe a bundle's audio again with the local speech model (Qwen3-ASR, or Apple Speech when chosen), in place: its transcript, each
     /// keyframe's words, `pointo.json` and `summary.md`. Pointo does this by itself for captures
     /// made while the speech model was still downloading.
     Retranscribe {

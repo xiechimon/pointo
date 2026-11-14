@@ -377,11 +377,25 @@ fn transcribe_one(dir: &Path) {
 /// Transcribes a bundle's `audio.wav` with Apple Speech and rewrites its transcript, each
 /// keyframe's words, `pointo.json` and `summary.md`. Returns `false` (and keeps the marker)
 /// while there's still no model.
+/// Which engine transcribes a bundle again: the one whose model it was waiting for. That's Apple
+/// Speech when it's the configured engine (macOS), else the local Qwen3-ASR model (also the
+/// fallback for Hex and Command).
+fn redo_engine(configured: crate::transcribe::Engine) -> crate::transcribe::Engine {
+    use crate::transcribe::Engine;
+    match configured {
+        Engine::Apple if cfg!(target_os = "macos") => Engine::Apple,
+        _ => Engine::Qwen,
+    }
+}
+
 pub fn transcribe_again(dir: &Path) -> Result<bool> {
     let (dir, mut bundle) = crate::handoff::load_bundle(dir)?;
     let wav = dir.join(bundle.audio.as_deref().unwrap_or("audio.wav"));
     anyhow::ensure!(wav.is_file(), "the bundle has no audio.wav any more");
-    let transcript = crate::helper::transcribe(&wav)?;
+    let transcript = match redo_engine(crate::transcribe::Engine::configured()) {
+        crate::transcribe::Engine::Apple => crate::helper::transcribe(&wav)?,
+        _ => crate::local_asr::transcribe(&wav)?,
+    };
     if transcript
         .missing
         .as_ref()
@@ -410,6 +424,16 @@ pub fn transcribe_again(dir: &Path) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bundle_is_transcribed_again_by_the_engine_whose_model_it_waited_for() {
+        use crate::transcribe::Engine;
+        assert_eq!(redo_engine(Engine::Qwen), Engine::Qwen);
+        assert_eq!(redo_engine(Engine::Hex), Engine::Qwen);
+        assert_eq!(redo_engine(Engine::Command), Engine::Qwen);
+        let apple = if cfg!(target_os = "macos") { Engine::Apple } else { Engine::Qwen };
+        assert_eq!(redo_engine(Engine::Apple), apple);
+    }
 
     fn line(status: &str) -> crate::helper::SpeechModelLine {
         crate::helper::SpeechModelLine {
