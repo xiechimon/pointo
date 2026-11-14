@@ -107,11 +107,9 @@ npx skills add xiechimon/pointo
 | 引擎 | 说明 |
 |---|---|
 | **Qwen3-ASR（本机，默认）** | 普通话、粤语、英文及中英混说，另支持 27 种语言。在设置 › 录制里可以指定语言或自动识别。 |
-| Apple Speech | macOS 自带，按词计时；适合纯英文。 |
-| Hex | 如果你装了 [Hex](https://github.com/anomalyco/hex)，可以用它里面的模型。 |
 | Command | 在 `~/.config/pointo/config.json` 里配置 `transcribeCommand`，用你自己的程序转写。 |
 
-其他引擎出错时，这段录制自动改用 Qwen3-ASR。
+Command 出错时，这段录制自动改用 Qwen3-ASR。如果你的电脑上 Hex 已经下载过 Qwen3-ASR 模型，Pointo 会直接用它，不再重复下载。
 
 ## 命令行
 
@@ -138,8 +136,8 @@ pointo skill                       # 打印 AI 技能文件
 | `project` | 固定投递的项目文件夹 |
 | `recentProjects` | 最近用过的项目（自动维护） |
 | `autoSend` | 是否自动投递到识别出的项目，默认开 |
-| `transcriber` | `"qwen"`（默认）、`"apple"`、`"hex"`、`"command"` |
-| `appleLocale` | 转写语言，例如 `"zh-CN"`、`"yue"`、`"en-US"`；不写就自动识别 |
+| `transcriber` | `"qwen"`（默认）或 `"command"`；旧配置里的 `"apple"`、`"hex"` 按 `"qwen"` 处理 |
+| `language` | 转写语言，例如 `"zh-CN"`、`"yue"`、`"en-US"`；不写就自动识别（旧配置里叫 `appleLocale`，仍然有效） |
 | `capturesDir` | 录制保存位置 |
 
 ## 隐私
