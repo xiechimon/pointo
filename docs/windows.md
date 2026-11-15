@@ -8,7 +8,7 @@ Every GPUI view (capsule, picker, review, welcome tour) is shared; only the OS s
 
 Windows global coordinates are physical pixels (Pointo is per-monitor DPI aware) and `TargetFrame` holds pixels, so `MAX_CAPTURE_SCALE` is 1; views convert with `platform::points_per_pixel`.
 
-Chinese text in GPUI wraps by UAX #14 through the vendored gpui in `vendor/gpui` (see its `POINTO.md`): `，。` never start a line and `Alt+Shift+S` never splits, so copy can spell shortcuts inline. `src/cjk_line_break.rs` wraps real copy at every width; add new settings or tour strings to its `COPY` list.
+Chinese text in GPUI wraps by UAX #14 through the vendored gpui in `vendor/gpui` (see its `POINTO.md`): `，。` never start a line and `Alt+Shift+S` never splits, so copy can spell shortcuts inline. `src/cjk_line_break.rs` wraps real copy at every width; add new settings or tour strings to its `COPY` list. Debug builds embed their DirectX shaders like release builds (change 3 in `vendor/gpui/POINTO.md`), so the Check workflow's `pointo-windows-x86_64` artifact runs on any Windows machine.
 
 ## Shortcuts, overlay and windows
 

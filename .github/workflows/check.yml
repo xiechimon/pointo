@@ -41,6 +41,8 @@ jobs:
       - run: cargo build --locked
       - name: No AVX-512 outside the CPU backends that need it
         run: scripts\check-windows-cpu-tiers.ps1 target\debug
+      - name: Shaders embedded, so the artifact starts on other machines
+        run: scripts\check-windows-shaders-embedded.ps1 target\debug\pointo.exe
       - run: cargo test --locked
       - uses: actions/upload-artifact@v5
         with:

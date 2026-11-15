@@ -21,8 +21,16 @@ shows every change. Keep changes small and listed here.
    builds on macOS and Windows without the Linux renderer or libgit2, and adds
    almost nothing to `Cargo.lock`.
 
+3. **Debug builds embed the compiled shaders too** (`build.rs` always runs
+   fxc; `shader_resources` in `src/platform/windows/directx_renderer.rs` no
+   longer compiles `.hlsl` at run time). Upstream debug builds read the HLSL
+   from `CARGO_MANIFEST_DIR`, which exists only on the build machine, so the
+   CI debug artifact died with "Error creating DirectWriteTextSystem".
+   Check: `scripts/check-windows-shaders-embedded.ps1` in the Check workflow.
+
 ## Dropping this copy
 
-When a gpui release on crates.io contains PR 64624, delete `vendor/gpui` and
+When a gpui release on crates.io contains PR 64624 and debug builds no
+longer read shader sources at run time (or change 3 is carried over), delete `vendor/gpui` and
 the `[patch.crates-io]` entry, bump `gpui`, and keep `src/cjk_line_break.rs`
 as the check.
