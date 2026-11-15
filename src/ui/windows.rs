@@ -576,45 +576,8 @@ thread_local! {
 
 /// The app icon, box-filtered down to the notification area's 32 px.
 fn tray_icon_image() -> Option<tray_icon::Icon> {
-    let decoder = png::Decoder::new(std::io::Cursor::new(
-        &include_bytes!("../../assets/app-icon.png")[..],
-    ));
-    let mut reader = decoder.read_info().ok()?;
-    let mut buffer = vec![0; reader.output_buffer_size()?];
-    let info = reader.next_frame(&mut buffer).ok()?;
-    if info.color_type != png::ColorType::Rgba {
-        return None;
-    }
-    let (sw, sh) = (info.width as usize, info.height as usize);
-    let size = 32_usize;
-    let mut out = vec![0_u8; size * size * 4];
-    for y in 0..size {
-        for x in 0..size {
-            let (x0, x1) = (x * sw / size, (x + 1) * sw / size);
-            let (y0, y1) = (y * sh / size, (y + 1) * sh / size);
-            let mut acc = [0_u64; 4];
-            let mut n = 0_u64;
-            for sy in y0..y1 {
-                for sx in x0..x1 {
-                    let p = &buffer[(sy * sw + sx) * 4..][..4];
-                    let a = u64::from(p[3]);
-                    acc[0] += u64::from(p[0]) * a;
-                    acc[1] += u64::from(p[1]) * a;
-                    acc[2] += u64::from(p[2]) * a;
-                    acc[3] += a;
-                    n += 1;
-                }
-            }
-            let o = &mut out[(y * size + x) * 4..][..4];
-            if let Some(alpha) = std::num::NonZeroU64::new(acc[3]) {
-                o[0] = (acc[0] / alpha) as u8;
-                o[1] = (acc[1] / alpha) as u8;
-                o[2] = (acc[2] / alpha) as u8;
-            }
-            o[3] = (acc[3] / n.max(1)) as u8;
-        }
-    }
-    tray_icon::Icon::from_rgba(out, size as u32, size as u32).ok()
+    let rgba = crate::render::icon_rgba(include_bytes!("../../assets/app-icon.png"), 32)?;
+    tray_icon::Icon::from_rgba(rgba, 32, 32).ok()
 }
 
 /// "Record Screen" with the record shortcut as it is now (Settings can change it).

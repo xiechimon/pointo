@@ -27,7 +27,7 @@ const LINE: u32 = 0xffffff17;
 const TEXT: u32 = 0xf2f2f2;
 const SOFT: u32 = 0xd0d0d0;
 const MUTED: u32 = 0x969696;
-const INK: u32 = 0xff3b30;
+const INK: u32 = 0x3b5cf6;
 const POSITIVE: u32 = 0x69d89f;
 const WIDTH: f32 = 620.0;
 /// The Windows caption strip (drag area and close button) above the page.
@@ -346,7 +346,7 @@ fn keycap(label: &str, lit: bool, size: f32) -> Div {
         ))
         .border_1()
         .border_color(if lit {
-            rgba(0xff3b30b3)
+            rgba(0x3b5cf6b3)
         } else {
             rgba(0xffffff24)
         })
@@ -392,7 +392,7 @@ fn primary_button(id: &'static str, title: &str, enabled: bool) -> Stateful<Div>
         })
         .when(enabled, |d| {
             d.shadow(vec![BoxShadow {
-                color: hsla(0.0, 1.0, 0.59, 0.35),
+                color: ink_glow(0.35),
                 offset: point(px(0.0), px(3.0)),
                 blur_radius: px(10.0),
                 spread_radius: px(0.0),
@@ -516,9 +516,9 @@ impl OnboardingWindow {
                     .absolute()
                     .size(px(150.0))
                     .rounded_full()
-                    .bg(rgba(0xff3b3014))
+                    .bg(rgba(0x3b5cf614))
                     .shadow(vec![BoxShadow {
-                        color: hsla(0.0, 1.0, 0.59, 0.18),
+                        color: ink_glow(0.18),
                         offset: point(px(0.0), px(0.0)),
                         blur_radius: px(46.0),
                         spread_radius: px(0.0),
@@ -552,7 +552,7 @@ impl OnboardingWindow {
                     .h(px(86.0 + 60.0 * t))
                     .rounded(px(22.0))
                     .border_2()
-                    .border_color(hsla(0.0, 1.0, 0.59, 0.55 * (1.0 - t))),
+                    .border_color(ink_glow(0.55 * (1.0 - t))),
             )
             .child(keycaps(&self.shortcut, true, 52.0))
             .into_any_element()
@@ -651,23 +651,21 @@ impl OnboardingWindow {
                     .flex_col()
                     .child(row(
                         keycaps(&s, false, 26.0),
-                        format!(
-                            "轻按 {s} 录制指针所在的屏幕，或按住 {s} 选择{pick}。"
-                        ),
+                        // The keycaps on the left already name the shortcut. Spelled out here,
+                        // "Alt+Shift+S" would wrap at a `+` (GPUI breaks lines at any non-word char).
+                        format!("轻按：录制指针所在的屏幕。按住：选择{pick}。"),
                     ))
                     .child(divider())
                     .child(row(
                         keycap(&shift, true, 26.0),
                         format!(
-                            "边操作边说话；按住 {shift} 拖动，就能用红笔画。Pointo 也会记录你的点击。"
+                            "边操作边说话；按住 {shift} 拖动，就能在屏幕上圈出重点。Pointo 也会记录你的点击。"
                         ),
                     ))
                     .child(divider())
                     .child(row(
                         keycaps(&paste, false, 26.0),
-                        format!(
-                            "再按一次 {s} 结束。录制已在剪贴板里，用 {paste} 就能粘贴给 AI 代理。"
-                        ),
+                        "再按一次快捷键结束。录制已在剪贴板里，直接粘贴给 AI 代理。".to_owned(),
                     )),
             )
     }
@@ -846,7 +844,7 @@ impl OnboardingWindow {
         } else if state.fix {
             (
                 "Pointo 还不能录制".to_owned(),
-                format!("请先打开这些权限，再按一次 {}。{note}", self.shortcut)
+                format!("请先打开这些权限，再按一次快捷键。{note}")
                     .trim_end()
                     .to_owned(),
             )
@@ -1027,7 +1025,7 @@ impl Render for OnboardingWindow {
             .flex_col()
             .bg(rgb(CANVAS))
             .child(
-                // The red glow from the top edge, behind the caption too.
+                // The brand-blue glow from the top edge, behind the caption too.
                 div()
                     .absolute()
                     .top_0()
@@ -1036,8 +1034,8 @@ impl Render for OnboardingWindow {
                     .h(px(360.0))
                     .bg(linear_gradient(
                         180.0,
-                        linear_color_stop(hsla(3.0 / 360.0, 1.0, 0.59, 0.10), 0.0),
-                        linear_color_stop(hsla(3.0 / 360.0, 1.0, 0.59, 0.0), 1.0),
+                        linear_color_stop(ink_glow(0.10), 0.0),
+                        linear_color_stop(ink_glow(0.0), 1.0),
                     )),
             )
             .text_color(rgb(TEXT))
@@ -1046,7 +1044,6 @@ impl Render for OnboardingWindow {
         let Some(state) = self.state.clone() else {
             return root;
         };
-        let (s, paste, _) = self.labels();
         let tray = if cfg!(target_os = "windows") {
             "系统托盘"
         } else {
@@ -1068,7 +1065,7 @@ impl Render for OnboardingWindow {
                     self.try_art(phase),
                     164.0,
                     "录第一段",
-                    format!("现在按一下 {s}。边说边指向某处，再按一下 {s} 结束。"),
+                    "按一下上面的快捷键开始，边说边指向某处，再按一下结束。".to_owned(),
                 )
                 .into_any_element(),
             Step::Done => self
@@ -1077,7 +1074,7 @@ impl Render for OnboardingWindow {
                     164.0,
                     "已复制到剪贴板",
                     format!(
-                        "在 AI 代理里按 {paste} 粘贴。Pointo 会留在{tray}里；想给它看什么，随时按 {s}。"
+                        "到 AI 代理里粘贴就行。Pointo 会留在{tray}里；想给它看什么，随时按快捷键。"
                     ),
                 )
                 .into_any_element(),
@@ -1171,4 +1168,11 @@ mod tests {
             flow.on(input);
         }
     }
+}
+
+/// INK (#3b5cf6) as Hsla with `alpha`, for glows and shadows.
+fn ink_glow(alpha: f32) -> gpui::Hsla {
+    let mut c: gpui::Hsla = rgb(INK).into();
+    c.a = alpha;
+    c
 }

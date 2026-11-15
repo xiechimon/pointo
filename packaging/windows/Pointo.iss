@@ -38,6 +38,7 @@ DefaultDirName={localappdata}\Programs\Pointo
 DefaultGroupName=Pointo
 DisableProgramGroupPage=yes
 DisableDirPage=auto
+DirExistsWarning=no
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

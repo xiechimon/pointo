@@ -174,7 +174,7 @@ enum Palette {
   static let text = Color(red: 0xF2 / 255, green: 0xF2 / 255, blue: 0xF2 / 255)
   static let soft = Color(red: 0xD0 / 255, green: 0xD0 / 255, blue: 0xD0 / 255)
   static let muted = Color(red: 0x96 / 255, green: 0x96 / 255, blue: 0x96 / 255)
-  static let ink = Color(red: 1.0, green: 0x3B / 255, blue: 0x30 / 255)
+  static let ink = Color(red: 0x3B / 255, green: 0x5C / 255, blue: 0xF6 / 255)
   static let positive = Color(red: 0x69 / 255, green: 0xD8 / 255, blue: 0x9F / 255)
 }
 

@@ -77,6 +77,42 @@ pub fn decode_png<R: std::io::BufRead + std::io::Seek>(source: R) -> anyhow::Res
     Ok(RgbaFrame::new(0, info.width, info.height, rgba))
 }
 
+/// `png` box-filtered down to `size`×`size` straight RGBA (the Windows tray icon).
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub fn icon_rgba(png: &[u8], size: usize) -> Option<Vec<u8>> {
+    let frame = decode_png(std::io::Cursor::new(png)).ok()?;
+    let buffer = frame.rgba;
+    let (sw, sh) = (frame.width as usize, frame.height as usize);
+    let mut out = vec![0_u8; size * size * 4];
+    for y in 0..size {
+        for x in 0..size {
+            let (x0, x1) = (x * sw / size, (x + 1) * sw / size);
+            let (y0, y1) = (y * sh / size, (y + 1) * sh / size);
+            let mut acc = [0_u64; 4];
+            let mut n = 0_u64;
+            for sy in y0..y1 {
+                for sx in x0..x1 {
+                    let p = &buffer[(sy * sw + sx) * 4..][..4];
+                    let a = u64::from(p[3]);
+                    acc[0] += u64::from(p[0]) * a;
+                    acc[1] += u64::from(p[1]) * a;
+                    acc[2] += u64::from(p[2]) * a;
+                    acc[3] += a;
+                    n += 1;
+                }
+            }
+            let o = &mut out[(y * size + x) * 4..][..4];
+            if let Some(alpha) = std::num::NonZeroU64::new(acc[3]) {
+                o[0] = (acc[0] / alpha) as u8;
+                o[1] = (acc[1] / alpha) as u8;
+                o[2] = (acc[2] / alpha) as u8;
+            }
+            o[3] = (acc[3] / n.max(1)) as u8;
+        }
+    }
+    Some(out)
+}
+
 fn solid(width: u32, height: u32, color: Color) -> RgbaFrame {
     let mut rgba = vec![0; width as usize * height as usize * 4];
     for p in rgba.chunks_exact_mut(4) {
@@ -1447,6 +1483,22 @@ pub fn render_synthetic_demo_frame(width: u32, height: u32, t_ms: u64, phase: u3
     );
     out.t_ms = t_ms;
     out
+}
+
+#[cfg(test)]
+mod icon_tests {
+    /// The 32 px tray icon keeps the ghost: white in the middle, cobalt at the sides, clear corners.
+    /// `assets/app-icon.png` comes out of Icon Composer as 16-bit RGBA.
+    #[test]
+    fn tray_icon_keeps_the_ghost_from_a_16_bit_png() {
+        let px = super::icon_rgba(include_bytes!("../assets/app-icon.png"), 32).unwrap();
+        let at = |x: usize, y: usize| &px[(y * 32 + x) * 4..][..4];
+        assert_eq!(at(0, 0)[3], 0, "corner should be transparent: {:?}", at(0, 0));
+        let body = at(16, 14);
+        assert!(body.iter().take(3).all(|&c| c > 220) && body[3] == 255, "ghost body should be white: {body:?}");
+        let side = at(3, 16);
+        assert!(side[2] > 200 && side[0] < 120 && side[3] == 255, "edge should be cobalt: {side:?}");
+    }
 }
 
 #[cfg(test)]
