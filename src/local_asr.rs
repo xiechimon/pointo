@@ -4,8 +4,9 @@
 //!
 //! The model is the same file, revision and checksum as Hex's `QWEN_ARTIFACT`. It loads a copy
 //! Hex has already installed when there is one, else Pointo's own (`own_models_dir`), which
-//! `install` downloads once in the background and checks against its SHA-256: first from
-//! hf-mirror.com (reachable from mainland China), then from huggingface.co.
+//! `install` downloads once in the background and checks against its SHA-256: first from Pointo's
+//! ModelScope mirror (fast in mainland China), then hf-mirror.com, then huggingface.co. hf-mirror
+//! only redirects to Hugging Face's US CDN for this file, which is very slow from China.
 //!
 //! It transcribes clips of speech (islands joined across pauses under 2 s, up to 30 s or what the
 //! model takes) on their own. Qwen3-ASR gives no word
@@ -41,6 +42,7 @@ pub struct Artifact {
 pub const QWEN3_ASR: Artifact = Artifact {
     filename: "Qwen3-ASR-0.6B-Q8_0.gguf",
     urls: &[
+        "https://www.modelscope.cn/models/xiemom/Qwen3-ASR-0.6B-gguf/resolve/master/Qwen3-ASR-0.6B-Q8_0.gguf",
         "https://hf-mirror.com/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/e4e16599b900eb0cb36e524514756bb92eb092b7/Qwen3-ASR-0.6B-Q8_0.gguf",
         "https://huggingface.co/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/e4e16599b900eb0cb36e524514756bb92eb092b7/Qwen3-ASR-0.6B-Q8_0.gguf",
     ],
@@ -446,10 +448,11 @@ mod tests {
     }
 
     #[test]
-    fn the_default_model_is_qwen_from_the_china_mirror_first() {
+    fn the_default_model_is_qwen_from_modelscope_then_the_hugging_face_mirrors() {
         assert!(QWEN3_ASR.filename.starts_with("Qwen3-ASR"));
-        assert!(QWEN3_ASR.urls[0].starts_with("https://hf-mirror.com/"));
-        assert!(QWEN3_ASR.urls[1].starts_with("https://huggingface.co/"));
+        assert!(QWEN3_ASR.urls[0].starts_with("https://www.modelscope.cn/models/xiemom/Qwen3-ASR-0.6B-gguf/"));
+        assert!(QWEN3_ASR.urls[1].starts_with("https://hf-mirror.com/"));
+        assert!(QWEN3_ASR.urls[2].starts_with("https://huggingface.co/"));
         assert!(is_qwen(Path::new("/m/Qwen3-ASR-0.6B-Q8_0.gguf")));
         assert!(!is_qwen(Path::new("/m/parakeet-unified-en-0.6b-Q8_0.gguf")));
     }

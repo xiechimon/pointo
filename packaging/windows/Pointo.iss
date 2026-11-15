@@ -1,8 +1,8 @@
 ﻿; Pointo's Windows installer (Inno Setup 6.1+). Built by .github/workflows/release-windows.yml:
 ;   ISCC /DAppVersion=0.1.2 /DSourceDir=dist\Pointo /DRepoDir=. /DOutputDir=dist packaging\windows\Pointo.iss
 ; Per-user install (no admin prompt), Simplified Chinese wizard, and an optional step that downloads
-; the Qwen3-ASR speech model with a progress bar: hf-mirror.com first (reachable from mainland
-; China), huggingface.co if that fails, checked against its SHA-256 and written where Pointo looks
+; the Qwen3-ASR speech model with a progress bar: Pointo's ModelScope mirror first (fast from
+; mainland China), then hf-mirror.com and huggingface.co, checked against its SHA-256 and written where Pointo looks
 ; for it (%LOCALAPPDATA%\Pointo\models, with the .verified.json receipt src/local_asr.rs reads).
 ; Skipped or failed, Pointo downloads the model itself at first launch.
 
@@ -22,6 +22,7 @@
 #define ModelFile "Qwen3-ASR-0.6B-Q8_0.gguf"
 #define ModelBytes "850423456"
 #define ModelSha256 "f081b2d5e23bd669d92cc331d722a8a0681943b8e6f34b48996fd5c319b5acd8"
+#define ModelScope "https://www.modelscope.cn/models/xiemom/Qwen3-ASR-0.6B-gguf/resolve/master/Qwen3-ASR-0.6B-Q8_0.gguf"
 #define ModelMirror "https://hf-mirror.com/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/e4e16599b900eb0cb36e524514756bb92eb092b7/Qwen3-ASR-0.6B-Q8_0.gguf"
 #define ModelOrigin "https://huggingface.co/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/e4e16599b900eb0cb36e524514756bb92eb092b7/Qwen3-ASR-0.6B-Q8_0.gguf"
 
@@ -59,7 +60,7 @@ Name: "zh"; MessagesFile: "{#RepoDir}\packaging\windows\ChineseSimplified.isl"
 [CustomMessages]
 zh.ModelTitle=语音模型
 zh.ModelSubtitle=Pointo 用本机的 Qwen3-ASR 模型把你说的话转成文字
-zh.ModelBody=Qwen3-ASR 是阿里通义千问的语音识别小模型，听得懂普通话、粤语和中英混说。它完全在这台电脑上运行，录音不会上传。%n%n模型约 850 MB，只需下载一次：优先从国内镜像 hf-mirror.com 下载，失败时改用 huggingface.co，下载后会校验文件完整性。%n%n现在不下载也可以：Pointo 第一次启动时会在后台自动下载，下载完成前录的内容会在之后补上文字。
+zh.ModelBody=Qwen3-ASR 是阿里通义千问的语音识别小模型，听得懂普通话、粤语和中英混说。它完全在这台电脑上运行，录音不会上传。%n%n模型约 850 MB，只需下载一次：优先从阿里魔搭（ModelScope）下载，国内通常一分钟内完成；失败时改用 hf-mirror.com 和 huggingface.co，下载后会校验文件完整性。%n%n现在不下载也可以：Pointo 第一次启动时会在后台自动下载，下载完成前录的内容会在之后补上文字。
 zh.ModelDownload=现在下载语音模型（约 850 MB，推荐）
 zh.ModelPresent=这台电脑上已经有 Qwen3-ASR 模型，不需要再下载。
 zh.ModelDownloading=正在下载语音模型
@@ -155,12 +156,14 @@ begin
   begin
     DownloadPage.Show;
     try
-      ModelReady := TryDownload('{#ModelMirror}');
+      ModelReady := TryDownload('{#ModelScope}');
+      if not ModelReady then
+        ModelReady := TryDownload('{#ModelMirror}');
       if not ModelReady then
         ModelReady := TryDownload('{#ModelOrigin}');
       if not ModelReady then
       begin
-        Error := 'hf-mirror.com / huggingface.co';
+        Error := 'modelscope.cn / hf-mirror.com / huggingface.co';
         SuppressibleMsgBox(FmtMessage(CustomMessage('ModelFailed'), [Error]), mbInformation, MB_OK, IDOK);
       end;
     finally
@@ -178,7 +181,7 @@ begin
     ForceDirectories(ModelsDir());
     if FileCopy(ExpandConstant('{tmp}\{#ModelFile}'), ModelsDir() + '\{#ModelFile}', False) then
     begin
-      Receipt := '{"sha256":"{#ModelSha256}","bytes":{#ModelBytes},"urls":["{#ModelMirror}","{#ModelOrigin}"]}';
+      Receipt := '{"sha256":"{#ModelSha256}","bytes":{#ModelBytes},"urls":["{#ModelScope}","{#ModelMirror}","{#ModelOrigin}"]}';
       SaveStringToFile(ModelsDir() + '\{#ModelFile}.verified.json', Receipt, False);
     end;
   end;
