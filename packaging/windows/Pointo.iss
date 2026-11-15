@@ -1,10 +1,11 @@
 ﻿; Pointo's Windows installer (Inno Setup 6.1+). Built by .github/workflows/release-windows.yml:
 ;   ISCC /DAppVersion=0.1.2 /DSourceDir=dist\Pointo /DRepoDir=. /DOutputDir=dist packaging\windows\Pointo.iss
-; Per-user install (no admin prompt), Simplified Chinese wizard, and an optional step that downloads
+; Per-user install (no admin prompt), Simplified Chinese wizard, and a required step that downloads
 ; the Qwen3-ASR speech model with a progress bar: Pointo's ModelScope mirror first (fast from
 ; mainland China), then hf-mirror.com and huggingface.co, checked against its SHA-256 and written where Pointo looks
 ; for it (%LOCALAPPDATA%\Pointo\models, with the .verified.json receipt src/local_asr.rs reads).
-; Skipped or failed, Pointo downloads the model itself at first launch.
+; If every source fails the user retries or goes back; the install does not continue without the model.
+; Silent installs (CI, IT deployment) skip the download and Pointo fetches the model at first launch.
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -61,12 +62,11 @@ Name: "zh"; MessagesFile: "{#RepoDir}\packaging\windows\ChineseSimplified.isl"
 [CustomMessages]
 zh.ModelTitle=语音模型
 zh.ModelSubtitle=Pointo 用本机的 Qwen3-ASR 模型把你说的话转成文字
-zh.ModelBody=Qwen3-ASR 是阿里通义千问的语音识别小模型，听得懂普通话、粤语和中英混说。它完全在这台电脑上运行，录音不会上传。%n%n模型约 850 MB，只需下载一次：优先从阿里魔搭（ModelScope）下载，国内通常一分钟内完成；失败时改用 hf-mirror.com 和 huggingface.co，下载后会校验文件完整性。%n%n现在不下载也可以：Pointo 第一次启动时会在后台自动下载，下载完成前录的内容会在之后补上文字。
-zh.ModelDownload=现在下载语音模型（约 850 MB，推荐）
+zh.ModelBody=Qwen3-ASR 是阿里通义千问的语音识别小模型，听得懂普通话、粤语和中英混说。它完全在这台电脑上运行，录音不会上传。%n%n安装时会一并下载这个模型（约 850 MB，只需一次）：优先从阿里魔搭（ModelScope）下载，国内通常一分钟内完成；失败时改用 hf-mirror.com 和 huggingface.co，下载后会校验文件完整性。
 zh.ModelPresent=这台电脑上已经有 Qwen3-ASR 模型，不需要再下载。
 zh.ModelDownloading=正在下载语音模型
 zh.ModelDownloadingSub=约 850 MB，取决于网速，可能需要几分钟
-zh.ModelFailed=语音模型没有下载成功：%1%n%nPointo 会在第一次启动时自动重试，不影响安装。
+zh.ModelFailed=语音模型没有下载成功（%1）。%n%n请检查网络后点「重试」；点「取消」回到上一步。
 zh.LaunchPointo=启动 Pointo
 zh.DesktopIcon=在桌面创建快捷方式
 
@@ -89,7 +89,6 @@ Filename: "{sys}\taskkill.exe"; Parameters: "/f /im pointo.exe"; Flags: runhidde
 [Code]
 var
   ModelPage: TWizardPage;
-  ModelCheck: TNewCheckBox;
   DownloadPage: TDownloadWizardPage;
   ModelReady: Boolean;
 
@@ -106,7 +105,7 @@ end;
 
 procedure InitializeWizard();
 var
-  Body: TNewStaticText;
+  Body, Present: TNewStaticText;
 begin
   ModelPage := CreateCustomPage(wpSelectTasks, CustomMessage('ModelTitle'), CustomMessage('ModelSubtitle'));
   Body := TNewStaticText.Create(ModelPage);
@@ -116,19 +115,15 @@ begin
   Body.Caption := CustomMessage('ModelBody');
   Body.AdjustHeight();
 
-  ModelCheck := TNewCheckBox.Create(ModelPage);
-  ModelCheck.Parent := ModelPage.Surface;
-  ModelCheck.Top := Body.Top + Body.Height + ScaleY(16);
-  ModelCheck.Width := ModelPage.SurfaceWidth;
-  ModelCheck.Height := ScaleY(22);
   if HasModel() then
   begin
-    ModelCheck.Caption := CustomMessage('ModelPresent');
-    ModelCheck.Checked := False;
-    ModelCheck.Enabled := False;
-  end else begin
-    ModelCheck.Caption := CustomMessage('ModelDownload');
-    ModelCheck.Checked := True;
+    Present := TNewStaticText.Create(ModelPage);
+    Present.Parent := ModelPage.Surface;
+    Present.Top := Body.Top + Body.Height + ScaleY(16);
+    Present.WordWrap := True;
+    Present.Width := ModelPage.SurfaceWidth;
+    Present.Caption := CustomMessage('ModelPresent');
+    Present.AdjustHeight();
   end;
 
   DownloadPage := CreateDownloadPage(CustomMessage('ModelDownloading'), CustomMessage('ModelDownloadingSub'), nil);
@@ -153,23 +148,25 @@ var
 begin
   Result := True;
   // Silent installs (CI, IT deployment) leave the model to Pointo's own first-launch download.
-  if (CurPageID = wpReady) and not WizardSilent() and ModelCheck.Checked and not HasModel() then
+  if (CurPageID = wpReady) and not WizardSilent() and not HasModel() then
   begin
     DownloadPage.Show;
     try
-      ModelReady := TryDownload('{#ModelScope}');
-      if not ModelReady then
-        ModelReady := TryDownload('{#ModelMirror}');
-      if not ModelReady then
-        ModelReady := TryDownload('{#ModelOrigin}');
-      if not ModelReady then
-      begin
+      repeat
+        ModelReady := TryDownload('{#ModelScope}');
+        if not ModelReady then
+          ModelReady := TryDownload('{#ModelMirror}');
+        if not ModelReady then
+          ModelReady := TryDownload('{#ModelOrigin}');
+        if ModelReady then
+          Break;
         Error := 'modelscope.cn / hf-mirror.com / huggingface.co';
-        SuppressibleMsgBox(FmtMessage(CustomMessage('ModelFailed'), [Error]), mbInformation, MB_OK, IDOK);
-      end;
+      until MsgBox(FmtMessage(CustomMessage('ModelFailed'), [Error]), mbError, MB_RETRYCANCEL) <> IDRETRY;
     finally
       DownloadPage.Hide;
     end;
+    // No model, no install: stay on the Ready page.
+    Result := ModelReady;
   end;
 end;
 
