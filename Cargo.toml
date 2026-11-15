@@ -104,3 +104,8 @@ opt-level = 2
 [profile.dev.package."*"]
 opt-level = 2
 
+
+# gpui 0.2.2 from crates.io, vendored so its text wrapping can follow Chinese
+# line-breaking rules. See vendor/gpui/POINTO.md for what differs from upstream.
+[patch.crates-io]
+gpui = { path = "vendor/gpui" }
