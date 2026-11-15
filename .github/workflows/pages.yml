@@ -2,14 +2,13 @@ name: pages
 
 # The site also serves the latest release's downloads (releases/), because GitHub's release
 # download host (release-assets.githubusercontent.com) is unreachable from many networks in
-# mainland China while *.github.io is not. So it redeploys when a release is published and when
-# the Windows build has attached its zip.
+# mainland China while *.github.io is not. It redeploys from main only (the github-pages
+# environment rejects tag refs): the release script's appcast commit picks up the new macOS
+# assets, and the Windows workflow finishing picks up the installer.
 on:
   push:
     branches: [main]
     paths: ["site/**", ".github/workflows/pages.yml"]
-  release:
-    types: [published]
   workflow_run:
     workflows: ["Release (Windows)"]
     types: [completed]
