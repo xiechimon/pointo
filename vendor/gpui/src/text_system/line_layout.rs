@@ -140,7 +140,8 @@ impl LineLayout {
             glyph_ix: 0,
         };
         let mut last_boundary_x = px(0.);
-        let mut prev_ch = '\0';
+        let break_indices = LineWrapper::break_indices(text);
+        let mut prev_index = None;
         let mut glyphs = self
             .runs
             .iter()
@@ -150,6 +151,7 @@ impl LineLayout {
                     let character = text[glyph.index..].chars().next().unwrap();
                     (
                         WrapBoundary { run_ix, glyph_ix },
+                        glyph.index,
                         character,
                         glyph.position.x,
                     )
@@ -157,30 +159,30 @@ impl LineLayout {
             })
             .peekable();
 
-        while let Some((boundary, ch, x)) = glyphs.next() {
+        while let Some((boundary, index, ch, x)) = glyphs.next() {
             if ch == '\n' {
                 continue;
             }
 
-            // Here is very similar to `LineWrapper::wrap_line` to determine text wrapping,
-            // but there are some differences, so we have to duplicate the code here.
-            if LineWrapper::is_word_char(ch) {
-                if prev_ch == ' ' && ch != ' ' && first_non_whitespace_ix.is_some() {
-                    last_candidate_ix = Some(boundary);
-                    last_candidate_x = x;
-                }
-            } else {
-                if ch != ' ' && first_non_whitespace_ix.is_some() {
-                    last_candidate_ix = Some(boundary);
-                    last_candidate_x = x;
-                }
+            // Same rule as `LineWrapper::wrap_line`: a line may start only where
+            // UAX #14 allows (Pointo: no `，` at a line start, no split
+            // `Alt+Shift+S`). Glyphs of a shaped cluster share an index; only
+            // the first one is a candidate.
+            let is_cluster_start = prev_index != Some(index);
+            prev_index = Some(index);
+            if is_cluster_start
+                && break_indices.binary_search(&index).is_ok()
+                && first_non_whitespace_ix.is_some()
+            {
+                last_candidate_ix = Some(boundary);
+                last_candidate_x = x;
             }
 
             if ch != ' ' && first_non_whitespace_ix.is_none() {
                 first_non_whitespace_ix = Some(boundary);
             }
 
-            let next_x = glyphs.peek().map_or(self.width, |(_, _, x)| *x);
+            let next_x = glyphs.peek().map_or(self.width, |(_, _, _, x)| *x);
             let width = next_x - last_boundary_x;
 
             if width > wrap_width && boundary > last_boundary {
@@ -200,7 +202,6 @@ impl LineLayout {
                 }
                 boundaries.push(last_boundary);
             }
-            prev_ch = ch;
         }
 
         boundaries

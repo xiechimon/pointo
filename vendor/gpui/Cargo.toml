@@ -57,10 +57,7 @@ test-support = [
     "leak-detection",
     "collections/test-support",
     "rand",
-    "util/test-support",
     "http_client/test-support",
-    "wayland",
-    "x11",
 ]
 wayland = [
     "blade-graphics",
@@ -394,6 +391,9 @@ version = "2.0.12"
 [dependencies.usvg]
 version = "0.45.0"
 default-features = false
+
+[dependencies.unicode-linebreak]
+version = "0.1.5"
 
 [dependencies.util]
 version = "0.2.2"

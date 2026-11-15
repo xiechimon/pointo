@@ -105,6 +105,11 @@ opt-level = 2
 opt-level = 2
 
 
+[dev-dependencies]
+# TestAppContext: a window whose text system gives every glyph the same width,
+# so the wrapping tests in src/cjk_line_break.rs run identically on macOS and Windows.
+gpui = { version = "0.2.2", default-features = false, features = ["font-kit", "test-support"] }
+
 # gpui 0.2.2 from crates.io, vendored so its text wrapping can follow Chinese
 # line-breaking rules. See vendor/gpui/POINTO.md for what differs from upstream.
 [patch.crates-io]

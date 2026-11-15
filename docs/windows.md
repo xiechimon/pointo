@@ -8,6 +8,8 @@ Every GPUI view (capsule, picker, review, welcome tour) is shared; only the OS s
 
 Windows global coordinates are physical pixels (Pointo is per-monitor DPI aware) and `TargetFrame` holds pixels, so `MAX_CAPTURE_SCALE` is 1; views convert with `platform::points_per_pixel`.
 
+Chinese text in GPUI wraps by UAX #14 through the vendored gpui in `vendor/gpui` (see its `POINTO.md`): `，。` never start a line and `Alt+Shift+S` never splits, so copy can spell shortcuts inline. `src/cjk_line_break.rs` wraps real copy at every width; add new settings or tour strings to its `COPY` list.
+
 ## Shortcuts, overlay and windows
 
 Shortcuts are `RegisterHotKey` plus low-level hooks and a key-state poller (injected input is ignored; a masked key is tapped while Alt is held so the app in front doesn't open its menu). The ink overlay is a GPUI window made layered and transparent in its build callback (after the first frame it stops drawing) and resized a turn later (inside an update GPUI misses `WM_SIZE`); Pointo's popups use `WDA_EXCLUDEFROMCAPTURE` (`SCRAWL_SHOW_OWN_WINDOWS=1` keeps them for screenshots). GPUI quits when its last window closes, so `ui::platform::keep_alive` holds a hidden one.

@@ -9,6 +9,8 @@ mod autocrop_lab;
 )]
 mod ax;
 mod capture;
+#[cfg(test)]
+mod cjk_line_break;
 mod command_transcriber;
 mod delivery;
 mod export;
