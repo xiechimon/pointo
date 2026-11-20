@@ -1,80 +1,46 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, Sequence, useCurrentFrame} from 'remotion';
+import {AbsoluteFill, Sequence, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
-import {Backdrop, C, clamp, Flash, Icon, kf, MONO, Pop, SANS, typed, useSpring} from '../ui';
+import {C, Chapter, Fade, H, Icon, kf, MONO, Reveal, SANS, Stage, typed} from '../ui';
 
-// Bars 11–12. The bundle lands in the project; an agent reads it and fixes the bug.
-// Then the tool names flash by on the eighth notes.
+// Bars 11–12. The bundle lands in the project, an agent reads it and fixes the bug;
+// then the tool names light up one per eighth note.
 
-const Folder: React.FC = () => {
+const Finder: React.FC = () => {
   const f = useCurrentFrame();
   const d = COPY.deliver;
-  const fly = useSpring(0, {damping: 16, stiffness: 120});
-  const bounce = f >= 22 ? Math.exp(-(f - 22) / 8) * Math.sin((f - 22) / 2.2) : 0;
-  const toast = useSpring(22, {damping: 14, stiffness: 200});
+  const fly = kf(f, [0, 22], [0, 1]);
   return (
-    <div style={{position: 'absolute', left: 110, top: 270, width: 640}}>
-      <div
-        style={{
-          padding: 36,
-          borderRadius: 28,
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          fontFamily: MONO,
-          fontSize: 28,
-          color: '#fff',
-          lineHeight: 2,
-          transform: `scale(${1 + bounce * 0.03})`,
-        }}
-      >
-        {d.folders.map((name, i) => {
-          const last = i === d.folders.length - 1;
-          const show = kf(f, [last ? 20 : 2 + i * 3, (last ? 20 : 2 + i * 3) + 8], [0, 1]);
-          return (
-            <div key={name} style={{paddingLeft: i * 34, opacity: show, display: 'flex', alignItems: 'center', gap: 14, color: last ? C.sky : i === 0 ? '#fff' : 'rgba(255,255,255,0.75)', fontWeight: last || i === 0 ? 700 : 400}}>
-              <span style={{color: last ? C.sky : '#FFC542'}}>{last ? '◆' : '▸'}</span>
-              {name}
-              {i === 0 ? <span style={{fontFamily: SANS, fontSize: 22, color: 'rgba(255,255,255,0.45)', fontWeight: 400}}>你的项目</span> : null}
-            </div>
-          );
-        })}
-        <div style={{paddingLeft: 34, opacity: kf(f, [26, 34], [0, 1]), color: 'rgba(255,255,255,0.55)'}}>{d.latest}</div>
-      </div>
-      {/* the bundle flying in */}
-      {f < 24 ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: interpolate(fly, [0, 1], [-420, 420]),
-            top: interpolate(fly, [0, 1], [420, 210]),
-            transform: `scale(${interpolate(fly, [0, 1], [1.3, 0.4])}) rotate(${(1 - fly) * -25}deg)`,
-            opacity: kf(f, [16, 24], [1, 0]),
-          }}
-        >
-          <Icon size={140} style={{boxShadow: '0 20px 60px rgba(41,102,255,0.7)'}} />
+    <div style={{position: 'absolute', left: 160, top: 470, width: 600}}>
+      <Fade at={2} y={20}>
+        <div style={{borderRadius: 18, background: C.bg2, border: `1px solid ${C.line}`, padding: '22px 26px', fontFamily: MONO, fontSize: 21, lineHeight: 2, color: C.text}}>
+          {d.folders.map((name, i) => {
+            const last = i === d.folders.length - 1;
+            const o = kf(f, last ? [20, 30] : [4 + i * 3, 14 + i * 3], [0, 1]);
+            return (
+              <div key={name} style={{paddingLeft: i * 28, opacity: o, color: last ? C.text : i === 0 ? C.text : C.dim, display: 'flex', alignItems: 'center', gap: 12}}>
+                <span style={{color: last ? C.red : '#5A5B62'}}>{last ? '●' : '›'}</span>
+                {name}
+              </div>
+            );
+          })}
+          <div style={{paddingLeft: 28, opacity: kf(f, [28, 38], [0, 1]), color: C.dim}}>
+            <span style={{color: '#5A5B62'}}>› </span>
+            {d.latest} <span style={{color: '#5A5B62'}}>→</span> pointo-1794650000000
+          </div>
+        </div>
+      </Fade>
+      {f < 26 ? (
+        <div style={{position: 'absolute', left: kf(f, [0, 22], [-300, 300]), top: kf(f, [0, 22], [-260, 150]), opacity: 1 - kf(f, [16, 24], [0, 1]), transform: `scale(${1 - fly * 0.6})`}}>
+          <Icon size={96} style={{boxShadow: '0 20px 40px rgba(0,0,0,0.5)'}} />
         </div>
       ) : null}
-      <div
-        style={{
-          marginTop: 30,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 14,
-          padding: '16px 28px',
-          borderRadius: 999,
-          background: 'rgba(61,220,151,0.14)',
-          border: `1.5px solid ${C.green}`,
-          color: '#fff',
-          fontFamily: SANS,
-          fontSize: 32,
-          fontWeight: 700,
-          opacity: interpolate(toast, [0, 0.3], [0, 1], clamp),
-          transform: `translateY(${(1 - toast) * 30}px) scale(${0.8 + toast * 0.2})`,
-        }}
-      >
-        <span style={{width: 34, height: 34, borderRadius: 17, background: C.green, color: '#06281A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900}}>✓</span>
-        {d.toast}
-      </div>
+      <Fade at={24} y={10} dur={20}>
+        <div style={{marginTop: 22, display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: SANS, fontSize: 22, color: C.text}}>
+          <span style={{color: C.green}}>✓</span>
+          {d.toast}
+        </div>
+      </Fade>
     </div>
   );
 };
@@ -82,113 +48,97 @@ const Folder: React.FC = () => {
 const Terminal: React.FC = () => {
   const f = useCurrentFrame();
   const d = COPY.deliver;
-  const colors: Record<string, string> = {dim: 'rgba(255,255,255,0.55)', txt: '#E8ECF8', add: C.green, ok: C.green};
-  const prompt = typed(d.prompt, f, 26, 52);
+  const colors: Record<string, string> = {dim: C.dim, txt: C.text, add: C.green, ok: C.green};
+  const marks: Record<string, string> = {dim: '⏺ ', txt: '  ', add: '  ', ok: '✓ '};
   return (
-    <Pop at={6} y={60} style={{position: 'absolute', left: 840, top: 230, width: 980}}>
-      <div style={{borderRadius: 24, overflow: 'hidden', background: '#0D0F17', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 40px 100px rgba(0,0,0,0.6)'}}>
-        <div style={{height: 52, background: '#171A25', display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px'}}>
-          {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => (
-            <div key={c} style={{width: 14, height: 14, borderRadius: 7, background: c}} />
+    <Fade at={8} y={40} style={{position: 'absolute', left: 860, top: 210, width: 900}}>
+      <div style={{borderRadius: 18, overflow: 'hidden', background: '#0E0F12', border: `1px solid ${C.line}`, boxShadow: '0 50px 100px rgba(0,0,0,0.6)'}}>
+        <div style={{height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', borderBottom: `1px solid ${C.faint}`}}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{width: 12, height: 12, borderRadius: 6, background: '#2C2D33'}} />
           ))}
-          <div style={{flex: 1, textAlign: 'center', fontFamily: MONO, fontSize: 18, color: 'rgba(255,255,255,0.5)', marginRight: 60}}>{d.termTitle}</div>
+          <div style={{flex: 1, textAlign: 'center', fontFamily: MONO, fontSize: 15, color: C.dim, marginRight: 50}}>{d.termTitle}</div>
         </div>
-        <div style={{padding: '30px 36px', fontFamily: MONO, fontSize: 27, lineHeight: 1.75, minHeight: 470}}>
-          <div style={{color: '#fff'}}>
-            <span style={{color: C.sky}}>› </span>
-            {prompt}
-            {f < 60 && Math.floor(f / 12) % 2 === 0 ? <span style={{color: C.sky}}>▌</span> : null}
+        <div style={{padding: '26px 30px', fontFamily: MONO, fontSize: 22, lineHeight: 1.85, minHeight: 420}}>
+          <div style={{color: C.text}}>
+            <span style={{color: C.dim}}>› </span>
+            {typed(d.prompt, f, 24, 50)}
+            {f < 58 && Math.floor(f / 12) % 2 === 0 ? <span style={{color: C.dim}}>▌</span> : null}
           </div>
-          <div style={{height: 14}} />
+          <div style={{height: 12}} />
           {d.lines.map((l, i) => {
-            const at = 58 + i * 9;
-            const o = kf(f, [at, at + 6], [0, 1]);
+            const at = 56 + i * 9;
+            const o = kf(f, [at, at + 8], [0, 1]);
             return (
-              <div key={i} style={{color: colors[l.c], opacity: o, transform: `translateY(${(1 - o) * 10}px)`, fontWeight: l.c === 'ok' ? 700 : 400, whiteSpace: 'pre'}}>
+              <div key={i} style={{color: colors[l.c], opacity: o, whiteSpace: 'pre'}}>
+                <span style={{color: l.c === 'ok' ? C.green : C.dim}}>{marks[l.c]}</span>
                 {l.t}
               </div>
             );
           })}
         </div>
       </div>
-    </Pop>
+    </Fade>
   );
 };
 
 const Tools: React.FC = () => {
-  // local 0 = bar 12
+  // local 0 = bar 12; one name lights per eighth note (15 frames)
   const f = useCurrentFrame();
   const d = COPY.deliver;
-  const step = 15;
-  const idx = Math.min(d.tools.length - 1, Math.floor(f / step));
-  const gather = useSpring(d.tools.length * step + 4, {damping: 16, stiffness: 140});
-  const flashing = f < d.tools.length * step + 4;
-  const local = f - idx * step;
   return (
-    <AbsoluteFill>
-      <Backdrop hue="blue" />
-      <Pop at={0} y={20} style={{position: 'absolute', top: 150, width: '100%', textAlign: 'center'}}>
-        <div style={{fontFamily: SANS, fontSize: 44, fontWeight: 700, color: 'rgba(255,255,255,0.85)'}}>{d.toolsHead}</div>
-      </Pop>
-      {flashing ? (
-        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-          <div
-            style={{
-              fontFamily: SANS,
-              fontWeight: 900,
-              fontSize: 210,
-              letterSpacing: -6,
-              color: '#fff',
-              transform: `scale(${interpolate(local, [0, 6, 15], [1.18, 1, 0.97], clamp)})`,
-              opacity: interpolate(local, [0, 3], [0.2, 1], clamp),
-              textShadow: '0 20px 60px rgba(0,0,0,0.25)',
-            }}
-          >
-            {d.tools[idx]}
-          </div>
-        </AbsoluteFill>
-      ) : (
-        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 26, width: 1500}}>
-            {d.tools.map((name, i) => (
+    <Stage light={[50, 50]}>
+      <Chapter n={5} label={COPY.chapters[4]} at={0} />
+      <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
+        <Fade at={0} y={10}>
+          <div style={{fontFamily: SANS, fontSize: 26, color: C.dim, textAlign: 'center', marginBottom: 56}}>{d.toolsHead}</div>
+        </Fade>
+        <div style={{display: 'flex', gap: 64, alignItems: 'baseline'}}>
+          {d.tools.map((name, i) => {
+            const on = kf(f, [8 + i * 15, 16 + i * 15], [0, 1]);
+            const all = kf(f, [92, 110], [0, 1]);
+            return (
               <div
                 key={name}
                 style={{
-                  padding: '24px 44px',
-                  borderRadius: 999,
-                  background: 'rgba(255,255,255,0.14)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  fontFamily: SANS,
-                  fontWeight: 700,
-                  fontSize: 58,
-                  color: '#fff',
-                  transform: `translateY(${(1 - gather) * (i % 2 ? 80 : -80)}px) scale(${0.85 + gather * 0.15})`,
-                  opacity: gather,
+                  ...H,
+                  fontSize: 64,
+                  color: on > 0.5 ? C.text : '#3A3B40',
+                  opacity: 0.35 + on * 0.65,
+                  transform: `translateY(${(1 - on) * 8}px)`,
+                  filter: on < 1 && on > 0 ? `blur(${(1 - on) * 4}px)` : undefined,
+                  textShadow: on > 0 && all < 1 && f < 16 + i * 15 + 14 ? '0 0 30px rgba(255,255,255,0.35)' : undefined,
                 }}
               >
                 {name}
               </div>
-            ))}
-            <div style={{padding: '24px 30px', fontFamily: SANS, fontWeight: 700, fontSize: 58, color: 'rgba(255,255,255,0.7)', opacity: gather}}>…</div>
-          </div>
-        </AbsoluteFill>
-      )}
-    </AbsoluteFill>
+            );
+          })}
+        </div>
+      </AbsoluteFill>
+    </Stage>
   );
 };
 
 export const Deliver: React.FC = () => (
   <AbsoluteFill>
     <Sequence durationInFrames={120} layout="none">
-      <AbsoluteFill>
-        <Backdrop pulseAt={[22]} />
-        <Folder />
+      <Stage light={[30, 30]}>
+        <Chapter n={5} label={COPY.chapters[4]} at={0} out={108} />
+        <div style={{position: 'absolute', left: 160, top: 210, ...H, fontSize: 64}}>
+          <Reveal at={0} out={108}>
+            <span style={{color: C.text}}>{COPY.deliver.headA}</span>
+          </Reveal>
+          <Reveal at={6} out={108}>
+            <span style={{color: C.dim}}>{COPY.deliver.headB}</span>
+          </Reveal>
+        </div>
+        <Finder />
         <Terminal />
-      </AbsoluteFill>
+      </Stage>
     </Sequence>
     <Sequence from={120} layout="none">
       <Tools />
     </Sequence>
-    <Flash at={120} len={10} max={0.5} />
   </AbsoluteFill>
 );

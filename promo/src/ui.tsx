@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useId, useState} from 'react';
 import {
   AbsoluteFill,
   continueRender,
@@ -12,16 +12,19 @@ import {
 } from 'remotion';
 import {ALL_TEXT} from './copy';
 
+// Restrained palette: near-black and warm paper, warm greys, one accent (Pointo's red ink).
 export const C = {
-  blue: '#2966FF',
-  blueDeep: '#052BD1',
-  sky: '#9DB8FF',
-  navy: '#0B1B4D',
-  night: '#060A18',
-  ink: '#14182B',
+  bg: '#08090B',
+  bg2: '#111216',
+  paper: '#F4F3EF',
+  paperInk: '#121212',
+  paperDim: '#8C8A84',
+  text: '#F2F2EF',
+  dim: '#7D7E85',
+  faint: 'rgba(255,255,255,0.08)',
+  line: 'rgba(255,255,255,0.10)',
   red: '#F23B34',
-  white: '#FFFFFF',
-  dim: 'rgba(255,255,255,0.56)',
+  blue: '#2966FF',
   green: '#3DDC97',
 };
 
@@ -29,7 +32,7 @@ export const SANS = '"Noto Sans SC", "PingFang SC", sans-serif';
 export const MONO = '"JetBrains Mono", "Noto Sans SC", monospace';
 
 export const clamp = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
-export const ease = Easing.bezier(0.22, 1, 0.36, 1);
+export const ease = Easing.bezier(0.16, 1, 0.3, 1); // expo-out
 export const easeInOut = Easing.bezier(0.65, 0, 0.35, 1);
 
 /** Map frame through keyframes with clamping and a smooth curve. */
@@ -39,28 +42,55 @@ export const kf = (f: number, input: number[], output: number[], easing = easeIn
 export const useSpring = (from: number, config: {damping?: number; stiffness?: number; mass?: number} = {}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  return spring({frame: frame - from, fps, config: {damping: 15, stiffness: 170, mass: 0.9, ...config}});
+  return spring({frame: frame - from, fps, config: {damping: 20, stiffness: 120, mass: 1, ...config}});
 };
 
-/** Spring-in wrapper: rise, unblur and scale up from `at`. */
-export const Pop: React.FC<{
-  at: number;
-  out?: number;
-  y?: number;
-  scale?: number;
-  style?: React.CSSProperties;
-  children: React.ReactNode;
-}> = ({at, out, y = 40, scale = 0.92, style, children}) => {
-  const frame = useCurrentFrame();
-  const s = useSpring(at);
-  const o = out === undefined ? 1 : kf(frame, [out, out + 12], [1, 0]);
-  const blur = interpolate(s, [0, 1], [12, 0], clamp);
+/** Masked line reveal: the line slides up out of a clip and sharpens. */
+export const Reveal: React.FC<{at: number; out?: number; dur?: number; style?: React.CSSProperties; children: React.ReactNode}> = ({
+  at,
+  out,
+  dur = 34,
+  style,
+  children,
+}) => {
+  const f = useCurrentFrame();
+  const p = kf(f, [at, at + dur], [0, 1], ease);
+  const o = out === undefined ? 0 : kf(f, [out, out + 18], [0, 1], easeInOut);
+  if (p <= 0) return null;
+  return (
+    <div style={{overflow: 'hidden', paddingBottom: '0.14em', marginBottom: '-0.14em', ...style}}>
+      <div
+        style={{
+          transform: `translateY(${(1 - p) * 105 - o * 30}%)`,
+          opacity: Math.min(1, p * 1.5) * (1 - o),
+          filter: p < 1 || o > 0 ? `blur(${(1 - p) * 8 + o * 10}px)` : undefined,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/** Fade + rise + unblur for blocks that are not single lines. */
+export const Fade: React.FC<{at: number; out?: number; y?: number; dur?: number; style?: React.CSSProperties; children: React.ReactNode}> = ({
+  at,
+  out,
+  y = 24,
+  dur = 30,
+  style,
+  children,
+}) => {
+  const f = useCurrentFrame();
+  const p = kf(f, [at, at + dur], [0, 1], ease);
+  const o = out === undefined ? 0 : kf(f, [out, out + 16], [0, 1]);
+  if (p <= 0 || o >= 1) return null;
   return (
     <div
       style={{
-        opacity: Math.min(interpolate(s, [0, 0.4], [0, 1], clamp), o),
-        transform: `translateY(${(1 - s) * y + (1 - o) * -20}px) scale(${scale + (1 - scale) * s})`,
-        filter: blur > 0.2 ? `blur(${blur}px)` : undefined,
+        opacity: p * (1 - o),
+        transform: `translateY(${(1 - p) * y - o * 12}px)`,
+        filter: p < 1 || o > 0 ? `blur(${(1 - p) * 10 + o * 8}px)` : undefined,
         ...style,
       }}
     >
@@ -76,44 +106,58 @@ export const typed = (text: string, f: number, from: number, to: number) => {
   return chars.slice(0, n).join('');
 };
 
-/** Dark stage with drifting brand-blue light and a faint grid. */
-export const Backdrop: React.FC<{hue?: 'night' | 'blue'; pulseAt?: number[]}> = ({hue = 'night', pulseAt = []}) => {
+/** Near-black (or warm paper) stage, one soft light, film grain. */
+export const Stage: React.FC<{light?: [number, number]; tone?: 'dark' | 'paper'; children?: React.ReactNode}> = ({
+  light = [50, 30],
+  tone = 'dark',
+  children,
+}) => {
   const f = useCurrentFrame();
-  const drift = f / 60;
-  const pulse = pulseAt.reduce((m, p) => Math.max(m, f >= p ? Math.exp(-(f - p) / 14) : 0), 0);
-  if (hue === 'blue') {
-    return (
-      <AbsoluteFill
-        style={{
-          background: `radial-gradient(1100px 620px at ${78 + Math.sin(drift * 0.6) * 6}% ${12 + Math.cos(drift * 0.5) * 6}%, rgba(5,43,209,0.75), transparent 70%),
-            radial-gradient(900px 700px at 10% 100%, rgba(157,184,255,0.35), transparent 70%),
-            linear-gradient(135deg, ${C.blue} 0%, ${C.blueDeep} 100%)`,
-        }}
-      />
-    );
-  }
+  const [lx, ly] = light;
+  const paper = tone === 'paper';
   return (
-    <AbsoluteFill style={{background: C.night}}>
+    <AbsoluteFill style={{background: paper ? C.paper : C.bg}}>
       <AbsoluteFill
         style={{
-          background: `radial-gradient(900px 600px at ${30 + Math.sin(drift * 0.5) * 10}% ${30 + Math.cos(drift * 0.4) * 8}%, rgba(41,102,255,${0.28 + pulse * 0.25}), transparent 70%),
-            radial-gradient(800px 600px at ${75 + Math.cos(drift * 0.45) * 8}% ${75 + Math.sin(drift * 0.35) * 8}%, rgba(5,43,209,0.30), transparent 70%)`,
+          background: paper
+            ? `radial-gradient(1400px 900px at ${lx}% ${ly}%, #FFFFFF 0%, transparent 70%)`
+            : `radial-gradient(1300px 800px at ${lx + Math.sin(f / 120) * 3}% ${ly}%, rgba(120,130,160,0.16) 0%, transparent 65%)`,
         }}
       />
-      <AbsoluteFill
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
-          backgroundSize: '64px 64px',
-          backgroundPosition: `${-f * 0.3}px ${-f * 0.3}px`,
-          maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
-        }}
-      />
-      <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)'}} />
+      {children}
+      <Grain strength={paper ? 0.035 : 0.045} />
     </AbsoluteFill>
   );
 };
+
+export const Grain: React.FC<{strength?: number}> = ({strength = 0.07}) => {
+  const f = useCurrentFrame();
+  const k = (f * 7919) % 600;
+  return (
+    <AbsoluteFill
+      style={{
+        backgroundImage: `url(${staticFile('grain.png')})`,
+        backgroundPosition: `${k}px ${(k * 3) % 600}px`,
+        opacity: strength,
+        mixBlendMode: 'overlay',
+        pointerEvents: 'none',
+      }}
+    />
+  );
+};
+
+/** Small editorial chapter label, top-left. */
+export const Chapter: React.FC<{n: number; label: string; at?: number; out?: number; tone?: 'dark' | 'paper'}> = ({n, label, at = 4, out, tone = 'dark'}) => (
+  <div style={{position: 'absolute', left: 96, top: 72}}>
+    <Fade at={at} out={out} y={8}>
+      <div style={{display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 19, letterSpacing: 1}}>
+        <span style={{width: 8, height: 8, borderRadius: 4, background: C.red}} />
+        <span style={{color: tone === 'paper' ? C.paperDim : C.dim}}>{String(n).padStart(2, '0')}</span>
+        <span style={{color: tone === 'paper' ? C.paperInk : C.text, fontFamily: SANS, fontWeight: 500, fontSize: 20}}>{label}</span>
+      </div>
+    </Fade>
+  </div>
+);
 
 /** A hand-drawn red stroke that draws itself between `from` and `to`. */
 export const Ink: React.FC<{
@@ -126,13 +170,30 @@ export const Ink: React.FC<{
   style?: React.CSSProperties;
   frame?: number;
   stretch?: boolean;
-}> = ({d, from, to, width = 7, color = C.red, viewBox = '0 0 1920 1080', style, frame, stretch}) => {
+}> = ({d, from, to, width = 6, color = C.red, viewBox = '0 0 1920 1080', style, frame, stretch}) => {
   const cur = useCurrentFrame();
+  const id = useId().replace(/:/g, '');
   const f = frame ?? cur;
   const p = interpolate(f, [from, to], [0, 1], {...clamp, easing: Easing.bezier(0.45, 0, 0.25, 1)});
   if (p <= 0) return null;
+  if (stretch) {
+    return (
+      <svg viewBox={viewBox} preserveAspectRatio="none" style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', ...style}}>
+        <defs>
+          <clipPath id={id}>
+            <rect x={-10} y={-50} width={p * 120} height={200} />
+          </clipPath>
+        </defs>
+        <path d={d} clipPath={`url(#${id})`} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+    );
+  }
   return (
-    <svg viewBox={viewBox} preserveAspectRatio={stretch ? 'none' : undefined} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', ...style}}>
+    <svg
+      viewBox={viewBox}
+      preserveAspectRatio={stretch ? 'none' : undefined}
+      style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', ...style}}
+    >
       <path
         d={d}
         pathLength={1}
@@ -144,7 +205,6 @@ export const Ink: React.FC<{
         strokeDasharray="1 1"
         strokeDashoffset={1 - p}
         vectorEffect={stretch ? 'non-scaling-stroke' : undefined}
-        style={{filter: `drop-shadow(0 0 6px ${color}55)`}}
       />
     </svg>
   );
@@ -152,82 +212,71 @@ export const Ink: React.FC<{
 
 export const Cursor: React.FC<{x: number; y: number; scale?: number; press?: number}> = ({x, y, scale = 1, press = 0}) => (
   <svg
-    width={34}
-    height={48}
+    width={30}
+    height={42}
     viewBox="0 0 17 24"
     style={{
       position: 'absolute',
       left: x - 3 * scale,
       top: y - 2 * scale,
-      transform: `scale(${scale * (1 - press * 0.15)})`,
+      transform: `scale(${scale * (1 - press * 0.12)})`,
       transformOrigin: '3px 2px',
-      filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.45))',
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))',
     }}
   >
-    <path d="M1.5 1.5 L1.5 19.5 L6 15.3 L9.2 22.4 L12.3 21 L9.2 14.1 L15.2 14.1 Z" fill="#111" stroke="#fff" strokeWidth={1.4} strokeLinejoin="round" />
+    <path d="M1.5 1.5 L1.5 19.5 L6 15.3 L9.2 22.4 L12.3 21 L9.2 14.1 L15.2 14.1 Z" fill="#111" stroke="#fff" strokeWidth={1.3} strokeLinejoin="round" />
   </svg>
 );
 
-/** Concentric click ripple. */
-export const Ripple: React.FC<{x: number; y: number; at: number; color?: string}> = ({x, y, at, color = C.sky}) => {
-  const f = useCurrentFrame();
-  const t = f - at;
-  if (t < 0 || t > 40) return null;
-  return (
-    <>
-      {[0, 8].map((delay) => {
-        const k = interpolate(t - delay, [0, 30], [0, 1], {...clamp, easing: ease});
-        return (
-          <div
-            key={delay}
-            style={{
-              position: 'absolute',
-              left: x - 60,
-              top: y - 60,
-              width: 120,
-              height: 120,
-              borderRadius: '50%',
-              border: `4px solid ${color}`,
-              transform: `scale(${0.2 + k})`,
-              opacity: (1 - k) * (t >= delay ? 1 : 0),
-            }}
-          />
-        );
-      })}
-    </>
-  );
-};
-
-/** Big physical-looking keycap that presses down at `at`. */
-export const Keycap: React.FC<{label: string; at: number; size?: number; sub?: string}> = ({label, at, size = 150, sub}) => {
-  const f = useCurrentFrame();
-  const appear = useSpring(at - 10, {damping: 13, stiffness: 200, mass: 0.7});
-  const press = f >= at ? Math.max(0, 1 - (f - at) / 9) : 0;
-  const lit = f >= at ? Math.exp(-(f - at) / 40) : 0;
+/** Soft click ripple. */
+export const Ripple: React.FC<{x: number; y: number; at: number; frame?: number}> = ({x, y, at, frame}) => {
+  const cur = useCurrentFrame();
+  const t = (frame ?? cur) - at;
+  if (t < 0 || t > 36) return null;
+  const k = interpolate(t, [0, 30], [0, 1], {...clamp, easing: ease});
   return (
     <div
       style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.2,
-        background: `linear-gradient(180deg, #2A3045 0%, #171B29 100%)`,
-        boxShadow: `0 ${10 - press * 8}px 0 #0A0D16, 0 ${18 - press * 10}px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 ${60 * lit}px rgba(41,102,255,${0.9 * lit})`,
-        border: `2px solid rgba(157,184,255,${0.15 + lit * 0.7})`,
-        transform: `translateY(${press * 8}px) scale(${interpolate(appear, [0, 1], [0.6, 1])})`,
-        opacity: interpolate(appear, [0, 0.3], [0, 1], clamp),
+        position: 'absolute',
+        left: x - 50,
+        top: y - 50,
+        width: 100,
+        height: 100,
+        borderRadius: '50%',
+        background: 'rgba(41,102,255,0.22)',
+        border: '2px solid rgba(41,102,255,0.6)',
+        transform: `scale(${0.2 + k * 0.9})`,
+        opacity: 1 - k,
+      }}
+    />
+  );
+};
+
+/** Light keycap, laptop-keyboard style. */
+export const Key: React.FC<{label: string; at: number; w?: number}> = ({label, at, w = 76}) => {
+  const f = useCurrentFrame();
+  const press = f >= at ? Math.max(0, 1 - (f - at) / 10) : 0;
+  const on = f >= at;
+  return (
+    <div
+      style={{
+        width: w,
+        height: 76,
+        borderRadius: 14,
+        background: on ? '#FFFFFF' : '#E9E9E6',
+        boxShadow: `0 ${4 - press * 3}px 0 #B9B9B4, 0 ${10 - press * 6}px 24px rgba(0,0,0,0.35)`,
+        transform: `translateY(${press * 3}px)`,
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        color: C.white,
+        color: '#1A1A1A',
         fontFamily: SANS,
         fontWeight: 500,
-        fontSize: size * 0.42,
-        lineHeight: 1,
+        fontSize: 34,
+        opacity: on ? 1 : 0.55,
       }}
     >
       {label}
-      {sub ? <span style={{fontSize: size * 0.13, marginTop: size * 0.08, color: C.dim, fontWeight: 400}}>{sub}</span> : null}
     </div>
   );
 };
@@ -241,7 +290,7 @@ export const Icon: React.FC<{size: number; style?: React.CSSProperties}> = ({siz
 export const FontWarmup: React.FC = () => {
   const [handle] = useState(() => delayRender('fonts'));
   useEffect(() => {
-    const weights = [400, 500, 700, 900];
+    const weights = [400, 500, 600];
     Promise.all([
       ...weights.map((w) => document.fonts.load(`${w} 40px "Noto Sans SC"`, ALL_TEXT)),
       document.fonts.load(`400 40px "JetBrains Mono"`, 'abc'),
@@ -252,7 +301,7 @@ export const FontWarmup: React.FC = () => {
   }, [handle]);
   return (
     <div style={{position: 'absolute', opacity: 0, pointerEvents: 'none', left: -9999}}>
-      {[400, 500, 700, 900].map((w) => (
+      {[400, 500, 600].map((w) => (
         <span key={w} style={{fontFamily: SANS, fontWeight: w}}>
           {ALL_TEXT}
         </span>
@@ -266,9 +315,12 @@ export const FontFaces: React.FC = () => (
   <style>{`@font-face { font-family: "JetBrains Mono"; src: url(${staticFile('JetBrainsMono-Regular.ttf')}) format("truetype"); font-weight: 400; }`}</style>
 );
 
-/** White flash that decays (cuts on impacts). */
+/** Quick fade from a colour (cuts on impacts). */
 export const Flash: React.FC<{at: number; len?: number; max?: number; color?: string}> = ({at, len = 14, max = 0.9, color = '#fff'}) => {
   const f = useCurrentFrame();
   if (f < at || f > at + len) return null;
-  return <AbsoluteFill style={{background: color, opacity: max * (1 - (f - at) / len), pointerEvents: 'none'}} />;
+  return <AbsoluteFill style={{background: color, opacity: max * (1 - (f - at) / len) ** 2, pointerEvents: 'none'}} />;
 };
+
+/** Headline type: medium weight, tight tracking. */
+export const H: React.CSSProperties = {fontFamily: SANS, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.18};

@@ -1,7 +1,6 @@
 import '@fontsource/noto-sans-sc/400.css';
 import '@fontsource/noto-sans-sc/500.css';
-import '@fontsource/noto-sans-sc/700.css';
-import '@fontsource/noto-sans-sc/900.css';
+import '@fontsource/noto-sans-sc/600.css';
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, staticFile} from 'remotion';
 import {BAR, SCENES} from './timing';
@@ -23,7 +22,7 @@ const PARTS: [keyof typeof SCENES, React.FC][] = [
 ];
 
 export const Promo: React.FC = () => (
-  <AbsoluteFill style={{background: '#060A18'}}>
+  <AbsoluteFill style={{background: '#08090B'}}>
     <FontFaces />
     <FontWarmup />
     {PARTS.map(([key, Scene]) => {
