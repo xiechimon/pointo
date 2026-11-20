@@ -13,6 +13,10 @@ Writes, from the same geometry:
   own windows.
 - `menubar-icon@2x.png`: the menu bar template (black silhouette, eyes cut out, 18 pt).
 - The site's icons and the promo's `icon.png`.
+
+`rendered/*.png` are Icon Composer's own renders of `Pointo.icon` (Default, Dark, Tinted), exported
+on a Mac. When `rendered/default.png` is there, the macOS PNG/icns, the site and the promo use it
+instead of the flat drawing, so they show the real glass.
 """
 import os
 import subprocess
@@ -115,6 +119,21 @@ def apple_grid():
         f'<g clip-path="url(#sq)">{art()}</g></g>'
     )
     return svg(body, defs=defs)
+
+
+def on_grid(full):
+    """A full-bleed render placed on Apple's grid (824 at 100) with the template's shadow."""
+    from PIL import ImageFilter
+
+    body = full.resize((824, 824), Image.LANCZOS)
+    out = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    alpha = Image.new("L", (1024, 1024), 0)
+    alpha.paste(body.getchannel("A"), (100, 110))
+    shadow = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    shadow.putalpha(alpha.filter(ImageFilter.GaussianBlur(10)).point(lambda a: int(a * 0.3)))
+    out.alpha_composite(shadow)
+    out.alpha_composite(body, (100, 100))
+    return out
 
 
 def touch_icon():
@@ -233,11 +252,16 @@ def main():
             os.path.join(site, "apple-touch-icon.png"): (touch_icon(), 180),
         }
     )
-    full = Image.open(os.path.join(ASSETS, "app-icon.png")).convert("RGBA")
+    flat = Image.open(os.path.join(ASSETS, "app-icon.png")).convert("RGBA")
+    real = os.path.join(HERE, "rendered", "default.png")
+    full = Image.open(real).convert("RGBA") if os.path.exists(real) else flat
+    if full is not flat:
+        full.save(os.path.join(site, "icon-1024.png"))
+        on_grid(full).save(os.path.join(ASSETS, "app-icon-macos.png"))
     for size, name in ((512, "icon-512.png"), (192, "icon-192.png"), (32, "favicon-32.png")):
         full.resize((size, size), Image.LANCZOS).save(os.path.join(site, name))
     full.save(os.path.join(ROOT, "promo", "public", "icon.png"))
-    full.save(
+    flat.save(
         os.path.join(ASSETS, "Pointo.ico"),
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )
