@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme 控制台 · 设置</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="nav">
+    <div class="brand"><span class="dot"></span>Acme 控制台</div>
+    <a>概览</a><a>项目</a><a>成员</a><a class="on">设置</a><a>账单</a>
+  </aside>
+  <main>
+    <header><h1>设置</h1><p>管理你的团队资料和通知方式</p></header>
+    <form id="settings" class="card">
+      <label>团队名称<input name="team" value="Acme 设计组"></label>
+      <label>联系邮箱<input name="email" value="team@acme.dev"></label>
+      <label class="row">每周报告<input type="checkbox" name="weekly" checked></label>
+      <label class="row">新成员加入时通知我<input type="checkbox" name="notify"></label>
+      <div class="actions">
+        <button type="button" class="ghost">取消</button>
+        <button type="button" id="save" class="primary">保存更改</button>
+      </div>
+    </form>
+  </main>
+  <div id="toast" class="toast" hidden>✓ 已保存</div>
+  <script src="app.js"></script>
+</body>
+</html>

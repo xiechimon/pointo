@@ -1,0 +1,20 @@
+* { box-sizing: border-box; }
+body { margin: 0; display: flex; min-height: 100vh; font: 16px/1.5 -apple-system, "PingFang SC", sans-serif; color: #0d0d0f; background: #f4f4f2; }
+.nav { width: 220px; padding: 28px 18px; background: #fff; border-right: 1px solid #e6e6e2; display: flex; flex-direction: column; gap: 4px; }
+.brand { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.dot { width: 14px; height: 14px; border-radius: 4px; background: #0d0d0f; }
+.nav a { padding: 8px 12px; border-radius: 8px; color: #55555a; }
+.nav a.on { background: #f0f0ec; color: #0d0d0f; font-weight: 600; }
+main { flex: 1; padding: 56px 72px; }
+h1 { margin: 0; font-size: 34px; }
+header p { margin: 4px 0 32px; color: #77777c; }
+.card { max-width: 640px; background: #fff; border: 1px solid #e6e6e2; border-radius: 16px; padding: 28px; display: grid; gap: 18px; }
+label { display: grid; gap: 6px; font-weight: 600; }
+label.row { display: flex; justify-content: space-between; align-items: center; }
+input:not([type]) { font: inherit; font-weight: 400; padding: 10px 12px; border: 1px solid #dcdcd6; border-radius: 10px; }
+input[type=checkbox] { width: 20px; height: 20px; accent-color: #0d0d0f; }
+.actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+button { font: inherit; font-weight: 600; padding: 10px 22px; border-radius: 10px; border: 1px solid #dcdcd6; background: #fff; cursor: pointer; }
+button.primary { background: #0d0d0f; color: #fff; border-color: #0d0d0f; }
+.toast { position: fixed; top: 24px; right: 24px; padding: 12px 20px; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.15); font-weight: 600; }
+.toast::first-letter { color: #16a34a; }
