@@ -211,32 +211,42 @@ voice('HT', 'inst=drums kit=acoustic gain=0.6', [hats(b) for b in range(BARS)])
 
 # ---------- sound effects, in seconds on the film's clock ----------
 SFX = [
+    # hook / title
     ('glitch', 3.5, {'gain': 0.5}),
     ('chime', 6.1, {'gain': 0.5}),
+    ('pop', 7.08, {'note': 1, 'gain': 0.6}), ('pop', 7.17, {'note': 3, 'gain': 0.6}), ('pop', 7.25, {'note': 5, 'gain': 0.6}),
+    # recording starts: the three keys, the pill
     ('click', 8.0, {'pan': -0.3}), ('click', 8.5, {'pan': 0}), ('click', 9.0, {'pan': 0.3}),
     ('pop', 9.27, {'gain': 0.5, 'note': 3}),
+    # click, ink, markers
     ('click', 13.0, {'gain': 0.9}),
-    ('shutter', 13.07, {}), ('whoosh', 13.25, {'gain': 0.5}),
+    ('tick', 13.07, {}),
     ('draw', 14.4, {'dur': 0.95, 'gain': 0.7}),
-    ('shutter', 15.37, {}), ('whoosh', 15.55, {'gain': 0.5}),
-    ('draw', 15.6, {'dur': 0.48, 'gain': 0.7}),
-    ('shutter', 16.07, {}), ('whoosh', 16.25, {'gain': 0.5}),
-    ('whoosh', 16.6, {'gain': 0.8}),
-    ('click', 18.0, {'pan': -0.3}), ('click', 18.5, {'pan': 0}), ('click', 19.0, {'pan': 0.3}),
-    ('ding', 19.67, {'note': 5}),
-    ('whoosh', 18.6, {'gain': 0.6}),
+    ('tick', 15.37, {}),
+    ('whip', 15.6, {'gain': 0.7}),
+    ('draw', 15.75, {'dur': 0.45, 'gain': 0.7}),
+    ('tick', 16.23, {}),
+    # stop: keys, then the keyframes peel off on the beat
+    ('click', 16.5, {'pan': -0.3}), ('click', 17.0, {'pan': 0}), ('click', 17.5, {'pan': 0.3}),
+    ('ding', 18.0, {'note': 5}),
+    ('shutter', 18.0, {}), ('shutter', 18.27, {}), ('shutter', 18.53, {}),
+    ('whoosh', 18.4, {'gain': 0.7}),
+    ('slide', 19.5, {'gain': 0.6}),
+    # the bundle
     ('slide', 20.4, {'gain': 0.6}), ('slide', 20.6, {'gain': 0.5}),
     ('whoosh', 21.8, {'gain': 0.7}),
+    # delivered, read, fixed
     ('thud', 22.35, {}),
-    ('type', 22.4, {'dur': 0.45}),
-    ('tick', 22.95, {}), ('tick', 23.1, {}), ('tick', 23.25, {}), ('tick', 23.4, {}), ('tick', 23.55, {}),
-    ('ding', 23.75, {'note': 1}),
+    ('type', 22.0, {'dur': 0.37}),
+    ('tick', 22.4, {}), ('tick', 22.55, {}), ('tick', 22.7, {}), ('tick', 22.85, {}), ('chime', 23.0, {'gain': 0.5}),
+    ('ding', 23.15, {'note': 1}),
     ('hit', 24.0, {}), ('hit', 24.25, {'gain': 0.8}), ('hit', 24.5, {'gain': 0.8}), ('hit', 24.75, {'gain': 0.8}), ('hit', 25.0, {'gain': 0.8}),
     ('whoosh', 25.3, {'gain': 0.6}),
     ('stamp', 28.0, {}), ('stamp', 28.5, {}), ('stamp', 29.0, {}),
-    ('whoosh', 30.15, {'gain': 0.8}),
-    ('pop', 30.35, {'note': 1}), ('pop', 30.5, {'note': 2}), ('pop', 30.65, {'note': 3}), ('pop', 30.8, {'note': 4}), ('pop', 30.95, {'note': 5}),
-    ('sparkle', 31.4, {'gain': 0.5}),
+    # the end card
+    ('pop', 30.5, {'note': 1}),
+    ('draw', 33.0, {'dur': 0.4, 'gain': 0.8}),
+    ('whoosh', 34.1, {'gain': 0.6}), ('pop', 34.55, {'note': 5}),
 ]
 
 header = """X:1

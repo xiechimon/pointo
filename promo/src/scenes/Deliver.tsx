@@ -14,7 +14,7 @@ const Fix: React.FC = () => {
   const colors: Record<string, string> = {dim: 'rgba(244,244,242,0.55)', txt: C.text, add: '#7CE3A4', ok: '#7CE3A4'};
   const marks: Record<string, string> = {dim: '⏺ ', txt: '  ', add: '  ', ok: '✓ '};
   const fly = kf(f, [0, 20], [0, 1], ease);
-  const ry = kf(f, [0, 120], [-14, -6], (x) => x);
+  const ry = kf(f, [0, 120], [-8, -3], (x) => x);
   return (
     <Stage tone="lilac" light={[25, 30]}>
       <div style={{position: 'absolute', left: 110, top: 210, ...H, fontSize: 84}}>
@@ -42,15 +42,10 @@ const Fix: React.FC = () => {
         </Fade>
       </div>
 
-      {f < 22 ? (
-        <div style={{position: 'absolute', left: interpolate(fly, [0, 1], [1030, 160]), top: interpolate(fly, [0, 1], [570, 800]), transform: `scale(${1 - fly * 0.5}) rotate(${fly * -30}deg)`, opacity: 1 - kf(f, [16, 22], [0, 1])}}>
-          <Icon size={80} style={{boxShadow: '0 20px 40px rgba(13,13,15,0.3)'}} />
-        </div>
-      ) : null}
 
       <AbsoluteFill style={{perspective: 2000}}>
-        <div style={{position: 'absolute', left: 930, top: 170, width: 900, transform: `rotateY(${ry}deg) rotateX(4deg)`, transformOrigin: '0% 50%'}}>
-          <Fade at={6} y={40}>
+        <div style={{position: 'absolute', left: 830, top: 140, width: 990, transform: `rotateY(${ry}deg) rotateX(3deg) scale(${1 + kf(f, [60, 110], [0, 0.06])})`, transformOrigin: '0% 50%'}}>
+          <Fade at={0} y={40} dur={14}>
             <div style={{borderRadius: 26, overflow: 'hidden', background: C.ink, boxShadow: '0 60px 120px rgba(40,20,120,0.35)'}}>
               <div style={{height: 52, display: 'flex', alignItems: 'center', gap: 8, padding: '0 20px', borderBottom: '1px solid rgba(255,255,255,0.08)'}}>
                 {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => (
@@ -58,18 +53,18 @@ const Fix: React.FC = () => {
                 ))}
                 <div style={{flex: 1, textAlign: 'center', fontFamily: MONO, fontSize: 20, color: 'rgba(244,244,242,0.5)', marginRight: 50}}>{d.termTitle}</div>
               </div>
-              <div style={{padding: '32px 36px', fontFamily: MONO, fontSize: 30, lineHeight: 1.75, minHeight: 640}}>
+              <div style={{padding: '34px 40px', fontFamily: MONO, fontSize: 33, lineHeight: 1.75, minHeight: 700}}>
                 <div style={{color: C.text}}>
                   <span style={{color: C.lilac}}>› </span>
-                  {typed(d.prompt, f, 22, 48)}
-                  {f < 56 && Math.floor(f / 12) % 2 === 0 ? <span style={{color: C.lilac}}>▌</span> : null}
+                  {typed(d.prompt, f, 0, 22)}
+                  {f < 30 && Math.floor(f / 12) % 2 === 0 ? <span style={{color: C.lilac}}>▌</span> : null}
                 </div>
                 <div style={{height: 16}} />
                 {d.lines.map((l, i) => {
-                  const at = 54 + i * 9;
+                  const at = 24 + i * 9;
                   const o = kf(f, [at, at + 8], [0, 1]);
                   return (
-                    <div key={i} style={{color: colors[l.c], opacity: o, transform: `translateX(${(1 - o) * 14}px)`, whiteSpace: 'pre', fontWeight: l.c === 'ok' ? 700 : 400}}>
+                    <div key={i} style={{color: colors[l.c], opacity: o, transform: `translateX(${(1 - o) * 14}px) scale(${l.c === 'add' ? 1 + kf(f, [at + 6, at + 16], [0, 0.06], ease) : 1})`, transformOrigin: '0% 50%', whiteSpace: 'pre', fontWeight: l.c === 'ok' || l.c === 'add' ? 700 : 400, background: l.c === 'add' ? `linear-gradient(90deg, rgba(124,227,164,0.22) ${kf(f, [at + 4, at + 20], [0, 100])}%, transparent ${kf(f, [at + 4, at + 20], [0, 100])}%)` : undefined, borderRadius: 8, margin: l.c === 'add' ? '6px -10px' : undefined, padding: l.c === 'add' ? '2px 10px' : undefined}}>
                       <span style={{color: l.c === 'ok' ? '#7CE3A4' : 'rgba(244,244,242,0.4)'}}>{marks[l.c]}</span>
                       {l.t}
                     </div>
@@ -100,7 +95,7 @@ const ToolName: React.FC = () => {
       <div
         style={{
           fontFamily: DISPLAY,
-          fontSize: 330,
+          fontSize: Math.min(330, 1600 / (d.tools[idx].length * 0.56)),
           lineHeight: 1,
           letterSpacing: 2,
           color: FG[tone],

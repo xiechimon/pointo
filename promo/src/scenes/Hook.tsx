@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
-import {C, clamp, DISPLAY, ease, FG, GROUND, H, kf, SANS, Tone, UI} from '../ui';
+import {C, clamp, Cursor, DISPLAY, ease, FG, GROUND, H, Ink, kf, SANS, Tone, UI} from '../ui';
 
 // Bars 0–1. A burst of vague words, one per beat, then one per eighth (accelerating), the
 // ground flipping with the cuts; at 3.0 s they pile up all at once; at 3.5 s the AI answers on
@@ -12,12 +12,12 @@ type Shot = {at: number; len: number; text: string; tone: Tone; size: number; x:
 const SHOTS: Shot[] = [
   {at: 0, len: 30, text: COPY.hook.beats[0], tone: 'paper', size: 230, x: 140, y: 300, align: 'left'},
   {at: 30, len: 30, text: COPY.hook.beats[1], tone: 'paper', size: 170, x: 1780, y: 620, align: 'right'},
-  {at: 60, len: 30, text: COPY.hook.beats[2], tone: 'ink', size: 260, x: 960, y: 400, align: 'center'},
+  {at: 60, len: 30, text: COPY.hook.beats[2], tone: 'paper', size: 260, x: 960, y: 400, align: 'center'},
   {at: 90, len: 30, text: COPY.hook.beats[3], tone: 'paper', size: 230, x: 140, y: 520, align: 'left'},
   {at: 120, len: 15, text: COPY.hook.eighths[0], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
-  {at: 135, len: 15, text: COPY.hook.eighths[1], tone: 'paper', size: 340, x: 960, y: 330, align: 'center'},
+  {at: 135, len: 15, text: COPY.hook.eighths[1], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
   {at: 150, len: 15, text: COPY.hook.eighths[2], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
-  {at: 165, len: 15, text: COPY.hook.eighths[3], tone: 'paper', size: 340, x: 960, y: 330, align: 'center'},
+  {at: 165, len: 15, text: COPY.hook.eighths[3], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
 ];
 
 // where each word lands in the "all at once" pile (3.0–3.5 s)
@@ -31,6 +31,27 @@ const PILE = [
   {x: 520, y: 330, r: 2, s: 0.36},
   {x: 1420, y: 880, r: -5, s: 0.36},
 ];
+
+// The pointer darts somewhere different on every cut: pointing, but never at the right thing.
+const POINTS: [number, number][] = [
+  [1500, 260], [380, 860], [1600, 820], [1180, 200], [300, 300], [1640, 520], [820, 900], [1520, 160],
+];
+
+const Pointer: React.FC = () => {
+  const f = useCurrentFrame();
+  const idx = SHOTS.findIndex((s) => f >= s.at && f < s.at + s.len);
+  if (idx < 0) return null;
+  const s = SHOTS[idx];
+  const [x1, y1] = POINTS[idx];
+  const [x0, y0] = POINTS[Math.max(0, idx - 1)];
+  const k = interpolate(f - s.at, [0, Math.min(10, s.len - 4)], [0, 1], {...clamp, easing: ease});
+  const ink = s.tone === 'ink';
+  return (
+    <div style={{position: 'absolute', inset: 0, filter: ink ? 'invert(1)' : undefined}}>
+      <Cursor x={x0 + (x1 - x0) * k} y={y0 + (y1 - y0) * k} scale={3.2} press={k > 0.95 ? 0.6 : 0} />
+    </div>
+  );
+};
 
 const Word: React.FC<{s: Shot}> = ({s}) => {
   const f = useCurrentFrame();
@@ -71,6 +92,11 @@ export const Hook: React.FC = () => {
   return (
     <AbsoluteFill style={{background: C.paper}}>
       {shot ? <Word s={shot} /> : null}
+      {shot ? <Pointer /> : null}
+      {/* the red pen in the first second and a half: circling the wrong thing */}
+      {f >= 30 && f < 60 ? (
+        <Ink d="M 1820 650 C 1840 590, 1500 576, 1300 590 C 1110 604, 1050 690, 1080 760 C 1120 840, 1500 850, 1700 820 C 1860 796, 1890 720, 1800 660" from={34} to={52} width={10} />
+      ) : null}
 
       {f >= 180 && !ai ? (
         <AbsoluteFill style={{background: C.paper}}>
@@ -101,10 +127,10 @@ export const Hook: React.FC = () => {
 
       {ai ? (
         <AbsoluteFill style={{background: C.lilac, alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{fontFamily: DISPLAY, fontSize: 620, lineHeight: 0.9, color: C.ink, transform: `scale(${1.3 - 0.3 * aiK + (f - 210) * 0.003})`, marginTop: -60}}>?</div>
-          <div style={{position: 'absolute', bottom: 150, display: 'flex', alignItems: 'center', gap: 22, opacity: aiK}}>
-            <span style={{fontFamily: UI, fontWeight: 700, fontSize: 30, letterSpacing: 4, color: C.lilacDeep}}>AI</span>
-            <span style={{fontFamily: SANS, fontWeight: 700, fontSize: 64, color: C.ink}}>{COPY.hook.ai}</span>
+          <div style={{fontFamily: DISPLAY, fontSize: 560, lineHeight: 0.9, color: C.ink, transform: `scale(${1.3 - 0.3 * aiK + (f - 210) * 0.003}) rotate(${Math.sin(f / 3) * 2}deg)`, marginTop: -200}}>?</div>
+          <div style={{position: 'absolute', bottom: 120, display: 'flex', alignItems: 'center', gap: 26, padding: '26px 44px', borderRadius: '44px 44px 44px 10px', background: C.card, boxShadow: '0 24px 60px rgba(60,40,140,0.25)', opacity: aiK, transform: `translateY(${(1 - aiK) * 40}px)`}}>
+            <span style={{fontFamily: UI, fontWeight: 800, fontSize: 40, letterSpacing: 2, color: C.lilacDeep}}>AI</span>
+            <span style={{fontFamily: SANS, fontWeight: 900, fontSize: 80, color: C.ink}}>{COPY.hook.ai}</span>
           </div>
         </AbsoluteFill>
       ) : null}

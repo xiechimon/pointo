@@ -12,13 +12,13 @@ const getPointAtLength = (d: string, len: number) => rawPoint(d, len) ?? {x: 0, 
 const WIN = {x: 160, y: 92, w: 1600, h: 920};
 export const BUTTON = {x: 1544, y: 676, w: 144, h: 48};
 export const CLICK = {x: 1612, y: 704, at: 300};
-export const CIRCLE = 'M 1712 676 C 1728 648, 1600 642, 1528 652 C 1482 660, 1474 712, 1502 736 C 1540 762, 1682 758, 1722 730 C 1746 712, 1738 682, 1698 666';
+export const CIRCLE = 'M 1700 662 C 1718 642, 1600 638, 1546 646 C 1512 652, 1506 712, 1530 740 C 1562 762, 1692 758, 1716 734 C 1732 714, 1728 682, 1694 662';
 export const RECT = 'M 1478 156 C 1560 148, 1680 150, 1750 155 C 1756 180, 1753 206, 1748 230 C 1660 235, 1560 233, 1472 228 C 1467 204, 1469 178, 1482 150';
-export const INK = {circle: [380, 440], rect: [452, 482]} as const;
+export const INK = {circle: [380, 440], rect: [464, 492]} as const;
 export const KEYFRAMES = [
   {n: 1, t: 304, x: 1700, y: 610},
-  {n: 2, t: 442, x: 1440, y: 690},
-  {n: 3, t: 484, x: 1420, y: 150},
+  {n: 2, t: 442, x: 1760, y: 610},
+  {n: 3, t: 494, x: 1420, y: 150},
 ];
 export const REC_AT = 75;
 
@@ -34,17 +34,17 @@ export const cursorAt = (t: number) => {
   const ce = getPointAtLength(CIRCLE, circleLen);
   const rs = getPointAtLength(RECT, 0);
   const re = getPointAtLength(RECT, rectLen);
-  if (t < 300) return {x: kf(t, [150, 290], [1320, CLICK.x]), y: kf(t, [150, 290], [980, CLICK.y])};
+  if (t < 300) return {x: kf(t, [170, 262], [1320, CLICK.x]), y: kf(t, [170, 262], [980, CLICK.y])};
   if (t < c0) return {x: kf(t, [312, 374], [CLICK.x, cs.x]), y: kf(t, [312, 374], [CLICK.y, cs.y])};
   if (t < r0) return {x: kf(t, [c1, r0 - 1], [ce.x, rs.x]), y: kf(t, [c1, r0 - 1], [ce.y, rs.y])};
-  return {x: kf(t, [r1, 560], [re.x, 1300]), y: kf(t, [r1, 560], [re.y, 560])};
+  return {x: kf(t, [r1, 560], [re.x, 1250]), y: kf(t, [r1, 560], [re.y, 520])};
 };
 
 const Row: React.FC<{k: string; v: string; i: number}> = ({k, v, i}) => (
   <div style={{height: 86, display: 'flex', alignItems: 'center', padding: '0 32px', borderTop: i ? '1px solid #EFEFEC' : undefined}}>
-    <div style={{width: 316, fontSize: 18, color: '#2B2B2B', fontWeight: 500}}>{k}</div>
+    <div style={{width: 316, fontSize: 25, color: '#2B2B2B', fontWeight: 700}}>{k}</div>
     {v ? (
-      <div style={{flex: 1, height: 46, borderRadius: 10, border: '1px solid #E3E3DF', background: '#FCFCFB', display: 'flex', alignItems: 'center', padding: '0 16px', fontSize: 18, color: '#1E1E1E'}}>
+      <div style={{flex: 1, height: 46, borderRadius: 10, border: '1px solid #E3E3DF', background: '#FCFCFB', display: 'flex', alignItems: 'center', padding: '0 16px', fontSize: 24, color: '#1E1E1E'}}>
         {v}
         {k === '时区' ? <span style={{marginLeft: 'auto', color: '#9A9A95', fontSize: 14}}>▾</span> : null}
       </div>
@@ -59,8 +59,8 @@ const Row: React.FC<{k: string; v: string; i: number}> = ({k, v, i}) => (
 const Pill: React.FC<{t: number}> = ({t}) => {
   if (t < REC_AT) return null;
   const grow = kf(t, [REC_AT, REC_AT + 16], [0, 1]);
-  const state = t >= 700 ? 'done' : t >= 660 ? 'working' : 'rec';
-  const secs = Math.floor(Math.max(0, Math.min(t, 660) - REC_AT) / 60);
+  const state = t >= 600 ? 'done' : t >= 572 ? 'working' : 'rec';
+  const secs = Math.floor(Math.max(0, Math.min(t, 572) - REC_AT) / 60);
   const width = state === 'done' ? 300 : state === 'working' ? 150 : 210;
   return (
     <div
@@ -143,7 +143,7 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
         <span style={{opacity: 0.85}}>Edit</span>
         <span style={{opacity: 0.85}}>View</span>
         <div style={{flex: 1}} />
-        <Icon size={18} style={{borderRadius: 5, boxShadow: t >= REC_AT && t < 660 ? `0 0 0 2px ${C.red}` : undefined}} />
+        <Icon size={18} style={{borderRadius: 5, boxShadow: t >= REC_AT && t < 572 ? `0 0 0 2px ${C.red}` : undefined}} />
         <span style={{fontFamily: MONO, opacity: 0.9, fontSize: 14}}>10:24</span>
       </div>
 
@@ -171,25 +171,25 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
         </div>
         {/* sidebar */}
         <div style={{position: 'absolute', left: 0, top: 48, bottom: 0, width: 240, background: '#F8F8F6', borderRight: '1px solid #EEEEEB', padding: '26px 16px'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: 10, fontSize: 18, fontWeight: 600, color: '#1A1A1A', padding: '0 10px 26px'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: 10, fontSize: 22, fontWeight: 700, color: '#1A1A1A', padding: '0 10px 26px'}}>
             <div style={{width: 24, height: 24, borderRadius: 7, background: 'linear-gradient(135deg,#F29B5B,#E5484D)'}} />
             {d.app}
           </div>
           {d.nav.map((n, i) => (
-            <div key={n} style={{height: 40, borderRadius: 9, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 17, color: i === 4 ? '#111' : '#5E5E59', background: i === 4 ? '#ECECE8' : undefined, fontWeight: i === 4 ? 500 : 400, marginBottom: 2}}>
+            <div key={n} style={{height: 40, borderRadius: 9, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 21, color: i === 4 ? '#111' : '#5E5E59', background: i === 4 ? '#ECECE8' : undefined, fontWeight: i === 4 ? 500 : 400, marginBottom: 2}}>
               {n}
             </div>
           ))}
         </div>
         {/* main */}
-        <div style={{position: 'absolute', left: 312, top: T(196), fontSize: 34, fontWeight: 600, color: '#111', letterSpacing: '-0.01em'}}>{d.title}</div>
-        <div style={{position: 'absolute', left: 312, top: T(250), fontSize: 18, color: '#85857F'}}>{d.subtitle}</div>
+        <div style={{position: 'absolute', left: 312, top: T(196), fontSize: 44, fontWeight: 900, color: '#111', letterSpacing: '-0.01em'}}>{d.title}</div>
+        <div style={{position: 'absolute', left: 312, top: T(256), fontSize: 22, color: '#85857F'}}>{d.subtitle}</div>
         <div style={{position: 'absolute', left: 312, top: T(300), width: 1216, borderRadius: 14, border: '1px solid #ECECE8', background: '#fff'}}>
           {d.rows.map((r, i) => (
             <Row key={r.k} k={r.k} v={r.v} i={i} />
           ))}
         </div>
-        <div style={{position: 'absolute', left: L(1428), top: T(676), width: 100, height: 48, borderRadius: 10, border: '1px solid #E3E3DF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: '#333'}}>{d.cancel}</div>
+        <div style={{position: 'absolute', left: L(1428), top: T(676), width: 100, height: 48, borderRadius: 10, border: '1px solid #E3E3DF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, color: '#333'}}>{d.cancel}</div>
         <div
           style={{
             position: 'absolute',
@@ -200,8 +200,8 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
             borderRadius: 10,
             background: pressedBtn ? '#2A2A2A' : '#111',
             color: '#fff',
-            fontSize: 17,
-            fontWeight: 500,
+            fontSize: 21,
+            fontWeight: 700,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -213,6 +213,31 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
       </div>
 
       <Ripple x={CLICK.x} y={CLICK.y} at={CLICK.at} frame={t} />
+      {/* the toast that should have appeared, sketched where the box is drawn */}
+      {t >= 486 ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: 1500,
+            top: 168,
+            width: 230,
+            height: 50,
+            borderRadius: 12,
+            border: `3px dashed ${C.red}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            fontFamily: SANS,
+            fontWeight: 700,
+            fontSize: 22,
+            color: C.red,
+            opacity: kf(t, [486, 496], [0, 0.9]),
+          }}
+        >
+          这里该有提示
+        </div>
+      ) : null}
       <Ink d={CIRCLE} from={INK.circle[0]} to={INK.circle[1]} frame={t} width={5} />
       <Ink d={RECT} from={INK.rect[0]} to={INK.rect[1]} frame={t} width={5} />
 
@@ -248,26 +273,6 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
             </div>
           );
         })}
-
-      {/* holding ⇧ while drawing */}
-      {t >= 368 && t <= 490 ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: cur.x + 26,
-            top: cur.y + 30,
-            padding: '2px 9px',
-            borderRadius: 7,
-            background: C.red,
-            color: '#fff',
-            fontSize: 17,
-            fontWeight: 600,
-            opacity: kf(t, [368, 376], [0, 1]) * kf(t, [482, 490], [1, 0]),
-          }}
-        >
-          ⇧
-        </div>
-      ) : null}
 
       <Pill t={t} />
       {showCursor && t >= 150 ? <Cursor x={cur.x} y={cur.y} press={press} /> : null}

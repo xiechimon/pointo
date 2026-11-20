@@ -325,3 +325,20 @@ export const Flash: React.FC<{at: number; len?: number; max?: number; color?: st
 
 /** Headline type: medium weight, tight tracking. */
 export const H: React.CSSProperties = {fontFamily: SANS, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.12};
+
+/** A word whose letters rise out of a mask one after another. */
+export const Rise: React.FC<{text: string; at: number; stagger?: number; dur?: number; style?: React.CSSProperties}> = ({text, at, stagger = 2, dur = 16, style}) => {
+  const f = useCurrentFrame();
+  return (
+    <div style={{display: 'flex', ...style}}>
+      {Array.from(text).map((ch, i) => {
+        const k = kf(f, [at + i * stagger, at + i * stagger + dur], [0, 1], ease);
+        return (
+          <span key={i} style={{display: 'inline-block', overflow: 'hidden', paddingBottom: '0.04em'}}>
+            <span style={{display: 'inline-block', transform: `translateY(${(1 - k) * 105}%)`}}>{ch}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+};

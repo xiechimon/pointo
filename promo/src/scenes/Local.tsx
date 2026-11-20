@@ -1,13 +1,13 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
-import {C, ease, FG, GROUND, H, kf, MONO, Reveal, SANS, Stage, Tone, typed} from '../ui';
+import {C, DISPLAY, ease, FG, GROUND, H, kf, MONO, Reveal, SANS, Stage, Tone, typed} from '../ui';
 
 // Bars 13–14. The stop, on ink: a ring of sound bars turning in 3D, the words forming in its
 // centre. Then the three facts slam in on bar 14's beats, each on its own colour field.
 
 const BARS = 72;
-const FACT_TONES: Tone[] = ['paper', 'red', 'lilac'];
+const FACT_TONES: Tone[] = ['lilac', 'lilac', 'lilac'];
 
 export const Local: React.FC = () => {
   const f = useCurrentFrame();
@@ -65,16 +65,17 @@ export const Local: React.FC = () => {
   const i = Math.min(2, Math.floor((f - 120) / 30));
   const at = 120 + i * 30;
   const k = kf(f, [at, at + 8], [0, 1], ease);
-  const push = kf(f, [214, 240], [0, 1]);
+  const push = kf(f, [230, 240], [0, 1]);
   const tone = FACT_TONES[i];
   const fact = d.facts[i];
   return (
     <AbsoluteFill style={{background: GROUND[tone], alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{fontFamily: MONO, fontSize: 40, color: FG[tone], opacity: 0.6 * k, marginBottom: 30}}>{fact.k} / 03</div>
+      <div style={{position: 'absolute', right: 80 - (f - at) * 1.2, bottom: -120, fontFamily: DISPLAY, fontSize: 760, lineHeight: 1, color: 'transparent', WebkitTextStroke: `4px ${C.lilacDeep}`, opacity: 0.35 * k}}>{fact.k}</div>
+      <div style={{fontFamily: MONO, fontSize: 52, color: FG[tone], opacity: 0.6 * k, marginBottom: 30}}>{fact.k} / 03</div>
       <div
         style={{
           ...H,
-          fontSize: 160,
+          fontSize: 132,
           color: FG[tone],
           whiteSpace: 'nowrap',
           transform: `scale(${(1.35 - 0.35 * k) * (1 + (f - at) * 0.002) * (1 + push * 0.3)})`,

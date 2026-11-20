@@ -11,33 +11,42 @@ import {Desktop, KEYFRAMES} from './Desktop';
 
 const P = 2200;
 type Cam = {s: number; x: number; y: number; ry: number; rx: number};
+// Framing rule: the action sits in the upper two thirds so the caption at the bottom never
+// covers it, and the camera never shows past the screen's edges (x ≤ 1920 − 960/s, y ≤ 1080 − 540/s).
 const CAM: [number, Cam][] = [
-  [0, {s: 0.32, x: 960, y: 620, ry: -42, rx: 22}],
-  [90, {s: 0.66, x: 960, y: 540, ry: -6, rx: 3}],
-  [130, {s: 0.78, x: 960, y: 540, ry: 0, rx: 0}],
-  [205, {s: 1.8, x: 1380, y: 640, ry: 0, rx: 0}],
-  [336, {s: 1.8, x: 1380, y: 640, ry: 0, rx: 0}],
-  [380, {s: 1.5, x: 1280, y: 470, ry: 0, rx: 0}],
-  [486, {s: 1.5, x: 1280, y: 470, ry: 0, rx: 0}],
-  [540, {s: 0.36, x: 2000, y: 480, ry: 34, rx: 8}],
-  [604, {s: 0.36, x: 2080, y: 480, ry: 26, rx: 6}],
-  [660, {s: 1, x: 960, y: 540, ry: 0, rx: 0}],
+  [0, {s: 0.5, x: 960, y: 600, ry: -34, rx: 16}],
+  [36, {s: 0.72, x: 960, y: 600, ry: 0, rx: 0}],
+  [70, {s: 0.76, x: 960, y: 600, ry: 0, rx: 0}],
+  [130, {s: 1.3, x: 1182, y: 660, ry: 0, rx: 0}], // medium: the whole form and the button
+  [300, {s: 1.5, x: 1270, y: 680, ry: 0, rx: 0}], // pushing in through the click
+  [336, {s: 1.56, x: 1300, y: 690, ry: 0, rx: 0}],
+  [372, {s: 2.2, x: 1484, y: 735, ry: 0, rx: 0}], // close: ⇧ + the ink around the button
+  [450, {s: 2.24, x: 1484, y: 735, ry: 0, rx: 0}],
+  [462, {s: 1.5, x: 1150, y: 380, ry: 0, rx: 0}], // whip up to where the toast should be
+  [500, {s: 1.52, x: 1150, y: 380, ry: 0, rx: 0}],
+  [524, {s: 1.0, x: 960, y: 560, ry: 0, rx: 0}], // back out: stop the recording
+  [604, {s: 1.06, x: 960, y: 560, ry: 0, rx: 0}],
+  [646, {s: 0.4, x: 1760, y: 500, ry: 30, rx: 7}], // orbit: the keyframes peeled off
+  [676, {s: 0.4, x: 1800, y: 500, ry: 26, rx: 6}],
+  [706, {s: 1, x: 960, y: 540, ry: 0, rx: 0}], // the row: the contact sheet
 ];
 
 const camAt = (f: number): Cam => {
   const keys = CAM.map(([k]) => k);
   const pick = (fn: (c: Cam) => number) => kf(f, keys, CAM.map(([, c]) => fn(c)));
   // never still: a slow push-in rides on top of every hold
-  return {s: pick((c) => c.s) * (1 + f * 0.00007), x: pick((c) => c.x), y: pick((c) => c.y), ry: pick((c) => c.ry), rx: pick((c) => c.rx)};
+  return {s: pick((c) => c.s), x: pick((c) => c.x), y: pick((c) => c.y), ry: pick((c) => c.ry), rx: pick((c) => c.rx)};
 };
 
 const worldTransform = (c: Cam) => `translateZ(${P * (1 - 1 / c.s)}px) rotateX(${c.rx}deg) rotateY(${c.ry}deg) translate3d(${960 - c.x}px, ${540 - c.y}px, 0)`;
 
 /** Where slice i sits: A = the stack behind the screen, B = the contact-sheet row. */
 const ROW = {gap: 616, sc: 0.3};
+/** Keyframes peel off after the recording stops, one per beat of bar 9. */
+export const PEEL = [600, 616, 632];
 const sliceAt = (i: number, f: number, t: number) => {
-  const fly = kf(f, [t, t + 46], [0, 1], ease);
-  const line = kf(f, [618 + i * 6, 668 + i * 6], [0, 1]);
+  const fly = kf(f, [t, t + 36], [0, 1], ease);
+  const line = kf(f, [672 + i * 4, 708 + i * 4], [0, 1]);
   const A = {x: 640 * (i + 1), y: -60 * (i + 1), z: -360 * (i + 1), sc: 1, ry: -10};
   const B = {x: (i - 1) * ROW.gap, y: 0, z: 0, sc: ROW.sc, ry: 0};
   const lerp = (a: number, b: number) => a + (b - a) * line;
@@ -57,8 +66,8 @@ const sliceAt = (i: number, f: number, t: number) => {
 const Slice: React.FC<{i: number}> = ({i}) => {
   const f = useCurrentFrame();
   const k = KEYFRAMES[i];
-  if (f < k.t) return null;
-  const s = sliceAt(i, f, k.t);
+  if (f < PEEL[i]) return null;
+  const s = sliceAt(i, f, PEEL[i]);
   return (
     <div
       style={{
@@ -112,23 +121,40 @@ const Slice: React.FC<{i: number}> = ({i}) => {
 /** During the orbit: what each keyframe slice holds. */
 const SliceList: React.FC = () => (
   <div style={{position: 'absolute', right: 80, bottom: 80, width: 640}}>
-    <Fade at={508} out={600} y={30}>
+    <Fade at={644} out={690} y={30}>
       <div style={{padding: '28px 34px', borderRadius: 26, background: C.card, boxShadow: '0 30px 70px rgba(13,13,15,0.18)'}}>
+        <div style={{fontFamily: MONO, fontSize: 30, color: C.dim, marginBottom: 6}}>summary.md</div>
         {COPY.demo.slices.map((line, i) => (
-          <Fade key={i} at={516 + i * 10} y={10} dur={20}>
-            <div style={{display: 'flex', alignItems: 'center', gap: 18, padding: '10px 0', fontFamily: SANS, fontWeight: 700, fontSize: 34, color: C.ink}}>
+          <Fade key={i} at={648 + i * 6} y={10} dur={16}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 18, padding: '10px 0', fontFamily: SANS, fontWeight: 700, fontSize: 40, color: C.ink}}>
               <span style={{width: 44, height: 44, borderRadius: 10, background: C.red, color: '#fff', fontFamily: SANS, fontWeight: 900, fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>{i + 1}</span>
               {line}
             </div>
           </Fade>
         ))}
-        <Fade at={550} y={8} dur={20}>
+        <Fade at={664} y={8} dur={16}>
           <div style={{marginTop: 10, paddingTop: 16, borderTop: `1px solid ${C.line}`, fontFamily: SANS, fontWeight: 500, fontSize: 30, color: C.dim}}>{COPY.demo.quote}</div>
         </Fade>
       </div>
     </Fade>
   </div>
 );
+
+/** While the ink is drawn: ⇧ held down, said in words. */
+const ShiftHud: React.FC = () => {
+  const f = useCurrentFrame();
+  const o = kf(f, [358, 368], [0, 1]) * kf(f, [496, 506], [1, 0]);
+  if (o <= 0) return null;
+  const down = f >= 372 && f < 494;
+  return (
+    <div style={{position: 'absolute', left: 70, top: 70, opacity: o, transform: `translateY(${(1 - o) * -30}px)`}}>
+      <div style={{display: 'flex', alignItems: 'center', gap: 24, padding: '18px 30px 18px 18px', borderRadius: 30, background: C.ink, boxShadow: '0 30px 60px rgba(13,13,15,0.3)'}}>
+        <div style={{width: 120, height: 120, borderRadius: 22, background: down ? C.red : '#fff', color: down ? '#fff' : C.ink, boxShadow: down ? '0 2px 0 #9E1F17' : '0 8px 0 #B9B9B4', transform: `translateY(${down ? 6 : 0}px)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: SANS, fontWeight: 700, fontSize: 64}}>⇧</div>
+        <span style={{fontFamily: SANS, fontWeight: 900, fontSize: 52, color: C.text}}>按住 ⇧ 画圈</span>
+      </div>
+    </div>
+  );
+};
 
 const Hud: React.FC<{at: number; out: number; label: string}> = ({at, out, label}) => (
   <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, display: 'flex', justifyContent: 'center'}}>
@@ -160,8 +186,8 @@ const Caption: React.FC = () => {
   caps.forEach((c, i) => {
     if (f >= c.from) idx = i;
   });
-  const o = kf(f, [160, 172], [0, 1]) * kf(f, [482, 496], [1, 0]);
-  if (idx < 0 || o <= 0 || f < caps[0].from + 2) return null;
+  const o = f >= 162 && f < 500 ? 1 : 0;
+  if (idx < 0 || o <= 0) return null;
   const cap = caps[idx];
   const prev = idx > 0 && cap.text.startsWith(caps[idx - 1].text) ? caps[idx - 1].text.length : 0;
   const rest = cap.text.slice(prev);
@@ -184,7 +210,7 @@ const Caption: React.FC = () => {
           fontWeight: 700,
         }}
       >
-        <span style={{width: 16, height: 16, borderRadius: 8, background: C.red}} />
+        <span style={{fontFamily: SANS, fontSize: 34, fontWeight: 700, color: C.ink, background: C.lilac, padding: '4px 14px', borderRadius: 12}}>🎙 你说</span>
         <span style={{fontFamily: MONO, fontSize: 34, color: C.textDim}}>{cap.ts}</span>
         <span>{shown}</span>
       </div>
@@ -243,10 +269,10 @@ const Compile: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            left: 1060,
-            top: 600,
+            left: 960,
+            top: 610,
             transformStyle: 'preserve-3d',
-            transform: `rotateX(${rx}deg) rotateY(${ry}deg) scale(${(1 - collapse * 0.9) * kf(f, [0, 40], [1, 0.82])})`,
+            transform: `rotateX(${rx}deg) rotateY(${ry}deg) scale(${(1 - collapse * 0.9) * kf(f, [0, 40], [1.1, 1.0])})`,
             opacity: 1 - kf(f, [108, 120], [0, 1]),
           }}
         >
@@ -292,24 +318,22 @@ const Compile: React.FC = () => {
             <div style={{display: 'flex', gap: 18, flexWrap: 'wrap'}}>
               {KEYFRAMES.map((k, i) => (
                 <div key={k.n} style={{position: 'relative', width: 513, height: 288, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(13,13,15,0.1)'}}>
-                  <div style={{position: 'absolute', transform: `scale(${513 / 1280}) translate(-640px, -110px)`, transformOrigin: '0 0'}}>
+                  <div style={{position: 'absolute', transform: `scale(0.4645) translate(-816px, -148px)`, transformOrigin: '0 0'}}>
                     <Desktop t={k.t + 2} showChips={false} />
                   </div>
-                  <div style={{position: 'absolute', left: 10, top: 10, width: 36, height: 36, borderRadius: 8, background: C.red, color: '#fff', fontFamily: SANS, fontWeight: 900, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  <div style={{position: 'absolute', left: 10, top: 10, width: 40, height: 40, borderRadius: 9, background: '#fff', color: C.ink, fontFamily: SANS, fontWeight: 900, fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>
                     {i + 1}
                   </div>
                 </div>
               ))}
-              <div style={{width: 513, height: 288, borderRadius: 12, border: `2px dashed ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', fontFamily: SANS, fontWeight: 700, fontSize: 34, color: C.ink}}>
-                {d.quote}
-              </div>
+              <div style={{width: 513, height: 288, borderRadius: 12, background: '#F3F3F1'}} />
             </div>
           </div>
         </div>
       </AbsoluteFill>
       {/* the collapse leaves a glowing point that becomes the bundle */}
       {collapse > 0 ? (
-        <div style={{position: 'absolute', left: 1060 - 30, top: 600 - 30, width: 60, height: 60, borderRadius: 30, background: C.red, boxShadow: `0 0 ${60 * collapse}px ${20 * collapse}px rgba(255,59,47,0.6)`, opacity: collapse, transform: `scale(${collapse})`}} />
+        <div style={{position: 'absolute', left: 960 - 30, top: 610 - 30, width: 60, height: 60, borderRadius: 30, background: C.red, boxShadow: `0 0 ${60 * collapse}px ${20 * collapse}px rgba(255,59,47,0.6)`, opacity: collapse, transform: `scale(${collapse})`}} />
       ) : null}
     </Stage>
   );
@@ -318,8 +342,8 @@ const Compile: React.FC = () => {
 export const Demo: React.FC = () => {
   const f = useCurrentFrame();
   const cam = camAt(f);
-  const shutter = KEYFRAMES.reduce((m, k) => Math.max(m, f >= k.t && f < k.t + 10 ? 1 - (f - k.t) / 10 : 0), 0);
-  const screenAway = kf(f, [612, 668], [0, 1]);
+  const shutter = PEEL.reduce((m, t) => Math.max(m, f >= t && f < t + 10 ? 1 - (f - t) / 10 : 0), 0);
+  const screenAway = kf(f, [676, 708], [0, 1]);
   const appear = kf(f, [0, 30], [0, 1]);
   const framed = cam.s < 1.2;
 
@@ -354,8 +378,9 @@ export const Demo: React.FC = () => {
           </AbsoluteFill>
           <Hud at={0} out={108} label={COPY.demo.hudStart} />
           <Caption />
+          <ShiftHud />
           <SliceList />
-          <Hud at={600} out={690} label={COPY.demo.hudStop} />
+          <Hud at={510} out={598} label={COPY.demo.hudStop} />
         </>
       ) : null}
 

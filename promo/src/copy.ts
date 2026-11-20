@@ -10,6 +10,7 @@ export const COPY = {
     pre: '别讲给 AI 听，',
     main: '指给它看。',
     note: '就这里！',
+    keys: '一个快捷键，开始录',
     sub: 'macOS · Windows · 开源免费',
   },
   demo: {
@@ -52,7 +53,7 @@ export const COPY = {
     compileA: '一段录屏，',
     compileB: '压成 AI 一眼能读懂的记录。',
     tree: [
-      'pointo-1794650000000.pointo/',
+      '2026-11-20-1024/',
       '├─ contact-sheet.png',
       '├─ frames/',
       '├─ summary.md',
@@ -71,18 +72,18 @@ export const COPY = {
   deliver: {
     headA: '自动送进',
     headB: '你正在开发的项目。',
-    folders: ['my-app', '.pointo', 'captures', 'pointo-1794650000000'],
+    folders: ['my-app', '.pointo', 'captures', '2026-11-20-1024'],
     latest: 'latest',
     toast: '已发送到 my-app',
-    termTitle: 'my-app — zsh',
+    termTitle: 'my-app — Claude Code',
     prompt: '看一下 .pointo/latest，修好它',
     lines: [
       {t: '读取 contact-sheet.png、summary.md', c: 'dim'},
       {t: '#1  点击「保存更改」没有反应', c: 'txt'},
-      {t: '#3  右上角缺少保存成功提示', c: 'txt'},
-      {t: '修改 src/settings/Form.tsx', c: 'dim'},
-      {t: '+ 绑定 onSubmit，保存后显示提示', c: 'add'},
-      {t: '已修复', c: 'ok'},
+      {t: '#2  圈出的按钮：onSubmit 没绑定', c: 'txt'},
+      {t: '#3  右上角缺少「已保存」提示', c: 'txt'},
+      {t: '+ 绑定 onSubmit，保存后弹出提示', c: 'add'},
+      {t: '已修复 src/settings/Form.tsx', c: 'ok'},
     ],
     toolsHead: '能读本地文件的 AI 编程工具，都能用',
     tools: ['Claude Code', 'Codex', 'Cursor', 'Gemini CLI', 'Qwen Code'],
@@ -106,6 +107,8 @@ export const COPY = {
     win: 'Windows 预览版',
     url: 'github.com/xiechimon/pointo',
     keys: '⌥⇧S 开始 · 按住 ⇧ 画 · 再按 ⌥⇧S 结束',
+    platforms: 'macOS · Windows · 开源免费',
+    menubar: '它就住在你的菜单栏里',
   },
 };
 
