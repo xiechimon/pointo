@@ -244,13 +244,13 @@ const Compile: React.FC = () => {
   // local 0 = demo frame 720 (bar 10)
   const f = useCurrentFrame();
   const d = COPY.demo;
-  const zoom = kf(f, [38, 52], [1, 2.5], ease);
+  const zoom = kf(f, [0, 76], [1, 1.06], (x) => x); // a slow push, no crop
   const sheetOut = kf(f, [76, 84], [0, 1]);
   const sum = kf(f, [80, 94], [0, 1], ease);
   const collapse = kf(f, [104, 120], [0, 1], (x) => x * x);
   return (
     <Stage tone="lilac" light={[30, 20]}>
-      <div style={{position: 'absolute', left: 110, top: 80, ...H, fontSize: 76, zIndex: 2, opacity: 1 - kf(f, [34, 42], [0, 1])}}>
+      <div style={{position: 'absolute', left: 110, top: 80, ...H, fontSize: 76, zIndex: 2, opacity: 1 - kf(f, [70, 78], [0, 1])}}>
         <Reveal at={0} dur={12}>
           <span style={{color: C.ink}}>{d.compileA}</span>
           <span style={{color: '#4B2BD6'}}>{d.compileB}</span>
@@ -260,12 +260,12 @@ const Compile: React.FC = () => {
       {/* the contact sheet, then a push into keyframe 2 (the ink around the button) */}
       {sheetOut < 1 ? (
         <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', paddingTop: 80, opacity: 1 - sheetOut}}>
-          <div style={{transform: `scale(${zoom * kf(f, [0, 30], [1.04, 1], (x) => x)})`, transformOrigin: '50% 58%'}}>
+          <div style={{transform: `scale(${zoom * 1.12})`, transformOrigin: '50% 50%'}}>
             <div style={{padding: 30, borderRadius: 28, background: C.card, boxShadow: '0 40px 90px rgba(60,40,140,0.25)'}}>
               <div style={{fontFamily: MONO, fontSize: 34, color: C.ink, marginBottom: 20}}>contact-sheet.png</div>
               <div style={{display: 'flex', gap: 18}}>
                 {KEYFRAMES.map((_, i) => (
-                  <div key={i} style={{opacity: i === 1 ? 1 : 1 - kf(f, [38, 50], [0, 0.85])}}>
+                  <div key={i}>
                     <Tile i={i} />
                   </div>
                 ))}
@@ -336,7 +336,6 @@ export const Demo: React.FC = () => {
           <Hud at={0} out={72} label={COPY.demo.hudStart} />
           <Caption />
           <ShiftHud />
-          <SliceList />
           <Hud at={510} out={576} label={COPY.demo.hudStop} />
           {/* the result of stopping, said large: copied, three keyframes */}
           <div style={{position: 'absolute', left: 0, right: 0, bottom: 80, display: 'flex', justifyContent: 'center', opacity: kf(f, [596, 604], [0, 1]) * kf(f, [652, 664], [1, 0])}}>

@@ -13,7 +13,8 @@
 
 ```bash
 npm install
-npx om samples build     # 可选：一次性下载真实乐器采样（约 55 MB，CC0/CC-BY）；不装则用合成音色
+npx om samples build     # 可选：一次性下载真实乐器采样（CC0/CC-BY）；不装则用合成音色
+./scripts/samples.sh     # 同上，适用于访问不了 api.github.com 的网络（用 git 列文件）
 ./scripts/render.sh      # 作曲 → 渲染 → 响度标准化 → out/
 npx om qa out/pointo-promo-1080p60.mp4
 npm run studio           # 在浏览器里逐帧预览

@@ -61,7 +61,7 @@ DROPS = (2, 10, 11, 12, 15, 16)
 PEAK = (15, 16)
 
 # motif: D F A G  ("指 给 它 看")
-voice('MOT', 'inst=bell role=melody gain=0.5', [
+voice('MOT', 'inst=glock role=melody gain=0.55', [
     '!mark:hook! !mp! d2 f2 a2 g2', 'd2 f2 z4',
     '!mark:title! z8', '!mp! d2 f2 a2 g2',
     '!mark:demo! z8', Z, Z, Z, Z,
@@ -233,7 +233,6 @@ SFX = [
     ('whoosh', 18.4, {'gain': 0.7}),
     ('slide', 19.5, {'gain': 0.6}),
     # the bundle: sheet, push into keyframe 2, summary.md, fold
-    ('whoosh', 20.67, {'gain': 0.6}),
     ('slide', 21.33, {'gain': 0.6}),
     ('whoosh', 21.75, {'gain': 0.6}),
     # delivered, read, fixed, and the app works
