@@ -106,8 +106,11 @@ jobs:
             echo "POINTO_NOTARY_ISSUER=${ISSUER}"
           } >> "$GITHUB_ENV"
 
-      # release-app.sh builds offline, so fetch the crates first.
-      - run: cargo fetch --locked
+      # release-app.sh builds offline, so fetch the crates first. Sparkle goes outside target/,
+      # which the Rust cache saves and prunes.
+      - run: |
+          cargo fetch --locked
+          echo "SCRAWL_SPARKLE_DIR=${RUNNER_TEMP}/sparkle-2.9.4" >> "$GITHUB_ENV"
 
       - name: Build only (no tag)
         if: env.TAG == ''
