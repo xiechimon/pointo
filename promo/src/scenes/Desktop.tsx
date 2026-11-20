@@ -130,11 +130,10 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
         style={{
           position: 'absolute',
           inset: 0,
-          background: `radial-gradient(900px 700px at 12% 18%, #E9B98F 0%, transparent 62%),
-            radial-gradient(1100px 800px at 88% 22%, #7D8DB4 0%, transparent 60%),
-            radial-gradient(900px 800px at 40% 105%, #2E4A5C 0%, transparent 62%),
-            radial-gradient(700px 600px at 95% 95%, #C0796A 0%, transparent 60%),
-            linear-gradient(160deg, #C79F7C, #5B6E8A)`,
+          background: `radial-gradient(1000px 800px at 15% 15%, #E7E0FF 0%, transparent 62%),
+            radial-gradient(1100px 900px at 90% 85%, #A893FF 0%, transparent 60%),
+            radial-gradient(800px 700px at 85% 10%, #FFC9C2 0%, transparent 60%),
+            linear-gradient(160deg, #D7CEFF, #B6A4FF)`,
         }}
       />
       {/* menu bar */}

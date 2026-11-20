@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Build the soundtrack, render the film, then master the audio to -14 LUFS
+# Compose and perform the score (huashu-motion), render the film, then master the audio to -14 LUFS
 # (what TikTok / Bilibili normalize to) and write a web-ready MP4 plus covers.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-python3 scripts/music.py
+# score/ is a huashu-motion project made on demand (its vendored runtime stays out of git)
+[ -f score/vendor/om.js ] || { rm -rf score; npx om new score --template blank; }
+python3 scripts/score.py
+npx om sound score
+cp score/assets/sound.wav public/sound.wav
 npx remotion render PointoPromo out/raw.mkv --codec=h264 --crf=15 --x264-preset=slow \
   --audio-codec=pcm-16 --log=error
 ffmpeg -hide_banner -loglevel error -y -i out/raw.mkv -c:v copy \

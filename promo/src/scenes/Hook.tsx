@@ -1,102 +1,113 @@
 import React from 'react';
-import {AbsoluteFill, random, useCurrentFrame} from 'remotion';
+import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
-import {C, Fade, H, kf, MONO, Reveal, SANS, Stage} from '../ui';
+import {C, clamp, DISPLAY, ease, FG, GROUND, H, kf, SANS, Tone, UI} from '../ui';
 
-// Bars 0–1. The camera flies through a fog of vague descriptions ("左边那个", "这里"…)
-// in 3D, with depth of field. They stall, the line lands, and a red pen tip appears
-// in the centre — the stroke that cuts through everything on bar 2.
+// Bars 0–1. A burst of vague words, one per beat, then one per eighth (accelerating), the
+// ground flipping with the cuts; at 3.0 s they pile up all at once; at 3.5 s the AI answers on
+// a lilac flood; the last half beat is the held breath before the hit on bar 2.
 
-const P = 1200; // perspective
-const FOCUS = -700;
-const BUBBLES = Array.from({length: 34}).map((_, i) => {
-  const phrase = COPY.hook.phrases[i % COPY.hook.phrases.length];
-  const a = random(`a${i}`) * Math.PI * 2;
-  const r = 260 + random(`r${i}`) * 900;
-  return {
-    phrase,
-    x: Math.cos(a) * r * 1.5,
-    y: Math.sin(a) * r * 0.75,
-    z0: -random(`z${i}`) * 4800,
-    rot: (random(`rot${i}`) - 0.5) * 20,
-    user: random(`u${i}`) > 0.35,
-  };
-});
+type Shot = {at: number; len: number; text: string; tone: Tone; size: number; x: number; y: number; align: 'left' | 'right' | 'center'};
+
+const SHOTS: Shot[] = [
+  {at: 0, len: 30, text: COPY.hook.beats[0], tone: 'paper', size: 230, x: 140, y: 300, align: 'left'},
+  {at: 30, len: 30, text: COPY.hook.beats[1], tone: 'paper', size: 170, x: 1780, y: 620, align: 'right'},
+  {at: 60, len: 30, text: COPY.hook.beats[2], tone: 'ink', size: 260, x: 960, y: 400, align: 'center'},
+  {at: 90, len: 30, text: COPY.hook.beats[3], tone: 'paper', size: 230, x: 140, y: 520, align: 'left'},
+  {at: 120, len: 15, text: COPY.hook.eighths[0], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
+  {at: 135, len: 15, text: COPY.hook.eighths[1], tone: 'paper', size: 340, x: 960, y: 330, align: 'center'},
+  {at: 150, len: 15, text: COPY.hook.eighths[2], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
+  {at: 165, len: 15, text: COPY.hook.eighths[3], tone: 'paper', size: 340, x: 960, y: 330, align: 'center'},
+];
+
+// where each word lands in the "all at once" pile (3.0–3.5 s)
+const PILE = [
+  {x: 120, y: 130, r: -6, s: 0.5},
+  {x: 1060, y: 90, r: 4, s: 0.42},
+  {x: 680, y: 760, r: -3, s: 0.55},
+  {x: 1290, y: 640, r: 7, s: 0.45},
+  {x: 160, y: 560, r: 5, s: 0.38},
+  {x: 1500, y: 330, r: -8, s: 0.4},
+  {x: 520, y: 330, r: 2, s: 0.36},
+  {x: 1420, y: 880, r: -5, s: 0.36},
+];
+
+const Word: React.FC<{s: Shot}> = ({s}) => {
+  const f = useCurrentFrame();
+  const t = f - s.at;
+  const k = interpolate(t, [0, 6], [0, 1], {...clamp, easing: ease});
+  const drift = 1 + t * 0.0018; // never still
+  return (
+    <AbsoluteFill style={{background: GROUND[s.tone]}}>
+      <div
+        style={{
+          position: 'absolute',
+          left: s.align === 'left' ? s.x : undefined,
+          right: s.align === 'right' ? 1920 - s.x : undefined,
+          top: s.y,
+          width: s.align === 'center' ? '100%' : undefined,
+          textAlign: s.align,
+          ...H,
+          fontSize: s.size,
+          color: FG[s.tone],
+          whiteSpace: 'nowrap',
+          transform: `scale(${(1.12 - 0.12 * k) * drift})`,
+          transformOrigin: s.align === 'left' ? '0% 50%' : s.align === 'right' ? '100% 50%' : '50% 50%',
+        }}
+      >
+        {s.text}
+      </div>
+    </AbsoluteFill>
+  );
+};
 
 export const Hook: React.FC = () => {
   const f = useCurrentFrame();
-  // travel slows to a stall when the line lands
-  const travel = f < 130 ? f * 26 : 130 * 26 + (1 - Math.exp(-(f - 130) / 20)) * 20 * 26;
-  const scatter = kf(f, [196, 236], [0, 1]);
-  const dimForLine = kf(f, [128, 150], [1, 0.32]);
-  const tip = kf(f, [214, 240], [0, 1]);
+  const shot = [...SHOTS].reverse().find((s) => f >= s.at && f < s.at + s.len);
+  const pile = kf(f, [180, 196], [0, 1], ease);
+  const ai = f >= 210;
+  const aiK = kf(f, [210, 220], [0, 1], ease);
 
   return (
-    <Stage light={[50, 50]}>
-      <AbsoluteFill style={{perspective: P, perspectiveOrigin: '50% 50%'}}>
-        <div style={{position: 'absolute', left: 960, top: 540, transformStyle: 'preserve-3d'}}>
-          {BUBBLES.map((b, i) => {
-            let z = ((b.z0 + travel + 4800) % 5200) - 4800;
-            z += scatter * 1600;
-            const near = kf(z, [200, 520], [1, 0]);
-            const far = kf(z, [-4800, -3600], [0, 1]);
-            const blur = Math.min(14, Math.abs(z - FOCUS) / 160) + scatter * 10;
-            const o = near * far * dimForLine * (1 - scatter);
-            if (o <= 0.01) return null;
+    <AbsoluteFill style={{background: C.paper}}>
+      {shot ? <Word s={shot} /> : null}
+
+      {f >= 180 && !ai ? (
+        <AbsoluteFill style={{background: C.paper}}>
+          {SHOTS.map((s, i) => {
+            const p = PILE[i];
+            const k = kf(f, [180 + i * 1.5, 194 + i * 1.5], [0, 1], ease);
             return (
               <div
                 key={i}
                 style={{
                   position: 'absolute',
-                  transform: `translate3d(${b.x * (1 + scatter * 0.6)}px, ${b.y * (1 + scatter * 0.6)}px, ${z}px) translate(-50%, -50%) rotate(${b.rot * 0.15}deg)`,
-                  opacity: o,
-                  filter: `blur(${blur}px)`,
+                  left: interpolate(k, [0, 1], [960, p.x]),
+                  top: interpolate(k, [0, 1], [440, p.y]),
+                  ...H,
+                  fontSize: 220 * p.s,
+                  color: i % 3 === 0 ? C.red : C.ink,
                   whiteSpace: 'nowrap',
-                  padding: '18px 30px',
-                  borderRadius: 28,
-                  fontFamily: SANS,
-                  fontSize: 40,
-                  fontWeight: 500,
-                  color: b.user ? '#fff' : '#D8D9DE',
-                  background: b.user ? 'linear-gradient(180deg,#2E6BFF,#1F55E6)' : 'rgba(255,255,255,0.09)',
-                  border: b.user ? 'none' : '1px solid rgba(255,255,255,0.14)',
-                  boxShadow: b.user ? '0 20px 60px rgba(41,102,255,0.35)' : undefined,
+                  transform: `rotate(${p.r * k}deg) scale(${0.6 + 0.4 * k + (f - 180) * 0.002})`,
+                  opacity: Math.min(1, k * 2) * pile,
                 }}
               >
-                {b.phrase}
+                {s.text}
               </div>
             );
           })}
-        </div>
-      </AbsoluteFill>
-
-      <div style={{position: 'absolute', top: 90, width: '100%', textAlign: 'center'}}>
-        <Fade at={4} out={120} y={8}>
-          <span style={{fontFamily: MONO, fontSize: 22, color: C.dim, letterSpacing: 4}}>{COPY.hook.lead}</span>
-        </Fade>
-      </div>
-
-      <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{...H, fontSize: 76, color: C.text, textShadow: '0 10px 60px rgba(0,0,0,0.9)'}}>
-          <Reveal at={132} out={196}>{COPY.hook.line}</Reveal>
-        </div>
-      </AbsoluteFill>
-
-      {/* pen tip: a red point that swells before the slash */}
-      {tip > 0 ? (
-        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-          <div
-            style={{
-              width: 18 + tip * 26,
-              height: 18 + tip * 26,
-              borderRadius: '50%',
-              background: C.red,
-              boxShadow: `0 0 ${40 + tip * 80}px ${10 + tip * 30}px rgba(242,59,52,${0.35 + tip * 0.3})`,
-              opacity: kf(f, [214, 222], [0, 1]),
-            }}
-          />
         </AbsoluteFill>
       ) : null}
-    </Stage>
+
+      {ai ? (
+        <AbsoluteFill style={{background: C.lilac, alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{fontFamily: DISPLAY, fontSize: 620, lineHeight: 0.9, color: C.ink, transform: `scale(${1.3 - 0.3 * aiK + (f - 210) * 0.003})`, marginTop: -60}}>?</div>
+          <div style={{position: 'absolute', bottom: 150, display: 'flex', alignItems: 'center', gap: 22, opacity: aiK}}>
+            <span style={{fontFamily: UI, fontWeight: 700, fontSize: 30, letterSpacing: 4, color: C.lilacDeep}}>AI</span>
+            <span style={{fontFamily: SANS, fontWeight: 700, fontSize: 64, color: C.ink}}>{COPY.hook.ai}</span>
+          </div>
+        </AbsoluteFill>
+      ) : null}
+    </AbsoluteFill>
   );
 };

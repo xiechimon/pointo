@@ -12,24 +12,32 @@ import {
 } from 'remotion';
 import {ALL_TEXT} from './copy';
 
-// Restrained palette: near-black and warm paper, warm greys, one accent (Pointo's red ink).
+// Palette: neutral paper and ink, two hues with one meaning each —
+// red = the human's ink (pointing, marking), lilac = the AI's side (reading, fixing).
 export const C = {
-  bg: '#08090B',
-  bg2: '#111216',
-  paper: '#F4F3EF',
-  paperInk: '#121212',
-  paperDim: '#8C8A84',
-  text: '#F2F2EF',
-  dim: '#7D7E85',
-  faint: 'rgba(255,255,255,0.08)',
-  line: 'rgba(255,255,255,0.10)',
-  red: '#F23B34',
-  blue: '#2966FF',
-  green: '#3DDC97',
+  paper: '#EEEEEC',
+  paper2: '#E2E2DF',
+  card: '#FFFFFF',
+  ink: '#0D0D0F',
+  dim: '#6E6E73',
+  text: '#F4F4F2',
+  textDim: 'rgba(244,244,242,0.6)',
+  line: 'rgba(13,13,15,0.12)',
+  red: '#FF3B2F',
+  lilac: '#C4B5FF',
+  lilacDeep: '#6F55F2',
+  green: '#16A34A',
 };
 
 export const SANS = '"Noto Sans SC", "PingFang SC", sans-serif';
+export const DISPLAY = '"Anton", "Noto Sans SC", sans-serif';
+export const HAND = '"Caveat", "Noto Sans SC", cursive';
+export const UI = '"Inter", "Noto Sans SC", sans-serif';
 export const MONO = '"JetBrains Mono", "Noto Sans SC", monospace';
+
+export type Tone = 'paper' | 'ink' | 'red' | 'lilac';
+export const GROUND: Record<Tone, string> = {paper: C.paper, ink: C.ink, red: C.red, lilac: C.lilac};
+export const FG: Record<Tone, string> = {paper: C.ink, ink: C.text, red: C.ink, lilac: C.ink};
 
 export const clamp = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
 export const ease = Easing.bezier(0.16, 1, 0.3, 1); // expo-out
@@ -106,26 +114,21 @@ export const typed = (text: string, f: number, from: number, to: number) => {
   return chars.slice(0, n).join('');
 };
 
-/** Near-black (or warm paper) stage, one soft light, film grain. */
-export const Stage: React.FC<{light?: [number, number]; tone?: 'dark' | 'paper'; children?: React.ReactNode}> = ({
-  light = [50, 30],
-  tone = 'dark',
-  children,
-}) => {
-  const f = useCurrentFrame();
+/** A lit colour field with film grain. */
+export const Stage: React.FC<{tone?: Tone; light?: [number, number]; children?: React.ReactNode}> = ({tone = 'paper', light = [50, 35], children}) => {
   const [lx, ly] = light;
-  const paper = tone === 'paper';
+  const dark = tone === 'ink';
   return (
-    <AbsoluteFill style={{background: paper ? C.paper : C.bg}}>
+    <AbsoluteFill style={{background: GROUND[tone]}}>
       <AbsoluteFill
         style={{
-          background: paper
-            ? `radial-gradient(1400px 900px at ${lx}% ${ly}%, #FFFFFF 0%, transparent 70%)`
-            : `radial-gradient(1300px 800px at ${lx + Math.sin(f / 120) * 3}% ${ly}%, rgba(120,130,160,0.16) 0%, transparent 65%)`,
+          background: dark
+            ? `radial-gradient(1400px 900px at ${lx}% ${ly}%, rgba(255,255,255,0.07), transparent 70%)`
+            : `radial-gradient(1500px 1000px at ${lx}% ${ly}%, rgba(255,255,255,0.45), transparent 70%), radial-gradient(1600px 900px at 50% 120%, rgba(0,0,0,0.10), transparent 70%)`,
         }}
       />
       {children}
-      <Grain strength={paper ? 0.035 : 0.045} />
+      <Grain strength={dark ? 0.05 : 0.06} />
     </AbsoluteFill>
   );
 };
@@ -145,19 +148,6 @@ export const Grain: React.FC<{strength?: number}> = ({strength = 0.07}) => {
     />
   );
 };
-
-/** Small editorial chapter label, top-left. */
-export const Chapter: React.FC<{n: number; label: string; at?: number; out?: number; tone?: 'dark' | 'paper'}> = ({n, label, at = 4, out, tone = 'dark'}) => (
-  <div style={{position: 'absolute', left: 96, top: 72}}>
-    <Fade at={at} out={out} y={8}>
-      <div style={{display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 19, letterSpacing: 1}}>
-        <span style={{width: 8, height: 8, borderRadius: 4, background: C.red}} />
-        <span style={{color: tone === 'paper' ? C.paperDim : C.dim}}>{String(n).padStart(2, '0')}</span>
-        <span style={{color: tone === 'paper' ? C.paperInk : C.text, fontFamily: SANS, fontWeight: 500, fontSize: 20}}>{label}</span>
-      </div>
-    </Fade>
-  </div>
-);
 
 /** A hand-drawn red stroke that draws itself between `from` and `to`. */
 export const Ink: React.FC<{
@@ -290,10 +280,13 @@ export const Icon: React.FC<{size: number; style?: React.CSSProperties}> = ({siz
 export const FontWarmup: React.FC = () => {
   const [handle] = useState(() => delayRender('fonts'));
   useEffect(() => {
-    const weights = [400, 500, 600];
+    const weights = [500, 700, 900];
     Promise.all([
       ...weights.map((w) => document.fonts.load(`${w} 40px "Noto Sans SC"`, ALL_TEXT)),
       document.fonts.load(`400 40px "JetBrains Mono"`, 'abc'),
+      document.fonts.load(`400 40px "Anton"`, 'POINTO 0123'),
+      document.fonts.load(`600 40px "Caveat"`, 'here'),
+      document.fonts.load(`500 40px "Inter"`, 'Inter'),
     ])
       .then(() => document.fonts.ready)
       .then(() => continueRender(handle))
@@ -301,18 +294,26 @@ export const FontWarmup: React.FC = () => {
   }, [handle]);
   return (
     <div style={{position: 'absolute', opacity: 0, pointerEvents: 'none', left: -9999}}>
-      {[400, 500, 600].map((w) => (
+      {[500, 700, 900].map((w) => (
         <span key={w} style={{fontFamily: SANS, fontWeight: w}}>
           {ALL_TEXT}
         </span>
       ))}
       <span style={{fontFamily: MONO}}>{ALL_TEXT}</span>
+      <span style={{fontFamily: DISPLAY}}>POINTO</span>
+      <span style={{fontFamily: HAND, fontWeight: 600}}>here</span>
+      <span style={{fontFamily: UI}}>Inter</span>
     </div>
   );
 };
 
 export const FontFaces: React.FC = () => (
-  <style>{`@font-face { font-family: "JetBrains Mono"; src: url(${staticFile('JetBrainsMono-Regular.ttf')}) format("truetype"); font-weight: 400; }`}</style>
+  <style>{`
+    @font-face { font-family: "JetBrains Mono"; src: url(${staticFile('JetBrainsMono-Regular.ttf')}) format("truetype"); font-weight: 400; }
+    @font-face { font-family: "Anton"; src: url(${staticFile('fonts/Anton-400.woff')}) format("woff"); font-weight: 400; }
+    @font-face { font-family: "Caveat"; src: url(${staticFile('fonts/Caveat-600.woff')}) format("woff"); font-weight: 600; }
+    @font-face { font-family: "Inter"; src: url(${staticFile('fonts/Inter-var.woff')}) format("woff"); font-weight: 100 900; }
+  `}</style>
 );
 
 /** Quick fade from a colour (cuts on impacts). */
@@ -323,4 +324,4 @@ export const Flash: React.FC<{at: number; len?: number; max?: number; color?: st
 };
 
 /** Headline type: medium weight, tight tracking. */
-export const H: React.CSSProperties = {fontFamily: SANS, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.18};
+export const H: React.CSSProperties = {fontFamily: SANS, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.12};

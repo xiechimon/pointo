@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.31",
+    "huashu-motion": "github:alchaincyf/huashu-motion",
     "typescript": "^7.0.2"
   }
 }

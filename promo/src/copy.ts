@@ -1,15 +1,15 @@
 // Every on-screen string lives here, so the font warm-up can load the glyphs
 // for all of them before the first frame is captured (see FontWarmup).
 export const COPY = {
-  chapters: ['问题', 'Pointo', '录制', '整理', '投递', '本地转写'],
   hook: {
-    phrases: ['左边那个', '上面那个按钮', '这里', '不对，是下面那个', '那个灰色的', '就是那块', '旁边那个图标', '点了没反应', '你懂我意思吧', '第二个……还是第三个', '右上角那里', '这个地方', '那一行', '刚才那个'],
-    lead: '你跟 AI 说……',
-    line: 'AI 不知道你说的「这里」是哪里。',
+    beats: ['左边那个', '不对，上面那个', '就是这里', '那一块'],
+    eighths: ['这个', '那个', '这里', '那里'],
+    ai: '你到底指的是哪个？',
   },
   title: {
     pre: '别讲给 AI 听，',
     main: '指给它看。',
+    note: '就这里！',
     sub: 'macOS · Windows · 开源免费',
   },
   demo: {
@@ -84,7 +84,7 @@ export const COPY = {
       {t: '+ 绑定 onSubmit，保存后显示提示', c: 'add'},
       {t: '已修复', c: 'ok'},
     ],
-    toolsHead: '适用于任何能读本地文件的 AI 编程工具',
+    toolsHead: '能读本地文件的 AI 编程工具，都能用',
     tools: ['Claude Code', 'Codex', 'Cursor', 'Gemini CLI', 'Qwen Code'],
   },
   local: {

@@ -1,6 +1,6 @@
-import '@fontsource/noto-sans-sc/400.css';
 import '@fontsource/noto-sans-sc/500.css';
-import '@fontsource/noto-sans-sc/600.css';
+import '@fontsource/noto-sans-sc/700.css';
+import '@fontsource/noto-sans-sc/900.css';
 import React from 'react';
 import {AbsoluteFill, Audio, Sequence, staticFile} from 'remotion';
 import {BAR, SCENES} from './timing';
@@ -33,6 +33,6 @@ export const Promo: React.FC = () => (
         </Sequence>
       );
     })}
-    <Audio src={staticFile('music.wav')} />
+    <Audio src={staticFile('sound.wav')} />
   </AbsoluteFill>
 );
