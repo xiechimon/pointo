@@ -44,7 +44,7 @@ const Fix: React.FC = () => {
 
 
       <AbsoluteFill style={{perspective: 2000}}>
-        <div style={{position: 'absolute', left: 830, top: 140, width: 990, transform: `rotateY(${ry}deg) rotateX(3deg) scale(${1 + kf(f, [60, 110], [0, 0.06])})`, transformOrigin: '0% 50%'}}>
+        <div style={{position: 'absolute', left: 800, top: 200, width: 1040, transform: `rotateY(${ry}deg) rotateX(3deg) scale(${1 + kf(f, [60, 110], [0, 0.06])})`, transformOrigin: '0% 50%'}}>
           <Fade at={0} y={40} dur={14}>
             <div style={{borderRadius: 26, overflow: 'hidden', background: C.ink, boxShadow: '0 60px 120px rgba(40,20,120,0.35)'}}>
               <div style={{height: 52, display: 'flex', alignItems: 'center', gap: 8, padding: '0 20px', borderBottom: '1px solid rgba(255,255,255,0.08)'}}>
@@ -53,7 +53,7 @@ const Fix: React.FC = () => {
                 ))}
                 <div style={{flex: 1, textAlign: 'center', fontFamily: MONO, fontSize: 20, color: 'rgba(244,244,242,0.5)', marginRight: 50}}>{d.termTitle}</div>
               </div>
-              <div style={{padding: '34px 40px', fontFamily: MONO, fontSize: 33, lineHeight: 1.75, minHeight: 700}}>
+              <div style={{padding: '34px 40px', fontFamily: MONO, fontSize: 36, lineHeight: 1.7}}>
                 <div style={{color: C.text}}>
                   <span style={{color: C.lilac}}>› </span>
                   {typed(d.prompt, f, 0, 22)}

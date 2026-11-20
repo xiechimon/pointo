@@ -213,31 +213,6 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
       </div>
 
       <Ripple x={CLICK.x} y={CLICK.y} at={CLICK.at} frame={t} />
-      {/* the toast that should have appeared, sketched where the box is drawn */}
-      {t >= 486 ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: 1500,
-            top: 168,
-            width: 230,
-            height: 50,
-            borderRadius: 12,
-            border: `3px dashed ${C.red}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            fontFamily: SANS,
-            fontWeight: 700,
-            fontSize: 22,
-            color: C.red,
-            opacity: kf(t, [486, 496], [0, 0.9]),
-          }}
-        >
-          这里该有提示
-        </div>
-      ) : null}
       <Ink d={CIRCLE} from={INK.circle[0]} to={INK.circle[1]} frame={t} width={5} />
       <Ink d={RECT} from={INK.rect[0]} to={INK.rect[1]} frame={t} width={5} />
 

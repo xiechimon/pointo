@@ -19,7 +19,7 @@ const CAM: [number, Cam][] = [
   [62, {s: 0.76, x: 960, y: 600, ry: 0, rx: 0}],
   [80, {s: 2.1, x: 960, y: 258, ry: 0, rx: 0}], // close on Pointo's recording capsule
   [118, {s: 2.16, x: 960, y: 258, ry: 0, rx: 0}],
-  [120, {s: 1.34, x: 1182, y: 660, ry: 0, rx: 0}], // cut on bar 5: medium on the form and the button
+  [120, {s: 1.34, x: 1150, y: 660, ry: 0, rx: 0}], // cut on bar 5: medium on the form and the button
   [300, {s: 1.5, x: 1270, y: 680, ry: 0, rx: 0}], // pushing in through the click
   [336, {s: 1.56, x: 1300, y: 690, ry: 0, rx: 0}],
   [372, {s: 2.2, x: 1484, y: 735, ry: 0, rx: 0}], // close: ⇧ + the ink around the button
@@ -145,14 +145,14 @@ const SliceList: React.FC = () => (
 /** While the ink is drawn: ⇧ held down, said in words. */
 const ShiftHud: React.FC = () => {
   const f = useCurrentFrame();
-  const o = kf(f, [358, 368], [0, 1]) * kf(f, [496, 506], [1, 0]);
+  const o = kf(f, [366, 374], [0, 1]) * kf(f, [492, 500], [1, 0]);
   if (o <= 0) return null;
   const down = f >= 372 && f < 494;
   return (
     <div style={{position: 'absolute', left: 70, top: 70, opacity: o, transform: `translateY(${(1 - o) * -30}px)`}}>
       <div style={{display: 'flex', alignItems: 'center', gap: 24, padding: '18px 30px 18px 18px', borderRadius: 30, background: C.ink, boxShadow: '0 30px 60px rgba(13,13,15,0.3)'}}>
         <div style={{width: 120, height: 120, borderRadius: 22, background: down ? C.red : '#fff', color: down ? '#fff' : C.ink, boxShadow: down ? '0 2px 0 #9E1F17' : '0 8px 0 #B9B9B4', transform: `translateY(${down ? 6 : 0}px)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: SANS, fontWeight: 700, fontSize: 64}}>⇧</div>
-        <span style={{fontFamily: SANS, fontWeight: 900, fontSize: 52, color: C.text}}>按住 ⇧ 画圈</span>
+        <span style={{fontFamily: SANS, fontWeight: 900, fontSize: 52, color: C.text}}>按住 ⇧ 画</span>
       </div>
     </div>
   );
@@ -229,11 +229,11 @@ const FileCard: React.FC<{i: number; title: string; note: string; children: Reac
     <div
       style={{
         position: 'absolute',
-        left: -560,
-        top: -330,
-        width: 1120,
-        height: 660,
-        transform: `translate3d(${out * (i * 150)}px, ${out * (i * -40)}px, ${-out * i * 330}px)`,
+        left: -760,
+        top: -230,
+        width: 1520,
+        height: 460,
+        transform: `translate3d(${out * (i * 70)}px, ${out * (i * -96)}px, ${-out * i * 220}px)`,
         opacity: i === 0 ? 1 : out,
         borderRadius: 26,
         background: C.card,
@@ -369,7 +369,7 @@ export const Demo: React.FC = () => {
                   boxShadow: framed ? '0 0 0 2px rgba(13,13,15,0.08), 0 70px 140px rgba(13,13,15,0.28)' : undefined,
                 }}
               >
-                <Desktop t={f} />
+                <Desktop t={f} showChips={false} />
                 {shutter > 0 ? <div style={{position: 'absolute', inset: 0, background: '#fff', opacity: shutter * 0.35}} /> : null}
               </div>
               {KEYFRAMES.map((_, i) => (
@@ -377,7 +377,7 @@ export const Demo: React.FC = () => {
               ))}
             </div>
           </AbsoluteFill>
-          <Hud at={0} out={108} label={COPY.demo.hudStart} />
+          <Hud at={0} out={72} label={COPY.demo.hudStart} />
           <Caption />
           <ShiftHud />
           <SliceList />

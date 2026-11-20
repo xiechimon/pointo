@@ -10,7 +10,7 @@ export const COPY = {
     pre: '别讲给 AI 听，',
     main: '指给它看。',
     note: '就这里！',
-    keys: '一个快捷键，开始录',
+    keys: '一个快捷键，开始录屏',
     sub: 'macOS · Windows · 开源免费',
   },
   demo: {
@@ -95,7 +95,7 @@ export const COPY = {
     heard: '这个保存按钮，点了没反应',
     facts: [
       {k: '01', v: '普通话、粤语、中英混说'},
-      {k: '02', v: '开源，双平台'},
+      {k: '02', v: '断网也能转写'},
       {k: '03', v: '免账号，免费'},
     ],
   },
@@ -107,7 +107,7 @@ export const COPY = {
     win: 'Windows 预览版',
     url: 'github.com/xiechimon/pointo',
     keys: '⌥⇧S 开始 · 按住 ⇧ 画 · 再按 ⌥⇧S 结束',
-    platforms: 'macOS · Windows · 开源免费',
+    platforms: 'macOS · Windows · 开源免费 · 链接在简介',
     menubar: '它就住在你的菜单栏里',
   },
 };
