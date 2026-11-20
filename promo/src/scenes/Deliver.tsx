@@ -25,7 +25,7 @@ const Fix: React.FC = () => {
           <span style={{color: '#4B2BD6'}}>{d.headB}</span>
         </Reveal>
         <Fade at={18} y={14}>
-          <div style={{marginTop: 50, display: 'flex', flexDirection: 'column', gap: 4, fontFamily: MONO, fontSize: 32, lineHeight: 1.6, letterSpacing: 0}}>
+          <div style={{marginTop: 50, display: 'flex', flexDirection: 'column', gap: 4, fontFamily: MONO, fontSize: 38, lineHeight: 1.6, letterSpacing: 0}}>
             {d.folders.map((name, i) => (
               <span key={name} style={{paddingLeft: i * 30, color: i === d.folders.length - 1 ? C.ink : 'rgba(13,13,15,0.6)'}}>
                 {i === d.folders.length - 1 ? <span style={{color: C.red}}>● </span> : '› '}

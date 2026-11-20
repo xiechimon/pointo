@@ -242,10 +242,14 @@ SFX = [
     ('ding', 23.15, {'note': 1}),
     ('hit', 24.0, {}), ('hit', 24.25, {'gain': 0.8}), ('hit', 24.5, {'gain': 0.8}), ('hit', 24.75, {'gain': 0.8}), ('hit', 25.0, {'gain': 0.8}),
     ('whoosh', 25.3, {'gain': 0.6}),
-    ('stamp', 28.0, {}), ('stamp', 28.67, {}), ('stamp', 29.33, {}),
-    # the end card
-    ('pop', 30.5, {'note': 1}),
-    ('draw', 31.0, {'dur': 0.4, 'gain': 0.8}),
+    ('stamp', 28.0, {}), ('stamp', 28.5, {}), ('stamp', 29.0, {}),
+    # the payoff montage on the peak, one shot per beat, then the end card at 32.0 s
+    ('draw', 30.05, {'dur': 0.3, 'gain': 0.9}),
+    ('stamp', 30.55, {'gain': 0.7}), ('stamp', 30.65, {'gain': 0.6}), ('stamp', 30.75, {'gain': 0.6}),
+    ('chime', 31.0, {'gain': 0.6}),
+    ('hit', 31.5, {}),
+    ('whoosh', 31.95, {'gain': 0.6}),
+    ('draw', 32.67, {'dur': 0.37, 'gain': 0.8}),
     ('sparkle', 34.05, {'gain': 0.4}),
 ]
 

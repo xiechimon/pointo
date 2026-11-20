@@ -48,7 +48,9 @@ export const Title: React.FC = () => {
         <div style={{transform: `translateY(${(1 - icon) * -500 + Math.sin(f / 14) * 8}px) rotate(${(1 - icon) * -18 + Math.sin(f / 20) * 3}deg)`, marginTop: -150}}>
           <Icon size={210} style={{boxShadow: '0 30px 60px rgba(13,13,15,0.25)'}} />
         </div>
-        <Rise text="POINTO" at={126} style={{fontFamily: DISPLAY, fontSize: 300, lineHeight: 1, color: C.ink, letterSpacing: 4, marginTop: 30}} />
+        <div style={{overflow: 'hidden', paddingBottom: 6, marginTop: 30}}>
+          <div style={{fontFamily: DISPLAY, fontSize: 300, lineHeight: 1, color: C.ink, letterSpacing: 4, transform: `translateY(${(1 - kf(f, [126, 142], [0, 1], ease)) * 105}%)`}}>POINTO</div>
+        </div>
         <div style={{fontFamily: MONO, fontSize: 32, color: C.dim, marginTop: 26, opacity: kf(f, [150, 166], [0, 1]) * (1 - up)}}>{t.sub}</div>
       </AbsoluteFill>
       {f >= 186 ? (

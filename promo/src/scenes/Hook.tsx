@@ -43,7 +43,7 @@ const Pointer: React.FC = () => {
   if (idx < 0) return null;
   const s = SHOTS[idx];
   const [x1, y1] = POINTS[idx];
-  const [x0, y0] = POINTS[Math.max(0, idx - 1)];
+  const [x0, y0] = idx === 0 ? [1900, 1060] : POINTS[idx - 1];
   const k = interpolate(f - s.at, [0, Math.min(10, s.len - 4)], [0, 1], {...clamp, easing: ease});
   const ink = s.tone === 'ink';
   return (

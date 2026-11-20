@@ -16,7 +16,9 @@ type Cam = {s: number; x: number; y: number; ry: number; rx: number};
 const CAM: [number, Cam][] = [
   [0, {s: 0.5, x: 960, y: 600, ry: -34, rx: 16}],
   [36, {s: 0.72, x: 960, y: 600, ry: 0, rx: 0}],
-  [119, {s: 0.8, x: 960, y: 600, ry: 0, rx: 0}],
+  [62, {s: 0.76, x: 960, y: 600, ry: 0, rx: 0}],
+  [80, {s: 2.1, x: 960, y: 258, ry: 0, rx: 0}], // close on Pointo's recording capsule
+  [118, {s: 2.16, x: 960, y: 258, ry: 0, rx: 0}],
   [120, {s: 1.34, x: 1182, y: 660, ry: 0, rx: 0}], // cut on bar 5: medium on the form and the button
   [300, {s: 1.5, x: 1270, y: 680, ry: 0, rx: 0}], // pushing in through the click
   [336, {s: 1.56, x: 1300, y: 690, ry: 0, rx: 0}],
@@ -24,8 +26,8 @@ const CAM: [number, Cam][] = [
   [450, {s: 2.24, x: 1484, y: 735, ry: 0, rx: 0}],
   [462, {s: 1.2, x: 1120, y: 500, ry: 0, rx: 0}], // pull up: the toast corner and the ink both above the caption
   [500, {s: 1.23, x: 1120, y: 500, ry: 0, rx: 0}],
-  [524, {s: 1.0, x: 960, y: 560, ry: 0, rx: 0}], // back out: stop the recording
-  [604, {s: 1.06, x: 960, y: 560, ry: 0, rx: 0}],
+  [524, {s: 0.86, x: 960, y: 560, ry: 0, rx: 0}], // back out: stop the recording
+  [604, {s: 0.9, x: 960, y: 560, ry: 0, rx: 0}],
   [646, {s: 0.4, x: 1760, y: 500, ry: 30, rx: 7}], // orbit: the keyframes peeled off
   [676, {s: 0.4, x: 1800, y: 500, ry: 26, rx: 6}],
   [706, {s: 1, x: 960, y: 540, ry: 0, rx: 0}], // the row: the contact sheet
@@ -47,7 +49,7 @@ export const PEEL = [600, 616, 632];
 const sliceAt = (i: number, f: number, t: number) => {
   const fly = kf(f, [t, t + 36], [0, 1], ease);
   const line = kf(f, [672 + i * 4, 708 + i * 4], [0, 1]);
-  const A = {x: 640 * (i + 1), y: -60 * (i + 1), z: -360 * (i + 1), sc: 1, ry: -10};
+  const A = {x: 560 * (i + 1), y: -60 * (i + 1), z: -360 * (i + 1), sc: 1, ry: -10};
   const B = {x: (i - 1) * ROW.gap, y: 0, z: 0, sc: ROW.sc, ry: 0};
   const lerp = (a: number, b: number) => a + (b - a) * line;
   // peel toward the camera and out to the right before settling into the stack
@@ -100,8 +102,8 @@ const Slice: React.FC<{i: number}> = ({i}) => {
             width: 54 / s.sc,
             height: 54 / s.sc,
             borderRadius: 12 / s.sc,
-            background: C.red,
-            color: '#fff',
+            background: '#fff',
+            color: C.ink,
             fontFamily: SANS,
             fontWeight: 900,
             fontSize: 30 / s.sc,
@@ -260,7 +262,7 @@ const Compile: React.FC = () => {
   return (
     <Stage tone="lilac" light={[30, 20]}>
       <div style={{position: 'absolute', left: 110, top: 90, ...H, fontSize: 76, zIndex: 2}}>
-        <Reveal at={8} out={100}>
+        <Reveal at={0} dur={12} out={100}>
           <span style={{color: C.ink}}>{d.compileA}</span>
           <span style={{color: '#4B2BD6'}}>{d.compileB}</span>
         </Reveal>
@@ -318,7 +320,7 @@ const Compile: React.FC = () => {
             <div style={{display: 'flex', gap: 18}}>
               {KEYFRAMES.map((k, i) => (
                 <div key={k.n} style={{position: 'relative', width: 460, height: 288, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(13,13,15,0.1)'}}>
-                  <div style={{position: 'absolute', transform: `scale(0.4645) translate(-930px, -148px)`, transformOrigin: '0 0'}}>
+                  <div style={{position: 'absolute', transform: `scale(0.4107) translate(-800px, -100px)`, transformOrigin: '0 0'}}>
                     <Desktop t={k.t + 2} showChips={false} />
                   </div>
                   <div style={{position: 'absolute', left: 10, top: 10, width: 40, height: 40, borderRadius: 9, background: '#fff', color: C.ink, fontFamily: SANS, fontWeight: 900, fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>

@@ -16,9 +16,11 @@ export const Local: React.FC = () => {
   const loud = kf(f, [6, 20], [0, 1]) * kf(f, [96, 116], [1, 0.15]);
   const spin = f * 0.6;
 
-  if (f < 120) {
-    return (
-      <Stage tone="ink" light={[50, 60]}>
+  const dim = kf(f, [116, 126], [1, 0.3]);
+  const out = kf(f, [228, 240], [0, 1]);
+  return (
+    <Stage tone="ink" light={[50, 60]}>
+      <AbsoluteFill style={{opacity: dim, filter: dim < 1 ? `blur(${(1 - dim) * 8}px)` : undefined}}>
         <div style={{position: 'absolute', left: 0, right: 0, top: 110, textAlign: 'center', ...H, fontSize: 76}}>
           <Reveal at={2}>
             <span style={{color: C.text}}>{d.headA}</span>
@@ -56,36 +58,23 @@ export const Local: React.FC = () => {
           <div style={{fontFamily: SANS, fontSize: 64, fontWeight: 700, color: C.text, minHeight: 80}}>
             {heard ? `“${heard}${heard.length >= d.heard.length ? '”' : ''}` : ''}
           </div>
-          <div style={{marginTop: 26, fontFamily: MONO, fontSize: 32, color: C.textDim, letterSpacing: 3, opacity: kf(f, [50, 70], [0, 1])}}>{d.spec}</div>
+          <div style={{marginTop: 26, fontFamily: MONO, fontSize: 36, color: 'rgba(244,244,242,0.8)', letterSpacing: 3, opacity: kf(f, [50, 70], [0, 1])}}>{d.spec}</div>
         </AbsoluteFill>
-      </Stage>
-    );
-  }
-
-  // three facts, 40 frames each (0.67 s), on the stamps at 28.0 / 28.67 / 29.33 s
-  const i = Math.min(2, Math.floor((f - 120) / 40));
-  const at = 120 + i * 40;
-  const k = kf(f, [at, at + 8], [0, 1], ease);
-  const push = kf(f, [230, 240], [0, 1]);
-  const tone = FACT_TONES[i];
-  const fact = d.facts[i];
-  return (
-    <AbsoluteFill style={{background: GROUND[tone], alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{position: 'absolute', right: 100 - (f - at) * 1.2, bottom: 30, fontFamily: DISPLAY, fontSize: 560, lineHeight: 1, color: 'transparent', WebkitTextStroke: `4px ${C.lilacDeep}`, opacity: 0.35 * k}}>{fact.k}</div>
-      <div style={{fontFamily: MONO, fontSize: 52, color: FG[tone], opacity: 0.6 * k, marginBottom: 30}}>{fact.k} / 03</div>
-      <div
-        style={{
-          ...H,
-          fontSize: 132,
-          color: FG[tone],
-          whiteSpace: 'nowrap',
-          transform: `scale(${(1.35 - 0.35 * k) * (1 + (f - at) * 0.002) * (1 + push * 0.3)})`,
-          filter: push > 0 ? `blur(${push * 16}px)` : undefined,
-          opacity: 1 - push * 0.6,
-        }}
-      >
-        {fact.v}
-      </div>
-    </AbsoluteFill>
+      </AbsoluteFill>
+      {d.facts.map((fact, i) => {
+        const at = 120 + i * 30;
+        const k = kf(f, [at, at + 7], [0, 1], ease);
+        if (f < at) return null;
+        const rot = [-4, 3, -2][i];
+        return (
+          <div key={fact.k} style={{position: 'absolute', left: 0, right: 0, top: 230 + i * 220, display: 'flex', justifyContent: 'center', opacity: 1 - out}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 30, padding: '26px 54px', borderRadius: 28, background: i === 1 ? C.text : C.red, color: C.ink, transform: `rotate(${rot * k}deg) scale(${(1.5 - 0.5 * k) * (1 + out * 0.2)})`, boxShadow: '0 30px 60px rgba(0,0,0,0.45)'}}>
+              <span style={{fontFamily: MONO, fontSize: 44, opacity: 0.6}}>{fact.k}</span>
+              <span style={{...H, fontSize: 96, whiteSpace: 'nowrap'}}>{fact.v}</span>
+            </div>
+          </div>
+        );
+      })}
+    </Stage>
   );
 };
