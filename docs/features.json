@@ -219,7 +219,7 @@
       "id": "copied",
       "group": "finish",
       "name": "Copied, with a Paste chip",
-      "says": "The summary text goes to the clipboard and the capsule shows Copied with a Paste chip; drag the chip onto a window to paste there.",
+      "says": "The summary text goes to the clipboard and the capsule shows \"Copied · ⌥⇧V to paste\" (the paste shortcut as set) with a Paste chip; drag the chip onto a window to paste there.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "docs": ["README.md#capture-controls"]
@@ -396,14 +396,14 @@
       "id": "project-delivery",
       "group": "delivery",
       "name": "Captures to the project folder",
-      "says": "A capture is copied into <project>/.pointo/captures/ (the newest named by .pointo/latest), where any coding agent working in that folder reads it, and is still copied to the clipboard.",
+      "says": "Off by default (autoSend in config.json, no longer in Settings): with it on, a capture is also copied into <project>/.pointo/captures/ (the newest named by .pointo/latest). Captures are otherwise only copied, for the paste shortcut.",
       "status": "main",
       "platforms": ["mac", "windows"],
       "added": "2026-11-14",
       "note": "The Mac picks the project from the pinned folder, the page's registration, the dev server's folder or the terminal's folder; iPhone recordings go to the pinned or most recent project.",
       "config": [
-        { "key": "autoSend", "value": "false", "does": "Keep captures on the clipboard unless a project is picked on the pill" },
-        { "key": "project", "value": "\"~/code/app\"", "does": "Pin every capture to one project folder" },
+        { "key": "autoSend", "value": "true", "does": "Also send captures to the project they were of (default off; no project chips while off)" },
+        { "key": "project", "value": "\"~/code/app\"", "does": "With autoSend on, pin every capture to one project folder" },
         { "key": "recentProjects", "value": "[\"/abs/app\"]", "does": "Recent projects, offered as chips (kept by Pointo)" }
       ],
       "docs": ["docs/iphone-and-routing.md"]

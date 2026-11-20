@@ -18,12 +18,12 @@
 
 ---
 
-写代码时遇到界面问题，打字描述往往说不清。按一下 `⌥⇧S`，Pointo 开始录屏：你边说边点，按住 `⇧` 在屏幕上画圈标重点，再按一次 `⌥⇧S` 结束。Pointo 把录屏、语音和你的标记压成一个 AI 一眼就能读懂的小目录，送到你正在开发的项目里，任何 AI 编程工具都能直接看。
+写代码时遇到界面问题，打字描述往往说不清。按一下 `⌥⇧S`，Pointo 开始录屏：你边说边点，按住 `⇧` 在屏幕上画圈标重点，再按一次 `⌥⇧S` 结束。Pointo 把录屏、语音和你的标记压成一个 AI 一眼就能读懂的小目录，再按 `⌥⇧V` 粘贴给任何 AI 编程工具。
 
 Pointo 基于 [kitlangton/scrawl](https://github.com/kitlangton/scrawl)（MIT）修改，面向中文用户：
 
 - **本地中文语音转写**：默认用阿里通义千问的 **Qwen3-ASR 0.6B** 模型，在你的电脑上运行，听得懂普通话、粤语和中英混说，录音不上传、不需要 API Key。
-- **投递到任意项目**：不绑定任何特定 AI 工具。录制会写进项目里的 `.pointo/` 目录，Claude Code、Codex、Cursor、Gemini CLI、Qwen Code 等都能读。
+- **不绑定 AI 工具**：粘贴进 Claude Code、Codex、Cursor、Gemini CLI、Qwen Code 都能用。
 - **中文界面**，模型下载优先走国内镜像。
 
 ## 安装
@@ -58,10 +58,7 @@ Pointo 基于 [kitlangton/scrawl](https://github.com/kitlangton/scrawl)（MIT）
 | 把最近一次录制粘贴到前台应用 | `⌥⇧V` |
 | 撤销上一笔 / 取消录制 | `⌘Z` / `Esc` |
 
-录制结束后，Pointo 会：
-
-1. **复制到剪贴板**：总览图和文字说明，直接粘贴进任何 AI 对话框或终端。
-2. **投递到项目**：如果识别到你正在开发的项目，就写进 `<项目>/.pointo/captures/`，浮条上会显示「已发送到 <项目名>」，3 秒内可以取消或改投到别的项目。
+录制结束后，总览图和文字说明已经在剪贴板里，浮条上写着「已复制 · ⌥⇧V 粘贴」。切到 Claude Code、Codex 或任何 AI 对话框，按 `⌥⇧V`（或 `⌘V`）粘贴就行。
 
 ### 产物
 
@@ -79,27 +76,11 @@ pointo-1794650000000.pointo/
 
 关键帧只在真正有动作、标记或画面变化时才切，不会因为你停顿说话就多出一堆静止画面。
 
-## 投递到任意项目
+## 让 AI 读得到录制
 
-Pointo 按这个顺序决定一段录制该去哪个项目，找到就停：
+录制存在 `~/Library/Application Support/pointo/captures/`，粘贴的说明里写着每张图的绝对路径，AI 自己会去打开。Claude Code 读项目外的文件时会先问你一次。想以后都不问，在 `~/.claude/settings.json` 的 `permissions.additionalDirectories` 里加上这个目录。
 
-1. **固定项目**：设置 › 通用 › 项目文件夹里选了一个固定项目。
-2. **网页登记**：浏览器里的页面通过 Pointo 的 `/sdk.js` 登记了自己的项目目录（`data-directory`）。
-3. **本地端口**：浏览器停在 `localhost` 页面时，找到监听那个端口的进程，取它所在的 git 仓库。
-4. **终端目录**：录的是终端时，取终端当前所在的目录。
-
-都没找到时只复制到剪贴板，浮条上会列出最近用过的项目，点一下就发过去。
-
-投递时 Pointo 在项目里写入：
-
-```
-<项目>/.pointo/
-├── README.md                   告诉 AI 这个目录是什么
-├── latest                      最新一条录制的路径
-└── captures/<录制名>/          总览图、关键帧、summary.md、pointo.json
-```
-
-并在项目的 `.git/info/exclude` 里加一行 `.pointo/`，不会出现在 `git status` 里，也不会改你的 `.gitignore`。录屏和录音这类大文件留在原处（`~/Library/Application Support/pointo/captures/`），`summary.md` 里写着它们的位置。
+想让录制同时复制进项目的 `.pointo/` 目录（旧版的「投递到项目」），在配置里把 `autoSend` 设成 `true`。
 
 ## 语音转写
 
@@ -116,9 +97,8 @@ Command 出错时，这段录制自动改用 Qwen3-ASR。如果你的电脑上 H
 
 | 键 | 作用 |
 |---|---|
-| `project` | 固定投递的项目文件夹 |
-| `recentProjects` | 最近用过的项目（自动维护） |
-| `autoSend` | 是否自动投递到识别出的项目，默认开 |
+| `autoSend` | 是否同时把录制复制进识别出的项目，默认关 |
+| `project` | 打开 `autoSend` 时，固定投递的项目文件夹 |
 | `transcriber` | `"qwen"`（默认）或 `"command"`；旧配置里的 `"apple"`、`"hex"` 按 `"qwen"` 处理 |
 | `language` | 转写语言，例如 `"zh-CN"`、`"yue"`、`"en-US"`；不写就自动识别（旧配置里叫 `appleLocale`，仍然有效） |
 | `capturesDir` | 录制保存位置 |
@@ -143,6 +123,6 @@ cargo test
 
 ## 致谢与许可
 
-- 原项目 [Scrawl](https://github.com/kitlangton/scrawl) 由 Kit Langton 开发，MIT 许可。Pointo 在它的基础上改名、改为投递到项目文件夹、默认本地中文转写，并做了中文界面。
+- 原项目 [Scrawl](https://github.com/kitlangton/scrawl) 由 Kit Langton 开发，MIT 许可。Pointo 在它的基础上改名、默认本地中文转写，并做了中文界面。
 - 语音转写使用 [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR)（Apache-2.0）和 [transcribe.cpp](https://crates.io/crates/transcribe-cpp)，模型文件与 [Hex](https://github.com/anomalyco/hex) 使用的是同一份。
 - 本项目以 [MIT](LICENSE) 许可发布。

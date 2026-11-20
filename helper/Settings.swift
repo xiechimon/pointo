@@ -908,24 +908,6 @@ struct SettingsView: View {
           SettingsSwitch(on: state.login.on, enabled: state.login.available) { model.set("launchAtLogin", $0) }
         }
         SettingsSeparator()
-        SettingsRow(title: "把录制发送到识别出的项目") {
-          SettingsSwitch(on: state.autoSend) { model.set("autoSend", $0) }
-        }
-        SettingsSeparator()
-        SettingsRow(title: "项目文件夹") {
-          HStack(spacing: 8) {
-            Text(state.project.path ?? "自动")
-              .font(.system(size: 14))
-              .foregroundStyle(SettingsTheme(scheme).secondary)
-              .lineLimit(1)
-              .truncationMode(.head)
-            SettingsButton(title: "选择…") { model.chooseProjectFolder() }
-            if state.project.path != nil {
-              SettingsButton(title: "清除") { model.set("project", "") }
-            }
-          }
-        }
-        SettingsSeparator()
         SettingsRow(title: "录制时调低其他声音") {
           SettingsSwitch(on: state.lowerPlayback) { model.set("lowerPlayback", $0) }
         }

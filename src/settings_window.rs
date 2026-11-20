@@ -901,8 +901,6 @@ impl SettingsWindow {
 
     fn general(&self, theme: Theme, state: &ViewState, cx: &mut Context<Self>) -> Div {
         let login_on = state.login.on;
-        let auto_send = state.auto_send;
-        let project = state.project.path.clone();
         let mut column = div().flex().flex_col().child(group(
             theme,
             vec![
@@ -918,63 +916,6 @@ impl SettingsWindow {
                             }))
                         },
                     ),
-                )
-                .into_any_element(),
-                row(
-                    theme,
-                    "把录制发送到识别出的项目",
-                    true,
-                    switch(theme, "settings-auto-send", auto_send, true).on_click(
-                        cx.listener(move |view, _, _, _| view.set("autoSend", (!auto_send).into())),
-                    ),
-                )
-                .into_any_element(),
-                row(
-                    theme,
-                    "项目文件夹",
-                    true,
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(8.0))
-                        .child(
-                            div()
-                                .text_size(px(14.0))
-                                .text_color(theme.secondary())
-                                .child(project.clone().unwrap_or_else(|| "自动".to_owned())),
-                        )
-                        .child(
-                            button(theme, "settings-project-choose", "选择…", true).on_click(
-                                cx.listener(|_, _, _, cx| {
-                                    let chosen = cx.prompt_for_paths(gpui::PathPromptOptions {
-                                        files: false,
-                                        directories: true,
-                                        multiple: false,
-                                        prompt: Some("选择".into()),
-                                    });
-                                    cx.spawn(async move |view, cx| {
-                                        if let Ok(Ok(Some(paths))) = chosen.await
-                                            && let Some(folder) = paths.first()
-                                        {
-                                            let folder = folder.display().to_string();
-                                            let _ = view.update(cx, |view, _| {
-                                                view.set("project", folder.into());
-                                            });
-                                        }
-                                    })
-                                    .detach();
-                                }),
-                            ),
-                        )
-                        .when(project.is_some(), |d| {
-                            d.child(
-                                button(theme, "settings-project-clear", "清除", true).on_click(
-                                    cx.listener(|view, _, _, _| {
-                                        view.set("project", serde_json::Value::Null);
-                                    }),
-                                ),
-                            )
-                        }),
                 )
                 .into_any_element(),
             ],

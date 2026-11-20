@@ -1229,7 +1229,7 @@ impl Panel {
                 available: login != LoginItem::Unavailable,
                 needs_approval: login == LoginItem::NeedsApproval,
             },
-            auto_send: config.auto_send.unwrap_or(true),
+            auto_send: config.auto_send.unwrap_or(false),
             project: ProjectView::new(&config),
             shortcuts: ShortcutKind::ALL
                 .into_iter()
@@ -2165,7 +2165,7 @@ mod tests {
                 host,
             )
         };
-        assert!(panel.view(&host).auto_send);
+        assert!(!panel.view(&host).auto_send);
         assert!(!panel.view(&host).lower_playback);
         assert_eq!(panel.view(&host).playback_level, 20);
         set(&mut panel, &mut host, "lowerPlayback", true.into());
@@ -2175,14 +2175,14 @@ mod tests {
         set(&mut panel, &mut host, "playbackLevel", 0.5.into());
         assert!(Panel::default().view(&host).lower_playback);
         assert_eq!(Panel::default().view(&host).playback_level, 35);
-        set(&mut panel, &mut host, "autoSend", false.into());
+        set(&mut panel, &mut host, "autoSend", true.into());
         set(&mut panel, &mut host, "videoExport", true.into());
         assert_eq!(
             set(&mut panel, &mut host, "retention", "month".into()),
             Effect::Measure
         );
         let view = panel.view(&host);
-        assert!(!view.auto_send && view.video_export);
+        assert!(view.auto_send && view.video_export);
         assert_eq!(view.retention.preset, Some("month"));
         assert_eq!(
             view.retention.note,
