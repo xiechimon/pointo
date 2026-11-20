@@ -10,14 +10,14 @@ import {C, clamp, Cursor, DISPLAY, ease, FG, GROUND, H, Ink, kf, SANS, Tone, UI}
 type Shot = {at: number; len: number; text: string; tone: Tone; size: number; x: number; y: number; align: 'left' | 'right' | 'center'};
 
 const SHOTS: Shot[] = [
-  {at: 0, len: 30, text: COPY.hook.beats[0], tone: 'paper', size: 230, x: 140, y: 300, align: 'left'},
-  {at: 30, len: 30, text: COPY.hook.beats[1], tone: 'paper', size: 170, x: 1780, y: 620, align: 'right'},
-  {at: 60, len: 30, text: COPY.hook.beats[2], tone: 'paper', size: 260, x: 960, y: 400, align: 'center'},
-  {at: 90, len: 30, text: COPY.hook.beats[3], tone: 'paper', size: 230, x: 140, y: 520, align: 'left'},
-  {at: 120, len: 15, text: COPY.hook.eighths[0], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
-  {at: 135, len: 15, text: COPY.hook.eighths[1], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
-  {at: 150, len: 15, text: COPY.hook.eighths[2], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
-  {at: 165, len: 15, text: COPY.hook.eighths[3], tone: 'ink', size: 340, x: 960, y: 330, align: 'center'},
+  {at: 0, len: 30, text: COPY.hook.beats[0], tone: 'paper', size: 320, x: 120, y: 330, align: 'left'},
+  {at: 30, len: 30, text: COPY.hook.beats[1], tone: 'paper', size: 230, x: 1800, y: 600, align: 'right'},
+  {at: 60, len: 30, text: COPY.hook.beats[2], tone: 'paper', size: 360, x: 960, y: 330, align: 'center'},
+  {at: 90, len: 30, text: COPY.hook.beats[3], tone: 'paper', size: 320, x: 120, y: 470, align: 'left'},
+  {at: 120, len: 15, text: COPY.hook.eighths[0], tone: 'ink', size: 440, x: 960, y: 280, align: 'center'},
+  {at: 135, len: 15, text: COPY.hook.eighths[1], tone: 'ink', size: 440, x: 960, y: 280, align: 'center'},
+  {at: 150, len: 15, text: COPY.hook.eighths[2], tone: 'ink', size: 440, x: 960, y: 280, align: 'center'},
+  {at: 165, len: 15, text: COPY.hook.eighths[3], tone: 'ink', size: 440, x: 960, y: 280, align: 'center'},
 ];
 
 // where each word lands in the "all at once" pile (3.0–3.5 s)
@@ -95,7 +95,7 @@ export const Hook: React.FC = () => {
       {shot ? <Pointer /> : null}
       {/* the red pen in the first second and a half: circling the wrong thing */}
       {f >= 30 && f < 60 ? (
-        <Ink d="M 1820 650 C 1840 590, 1500 576, 1300 590 C 1110 604, 1050 690, 1080 760 C 1120 840, 1500 850, 1700 820 C 1860 796, 1890 720, 1800 660" from={34} to={52} width={10} />
+        <Ink d="M 1860 690 C 1890 600, 1500 572, 1200 584 C 900 596, 780 690, 820 790 C 860 900, 1400 916, 1680 878 C 1880 850, 1910 760, 1840 684" from={34} to={52} width={10} />
       ) : null}
 
       {f >= 180 && !ai ? (

@@ -16,14 +16,14 @@ type Cam = {s: number; x: number; y: number; ry: number; rx: number};
 const CAM: [number, Cam][] = [
   [0, {s: 0.5, x: 960, y: 600, ry: -34, rx: 16}],
   [36, {s: 0.72, x: 960, y: 600, ry: 0, rx: 0}],
-  [70, {s: 0.76, x: 960, y: 600, ry: 0, rx: 0}],
-  [130, {s: 1.3, x: 1182, y: 660, ry: 0, rx: 0}], // medium: the whole form and the button
+  [119, {s: 0.8, x: 960, y: 600, ry: 0, rx: 0}],
+  [120, {s: 1.34, x: 1182, y: 660, ry: 0, rx: 0}], // cut on bar 5: medium on the form and the button
   [300, {s: 1.5, x: 1270, y: 680, ry: 0, rx: 0}], // pushing in through the click
   [336, {s: 1.56, x: 1300, y: 690, ry: 0, rx: 0}],
   [372, {s: 2.2, x: 1484, y: 735, ry: 0, rx: 0}], // close: ⇧ + the ink around the button
   [450, {s: 2.24, x: 1484, y: 735, ry: 0, rx: 0}],
-  [462, {s: 1.5, x: 1150, y: 380, ry: 0, rx: 0}], // whip up to where the toast should be
-  [500, {s: 1.52, x: 1150, y: 380, ry: 0, rx: 0}],
+  [462, {s: 1.2, x: 1120, y: 500, ry: 0, rx: 0}], // pull up: the toast corner and the ink both above the caption
+  [500, {s: 1.23, x: 1120, y: 500, ry: 0, rx: 0}],
   [524, {s: 1.0, x: 960, y: 560, ry: 0, rx: 0}], // back out: stop the recording
   [604, {s: 1.06, x: 960, y: 560, ry: 0, rx: 0}],
   [646, {s: 0.4, x: 1760, y: 500, ry: 30, rx: 7}], // orbit: the keyframes peeled off
@@ -262,7 +262,7 @@ const Compile: React.FC = () => {
       <div style={{position: 'absolute', left: 110, top: 90, ...H, fontSize: 76, zIndex: 2}}>
         <Reveal at={8} out={100}>
           <span style={{color: C.ink}}>{d.compileA}</span>
-          <span style={{color: C.lilacDeep}}>{d.compileB}</span>
+          <span style={{color: '#4B2BD6'}}>{d.compileB}</span>
         </Reveal>
       </div>
       <AbsoluteFill style={{perspective: P}}>
@@ -301,10 +301,10 @@ const Compile: React.FC = () => {
           <div
             style={{
               position: 'absolute',
-              left: -560,
-              top: -330,
-              width: 1120,
-              height: 660,
+              left: -760,
+              top: -230,
+              width: 1520,
+              height: 460,
               borderRadius: 26,
               background: `rgba(255,255,255,${kf(f, [0, 20], [0, 1])})`,
               boxShadow: `0 40px 90px rgba(60,40,140,${kf(f, [0, 20], [0, 0.25])})`,
@@ -315,10 +315,10 @@ const Compile: React.FC = () => {
               <span style={{fontFamily: MONO, fontSize: 34, color: C.ink}}>{files[0].name}</span>
               <span style={{fontFamily: SANS, fontWeight: 700, fontSize: 30, color: C.dim}}>{files[0].note}</span>
             </div>
-            <div style={{display: 'flex', gap: 18, flexWrap: 'wrap'}}>
+            <div style={{display: 'flex', gap: 18}}>
               {KEYFRAMES.map((k, i) => (
-                <div key={k.n} style={{position: 'relative', width: 513, height: 288, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(13,13,15,0.1)'}}>
-                  <div style={{position: 'absolute', transform: `scale(0.4645) translate(-816px, -148px)`, transformOrigin: '0 0'}}>
+                <div key={k.n} style={{position: 'relative', width: 460, height: 288, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(13,13,15,0.1)'}}>
+                  <div style={{position: 'absolute', transform: `scale(0.4645) translate(-930px, -148px)`, transformOrigin: '0 0'}}>
                     <Desktop t={k.t + 2} showChips={false} />
                   </div>
                   <div style={{position: 'absolute', left: 10, top: 10, width: 40, height: 40, borderRadius: 9, background: '#fff', color: C.ink, fontFamily: SANS, fontWeight: 900, fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>
@@ -326,7 +326,6 @@ const Compile: React.FC = () => {
                   </div>
                 </div>
               ))}
-              <div style={{width: 513, height: 288, borderRadius: 12, background: '#F3F3F1'}} />
             </div>
           </div>
         </div>

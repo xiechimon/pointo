@@ -17,7 +17,7 @@ export const RECT = 'M 1478 156 C 1560 148, 1680 150, 1750 155 C 1756 180, 1753 
 export const INK = {circle: [380, 440], rect: [464, 492]} as const;
 export const KEYFRAMES = [
   {n: 1, t: 304, x: 1700, y: 610},
-  {n: 2, t: 442, x: 1760, y: 610},
+  {n: 2, t: 442, x: 1730, y: 600},
   {n: 3, t: 494, x: 1420, y: 150},
 ];
 export const REC_AT = 75;
@@ -61,7 +61,7 @@ const Pill: React.FC<{t: number}> = ({t}) => {
   const grow = kf(t, [REC_AT, REC_AT + 16], [0, 1]);
   const state = t >= 600 ? 'done' : t >= 572 ? 'working' : 'rec';
   const secs = Math.floor(Math.max(0, Math.min(t, 572) - REC_AT) / 60);
-  const width = state === 'done' ? 300 : state === 'working' ? 150 : 210;
+  const width = state === 'done' ? 420 : state === 'working' ? 200 : 290;
   return (
     <div
       style={{
@@ -69,8 +69,8 @@ const Pill: React.FC<{t: number}> = ({t}) => {
         top: 44,
         left: 960 - (width * grow) / 2,
         width: width * grow,
-        height: 40,
-        borderRadius: 20,
+        height: 56,
+        borderRadius: 28,
         background: 'rgba(20,20,22,0.82)',
         backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.12)',
@@ -82,8 +82,8 @@ const Pill: React.FC<{t: number}> = ({t}) => {
         overflow: 'hidden',
         whiteSpace: 'nowrap',
         fontFamily: SANS,
-        fontSize: 16,
-        fontWeight: 500,
+        fontSize: 24,
+        fontWeight: 700,
         color: '#fff',
         opacity: grow,
       }}

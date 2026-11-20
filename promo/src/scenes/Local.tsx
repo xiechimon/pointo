@@ -62,15 +62,16 @@ export const Local: React.FC = () => {
     );
   }
 
-  const i = Math.min(2, Math.floor((f - 120) / 30));
-  const at = 120 + i * 30;
+  // three facts, 40 frames each (0.67 s), on the stamps at 28.0 / 28.67 / 29.33 s
+  const i = Math.min(2, Math.floor((f - 120) / 40));
+  const at = 120 + i * 40;
   const k = kf(f, [at, at + 8], [0, 1], ease);
   const push = kf(f, [230, 240], [0, 1]);
   const tone = FACT_TONES[i];
   const fact = d.facts[i];
   return (
     <AbsoluteFill style={{background: GROUND[tone], alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{position: 'absolute', right: 80 - (f - at) * 1.2, bottom: -120, fontFamily: DISPLAY, fontSize: 760, lineHeight: 1, color: 'transparent', WebkitTextStroke: `4px ${C.lilacDeep}`, opacity: 0.35 * k}}>{fact.k}</div>
+      <div style={{position: 'absolute', right: 100 - (f - at) * 1.2, bottom: 30, fontFamily: DISPLAY, fontSize: 560, lineHeight: 1, color: 'transparent', WebkitTextStroke: `4px ${C.lilacDeep}`, opacity: 0.35 * k}}>{fact.k}</div>
       <div style={{fontFamily: MONO, fontSize: 52, color: FG[tone], opacity: 0.6 * k, marginBottom: 30}}>{fact.k} / 03</div>
       <div
         style={{

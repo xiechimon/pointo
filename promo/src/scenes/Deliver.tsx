@@ -22,7 +22,7 @@ const Fix: React.FC = () => {
           <span style={{color: C.ink}}>{d.headA}</span>
         </Reveal>
         <Reveal at={8}>
-          <span style={{color: C.lilacDeep}}>{d.headB}</span>
+          <span style={{color: '#4B2BD6'}}>{d.headB}</span>
         </Reveal>
         <Fade at={18} y={14}>
           <div style={{marginTop: 50, display: 'flex', flexDirection: 'column', gap: 4, fontFamily: MONO, fontSize: 32, lineHeight: 1.6, letterSpacing: 0}}>
