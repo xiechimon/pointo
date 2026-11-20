@@ -228,18 +228,21 @@ SFX = [
     ('tick', 16.23, {}),
     # stop: keys, then the keyframes peel off on the beat
     ('click', 16.5, {'pan': -0.3}), ('click', 17.0, {'pan': 0}), ('click', 17.5, {'pan': 0.3}),
-    ('ding', 18.0, {'note': 5}),
+    ('ding', 17.95, {'note': 5}),
     ('shutter', 18.0, {}), ('shutter', 18.27, {}), ('shutter', 18.53, {}),
     ('whoosh', 18.4, {'gain': 0.7}),
     ('slide', 19.5, {'gain': 0.6}),
-    # the bundle
-    ('slide', 20.4, {'gain': 0.6}), ('slide', 20.6, {'gain': 0.5}),
-    ('whoosh', 21.8, {'gain': 0.7}),
-    # delivered, read, fixed
-    ('thud', 22.35, {}),
-    ('type', 22.0, {'dur': 0.37}),
-    ('tick', 22.4, {}), ('tick', 22.55, {}), ('tick', 22.7, {}), ('tick', 22.85, {}), ('chime', 23.0, {'gain': 0.5}),
-    ('ding', 23.15, {'note': 1}),
+    # the bundle: sheet, push into keyframe 2, summary.md, fold
+    ('whoosh', 20.67, {'gain': 0.6}),
+    ('slide', 21.33, {'gain': 0.6}),
+    ('whoosh', 21.75, {'gain': 0.6}),
+    # delivered, read, fixed, and the app works
+    ('type', 22.0, {'dur': 0.27}),
+    ('tick', 22.3, {}), ('tick', 22.42, {}), ('tick', 22.53, {}), ('tick', 22.65, {}),
+    ('chime', 22.77, {'gain': 0.5}),
+    ('ding', 22.88, {'note': 1}),
+    ('click', 23.5, {'gain': 0.9}),
+    ('ding', 23.6, {'note': 5}),
     ('hit', 24.0, {}), ('hit', 24.25, {'gain': 0.8}), ('hit', 24.5, {'gain': 0.8}), ('hit', 24.75, {'gain': 0.8}), ('hit', 25.0, {'gain': 0.8}),
     ('whoosh', 25.3, {'gain': 0.6}),
     ('stamp', 28.0, {}), ('stamp', 28.5, {}), ('stamp', 29.0, {}),

@@ -93,6 +93,10 @@ export const Hook: React.FC = () => {
     <AbsoluteFill style={{background: C.paper}}>
       {shot ? <Word s={shot} /> : null}
       {shot ? <Pointer /> : null}
+      {/* frame 0 already moves: the pen circles the first vague word */}
+      {f < 30 ? (
+        <Ink d="M 1460 470 C 1500 330, 980 280, 600 300 C 240 320, 60 420, 90 560 C 130 720, 700 740, 1100 720 C 1420 700, 1520 610, 1430 500" from={0} to={20} width={12} />
+      ) : null}
       {/* the red pen in the first second and a half: circling the wrong thing */}
       {f >= 30 && f < 60 ? (
         <Ink d="M 1860 690 C 1890 600, 1500 572, 1200 584 C 900 596, 780 690, 820 790 C 860 900, 1400 916, 1680 878 C 1880 850, 1910 760, 1840 684" from={34} to={52} width={10} />

@@ -193,7 +193,7 @@ const Caption: React.FC = () => {
   const cap = caps[idx];
   const prev = idx > 0 && cap.text.startsWith(caps[idx - 1].text) ? caps[idx - 1].text.length : 0;
   const rest = cap.text.slice(prev);
-  const n = Math.round(interpolate(f, [cap.from, cap.from + rest.length * 2.6], [0, Array.from(rest).length], clamp));
+  const n = Math.round(interpolate(f, [cap.from, cap.from + rest.length * 1.6], [0, Array.from(rest).length], clamp));
   const shown = cap.text.slice(0, prev) + Array.from(rest).slice(0, n).join('');
   return (
     <div style={{position: 'absolute', left: 0, right: 0, bottom: 72, display: 'flex', justifyContent: 'center', opacity: o, transform: `translateY(${(1 - o) * 16}px)`}}>
@@ -220,32 +220,22 @@ const Caption: React.FC = () => {
   );
 };
 
-// ---------- bar 10: the bundle, exploded ----------
+// ---------- bar 10: the bundle, in three readable beats ----------
+// 20.0 s the contact sheet (three keyframes, white chips) · 20.67 s push into keyframe 2 with its
+// ink · 21.33 s summary.md in large type · 21.8 s it folds into a point that becomes the delivery.
 
-const FileCard: React.FC<{i: number; title: string; note: string; children: React.ReactNode}> = ({i, title, note, children}) => {
-  const f = useCurrentFrame();
-  const out = kf(f, [18 + i * 6, 58 + i * 6], [0, 1], ease);
+const TILE = {w: 460, h: 288};
+
+const Tile: React.FC<{i: number}> = ({i}) => {
+  const k = KEYFRAMES[i];
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: -760,
-        top: -230,
-        width: 1520,
-        height: 460,
-        transform: `translate3d(${out * (i * 70)}px, ${out * (i * -96)}px, ${-out * i * 220}px)`,
-        opacity: i === 0 ? 1 : out,
-        borderRadius: 26,
-        background: C.card,
-        boxShadow: '0 40px 90px rgba(60,40,140,0.25)',
-        padding: 36,
-      }}
-    >
-      <div style={{display: 'flex', alignItems: 'baseline', gap: 18, marginBottom: 26}}>
-        <span style={{fontFamily: MONO, fontSize: 34, color: C.ink}}>{title}</span>
-        <span style={{fontFamily: SANS, fontWeight: 700, fontSize: 30, color: C.dim}}>{note}</span>
+    <div style={{position: 'relative', width: TILE.w, height: TILE.h, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(13,13,15,0.1)'}}>
+      <div style={{position: 'absolute', transform: 'scale(0.4107) translate(-800px, -100px)', transformOrigin: '0 0'}}>
+        <Desktop t={k.t + 2} showChips={false} showPill={false} showCursor={false} />
       </div>
-      {children}
+      <div style={{position: 'absolute', left: 10, top: 10, width: 40, height: 40, borderRadius: 9, background: '#fff', color: C.ink, fontFamily: SANS, fontWeight: 900, fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>
+        {k.n}
+      </div>
     </div>
   );
 };
@@ -254,87 +244,53 @@ const Compile: React.FC = () => {
   // local 0 = demo frame 720 (bar 10)
   const f = useCurrentFrame();
   const d = COPY.demo;
-  const ry = kf(f, [10, 120], [-4, -26], (x) => x);
-  const rx = kf(f, [10, 70], [0, 10]);
-  const collapse = kf(f, [100, 120], [0, 1], (x) => x * x);
-  const lineBg = (w: number, o = 1) => <div style={{height: 14, width: w, borderRadius: 7, background: `rgba(13,13,15,${0.1 * o})`, marginBottom: 16}} />;
-  const files = d.files;
+  const zoom = kf(f, [38, 52], [1, 2.5], ease);
+  const sheetOut = kf(f, [76, 84], [0, 1]);
+  const sum = kf(f, [80, 94], [0, 1], ease);
+  const collapse = kf(f, [104, 120], [0, 1], (x) => x * x);
   return (
     <Stage tone="lilac" light={[30, 20]}>
-      <div style={{position: 'absolute', left: 110, top: 90, ...H, fontSize: 76, zIndex: 2}}>
-        <Reveal at={0} dur={12} out={100}>
+      <div style={{position: 'absolute', left: 110, top: 80, ...H, fontSize: 76, zIndex: 2, opacity: 1 - kf(f, [34, 42], [0, 1])}}>
+        <Reveal at={0} dur={12}>
           <span style={{color: C.ink}}>{d.compileA}</span>
           <span style={{color: '#4B2BD6'}}>{d.compileB}</span>
         </Reveal>
       </div>
-      <AbsoluteFill style={{perspective: P}}>
-        <div
-          style={{
-            position: 'absolute',
-            left: 960,
-            top: 610,
-            transformStyle: 'preserve-3d',
-            transform: `rotateX(${rx}deg) rotateY(${ry}deg) scale(${(1 - collapse * 0.9) * kf(f, [0, 40], [1.1, 1.0])})`,
-            opacity: 1 - kf(f, [108, 120], [0, 1]),
-          }}
-        >
-          {[3, 2, 1].map((i) => (
-            <FileCard key={i} i={i} title={files[i].name} note={files[i].note}>
-              {i === 1 ? (
-                <div style={{fontFamily: MONO, fontSize: 28, lineHeight: 1.8}}>
-                  {d.summary.map((l, j) => (
-                    <div key={j} style={{color: l.startsWith('##') ? C.ink : C.dim}}>{l}</div>
-                  ))}
-                </div>
-              ) : i === 2 ? (
-                <div style={{fontFamily: MONO, fontSize: 28, lineHeight: 1.8, color: C.dim, whiteSpace: 'pre'}}>
-                  {'{\n  "keyframes": 3,\n  "events": [\n    {"t": 2.1, "type": "click", "target": "保存更改"},\n    {"t": 4.0, "type": "ink", "shape": "circle"},\n    {"t": 5.0, "type": "ink", "shape": "rect"}\n  ]\n}'}
-                </div>
-              ) : (
-                <div>
-                  {lineBg(700)}
-                  {lineBg(520)}
-                  {lineBg(610)}
-                </div>
-              )}
-            </FileCard>
-          ))}
-          {/* front card: the contact sheet the slices became */}
-          <div
-            style={{
-              position: 'absolute',
-              left: -760,
-              top: -230,
-              width: 1520,
-              height: 460,
-              borderRadius: 26,
-              background: `rgba(255,255,255,${kf(f, [0, 20], [0, 1])})`,
-              boxShadow: `0 40px 90px rgba(60,40,140,${kf(f, [0, 20], [0, 0.25])})`,
-              padding: 36,
-            }}
-          >
-            <div style={{display: 'flex', alignItems: 'baseline', gap: 18, marginBottom: 26, opacity: kf(f, [6, 20], [0, 1])}}>
-              <span style={{fontFamily: MONO, fontSize: 34, color: C.ink}}>{files[0].name}</span>
-              <span style={{fontFamily: SANS, fontWeight: 700, fontSize: 30, color: C.dim}}>{files[0].note}</span>
-            </div>
-            <div style={{display: 'flex', gap: 18}}>
-              {KEYFRAMES.map((k, i) => (
-                <div key={k.n} style={{position: 'relative', width: 460, height: 288, borderRadius: 12, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(13,13,15,0.1)'}}>
-                  <div style={{position: 'absolute', transform: `scale(0.4107) translate(-800px, -100px)`, transformOrigin: '0 0'}}>
-                    <Desktop t={k.t + 2} showChips={false} />
+
+      {/* the contact sheet, then a push into keyframe 2 (the ink around the button) */}
+      {sheetOut < 1 ? (
+        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', paddingTop: 80, opacity: 1 - sheetOut}}>
+          <div style={{transform: `scale(${zoom * kf(f, [0, 30], [1.04, 1], (x) => x)})`, transformOrigin: '50% 58%'}}>
+            <div style={{padding: 30, borderRadius: 28, background: C.card, boxShadow: '0 40px 90px rgba(60,40,140,0.25)'}}>
+              <div style={{fontFamily: MONO, fontSize: 34, color: C.ink, marginBottom: 20}}>contact-sheet.png</div>
+              <div style={{display: 'flex', gap: 18}}>
+                {KEYFRAMES.map((_, i) => (
+                  <div key={i} style={{opacity: i === 1 ? 1 : 1 - kf(f, [38, 50], [0, 0.85])}}>
+                    <Tile i={i} />
                   </div>
-                  <div style={{position: 'absolute', left: 10, top: 10, width: 40, height: 40, borderRadius: 9, background: '#fff', color: C.ink, fontFamily: SANS, fontWeight: 900, fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>
-                    {i + 1}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </AbsoluteFill>
-      {/* the collapse leaves a glowing point that becomes the bundle */}
+        </AbsoluteFill>
+      ) : null}
+
+      {/* summary.md, readable */}
+      {f >= 80 ? (
+        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', transform: `scale(${1 - collapse * 0.95})`, opacity: 1 - kf(f, [112, 120], [0, 1])}}>
+          <div style={{width: 1400, padding: '44px 56px', borderRadius: 30, background: C.card, boxShadow: '0 40px 90px rgba(60,40,140,0.25)', transform: `translateX(${(1 - sum) * 300}px)`, opacity: sum}}>
+            <div style={{fontFamily: MONO, fontSize: 36, color: C.dim, marginBottom: 24}}>summary.md</div>
+            <div style={{fontFamily: SANS, fontWeight: 900, fontSize: 52, color: C.ink, lineHeight: 1.5}}>
+              <div><span style={{color: C.red}}>1</span> · 0:02 点击「保存更改」</div>
+              <div style={{fontWeight: 500, color: C.dim, fontSize: 46}}>“这个保存按钮，点了没反应”</div>
+              <div><span style={{color: C.red}}>2</span> · 0:04 圈出按钮　<span style={{color: C.red}}>3</span> · 0:05 框出右上角</div>
+            </div>
+          </div>
+        </AbsoluteFill>
+      ) : null}
+
       {collapse > 0 ? (
-        <div style={{position: 'absolute', left: 960 - 30, top: 610 - 30, width: 60, height: 60, borderRadius: 30, background: C.red, boxShadow: `0 0 ${60 * collapse}px ${20 * collapse}px rgba(255,59,47,0.6)`, opacity: collapse, transform: `scale(${collapse})`}} />
+        <div style={{position: 'absolute', left: 960 - 30, top: 540 - 30, width: 60, height: 60, borderRadius: 30, background: C.red, boxShadow: `0 0 ${60 * collapse}px ${20 * collapse}px rgba(255,59,47,0.6)`, opacity: collapse, transform: `scale(${collapse})`}} />
       ) : null}
     </Stage>
   );
@@ -381,7 +337,13 @@ export const Demo: React.FC = () => {
           <Caption />
           <ShiftHud />
           <SliceList />
-          <Hud at={510} out={598} label={COPY.demo.hudStop} />
+          <Hud at={510} out={576} label={COPY.demo.hudStop} />
+          {/* the result of stopping, said large: copied, three keyframes */}
+          <div style={{position: 'absolute', left: 0, right: 0, bottom: 80, display: 'flex', justifyContent: 'center', opacity: kf(f, [596, 604], [0, 1]) * kf(f, [652, 664], [1, 0])}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 18, padding: '20px 40px', borderRadius: 28, background: C.ink, color: C.text, fontFamily: SANS, fontWeight: 900, fontSize: 56, transform: `scale(${1.1 - 0.1 * kf(f, [596, 608], [0, 1], ease)})`}}>
+              <span style={{color: '#7CE3A4'}}>✓</span> 已复制 · 3 个关键帧
+            </div>
+          </div>
         </>
       ) : null}
 

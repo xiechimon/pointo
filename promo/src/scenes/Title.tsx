@@ -21,7 +21,7 @@ export const Title: React.FC = () => {
     return (
       <AbsoluteFill style={{background: C.red}}>
         <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', transform: `scale(${1 + f * 0.0022}) rotate(${-f * 0.012}deg) translateX(${-f * 0.5}px)`}}>
-          <div style={{...H, fontSize: 72, color: C.ink, opacity: kf(f, [10, 22], [0, 1]), marginBottom: 120}}>{t.pre}</div>
+          <div style={{...H, fontSize: 72, color: C.ink, opacity: kf(f, [2, 8], [0, 1]), marginBottom: 120}}>{t.pre}</div>
           <div style={{position: 'relative', ...H, fontSize: 300, color: C.ink, whiteSpace: 'nowrap', transform: `scale(${1.5 - 0.5 * slam})`, opacity: slam}}>
             {t.main}
             {/* the pen circles 它看 */}

@@ -58,7 +58,7 @@ export const Local: React.FC = () => {
           <div style={{fontFamily: SANS, fontSize: 64, fontWeight: 700, color: C.text, minHeight: 80}}>
             {heard ? `“${heard}${heard.length >= d.heard.length ? '”' : ''}` : ''}
           </div>
-          <div style={{marginTop: 26, fontFamily: MONO, fontSize: 36, color: 'rgba(244,244,242,0.8)', letterSpacing: 3, opacity: kf(f, [50, 70], [0, 1])}}>{d.spec}</div>
+          <div style={{marginTop: 26, fontFamily: MONO, fontSize: 40, color: 'rgba(244,244,242,0.8)', letterSpacing: 3, opacity: kf(f, [50, 70], [0, 1])}}>{d.spec}</div>
         </AbsoluteFill>
       </AbsoluteFill>
       {d.facts.map((fact, i) => {
@@ -67,7 +67,7 @@ export const Local: React.FC = () => {
         if (f < at) return null;
         const rot = [-4, 3, -2][i];
         return (
-          <div key={fact.k} style={{position: 'absolute', left: 0, right: 0, top: 230 + i * 220, display: 'flex', justifyContent: 'center', opacity: 1 - out}}>
+          <div key={fact.k} style={{position: 'absolute', left: 0, right: 0, top: 190 + i * 250, display: 'flex', justifyContent: 'center', opacity: 1 - out}}>
             <div style={{display: 'flex', alignItems: 'center', gap: 30, padding: '26px 54px', borderRadius: 28, background: i === 1 ? C.text : C.red, color: C.ink, transform: `rotate(${rot * k}deg) scale(${(1.5 - 0.5 * k) * (1 + out * 0.2)})`, boxShadow: '0 30px 60px rgba(0,0,0,0.45)'}}>
               <span style={{fontFamily: MONO, fontSize: 44, opacity: 0.6}}>{fact.k}</span>
               <span style={{...H, fontSize: 96, whiteSpace: 'nowrap'}}>{fact.v}</span>

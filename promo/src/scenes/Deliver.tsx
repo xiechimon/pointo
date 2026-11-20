@@ -2,11 +2,37 @@ import React from 'react';
 import {CameraMotionBlur} from '@remotion/motion-blur';
 import {AbsoluteFill, interpolate, Sequence, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
-import {C, clamp, DISPLAY, ease, Fade, FG, GROUND, H, Icon, kf, MONO, Reveal, SANS, Stage, Tone, typed} from '../ui';
+import {C, clamp, Cursor, DISPLAY, ease, Fade, FG, GROUND, H, kf, MONO, Reveal, Ripple, SANS, Stage, Tone, typed} from '../ui';
+import {Desktop} from './Desktop';
 
 // Bars 11–12. On the AI's lilac: the bundle shoots into the project and a terminal reads it
 // and fixes the bug. Then the tool names hit full screen on the eighths, each on its own
 // colour field, and gather into one row.
+
+/** 23.4 s: back in the app after the fix — the click works and the toast lands in the red box. */
+const Fixed: React.FC = () => {
+  const f = useCurrentFrame(); // local 0 = 23.4 s
+  const s = 1.2;
+  const cam = {x: 1120, y: 500};
+  const toast = kf(f, [10, 20], [0, 1], ease);
+  const press = f >= 6 && f < 14 ? 1 - (f - 6) / 8 : 0;
+  return (
+    <AbsoluteFill style={{background: C.paper}}>
+      <div style={{position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, transformOrigin: '0 0', transform: `translate(${960 - cam.x * s}px, ${540 - cam.y * s}px) scale(${s * (1 + f * 0.0012)})`}}>
+        <Desktop t={500} showCursor={false} showChips={false} showPill={false} />
+        <Ripple x={1612} y={704} at={6} />
+        <div style={{position: 'absolute', left: 1494, top: 160, width: 248, height: 64, borderRadius: 14, background: C.card, boxShadow: '0 12px 30px rgba(13,13,15,0.2)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 20px', fontFamily: SANS, fontWeight: 700, fontSize: 26, color: C.ink, transform: `translateY(${(1 - toast) * -40}px) scale(${0.9 + toast * 0.1})`, opacity: toast}}>
+          <span style={{width: 34, height: 34, borderRadius: 17, background: C.green, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20}}>✓</span>
+          已保存
+        </div>
+        <Cursor x={1612 + (1 - kf(f, [0, 6], [0, 1], ease)) * 120} y={704 + (1 - kf(f, [0, 6], [0, 1], ease)) * 90} press={press} />
+      </div>
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: 70, display: 'flex', justifyContent: 'center', opacity: kf(f, [14, 22], [0, 1])}}>
+        <div style={{padding: '18px 36px', borderRadius: 26, background: C.ink, color: C.text, fontFamily: SANS, fontWeight: 900, fontSize: 56}}>修好了。</div>
+      </div>
+    </AbsoluteFill>
+  );
+};
 
 const Fix: React.FC = () => {
   const f = useCurrentFrame();
@@ -53,15 +79,15 @@ const Fix: React.FC = () => {
                 ))}
                 <div style={{flex: 1, textAlign: 'center', fontFamily: MONO, fontSize: 20, color: 'rgba(244,244,242,0.5)', marginRight: 50}}>{d.termTitle}</div>
               </div>
-              <div style={{padding: '34px 40px', fontFamily: MONO, fontSize: 36, lineHeight: 1.7}}>
+              <div style={{padding: '34px 40px', fontFamily: MONO, fontSize: 40, lineHeight: 1.6}}>
                 <div style={{color: C.text}}>
                   <span style={{color: C.lilac}}>› </span>
-                  {typed(d.prompt, f, 0, 22)}
+                  {typed(d.prompt, f, 0, 16)}
                   {f < 30 && Math.floor(f / 12) % 2 === 0 ? <span style={{color: C.lilac}}>▌</span> : null}
                 </div>
                 <div style={{height: 16}} />
                 {d.lines.map((l, i) => {
-                  const at = 24 + i * 9;
+                  const at = 18 + i * 7;
                   const o = kf(f, [at, at + 8], [0, 1]);
                   return (
                     <div key={i} style={{color: colors[l.c], opacity: o, transform: `translateX(${(1 - o) * 14}px) scale(${l.c === 'add' ? 1 + kf(f, [at + 6, at + 16], [0, 0.06], ease) : 1})`, transformOrigin: '0% 50%', whiteSpace: 'pre', fontWeight: l.c === 'ok' || l.c === 'add' ? 700 : 400, background: l.c === 'add' ? `linear-gradient(90deg, rgba(124,227,164,0.22) ${kf(f, [at + 4, at + 20], [0, 100])}%, transparent ${kf(f, [at + 4, at + 20], [0, 100])}%)` : undefined, borderRadius: 8, margin: l.c === 'add' ? '6px -10px' : undefined, padding: l.c === 'add' ? '2px 10px' : undefined}}>
@@ -150,8 +176,11 @@ const Tools: React.FC = () => {
 
 export const Deliver: React.FC = () => (
   <AbsoluteFill>
-    <Sequence durationInFrames={120} layout="none">
+    <Sequence durationInFrames={84} layout="none">
       <Fix />
+    </Sequence>
+    <Sequence from={84} durationInFrames={36} layout="none">
+      <Fixed />
     </Sequence>
     <Sequence from={120} layout="none">
       <Tools />

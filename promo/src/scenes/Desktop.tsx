@@ -116,7 +116,7 @@ const Pill: React.FC<{t: number}> = ({t}) => {
   );
 };
 
-export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boolean}> = ({t, showCursor = true, showChips = true}) => {
+export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boolean; showPill?: boolean}> = ({t, showCursor = true, showChips = true, showPill = true}) => {
   const d = COPY.demo;
   const cur = cursorAt(t);
   const press = t >= CLICK.at && t < CLICK.at + 10 ? 1 - (t - CLICK.at) / 10 : 0;
@@ -249,7 +249,7 @@ export const Desktop: React.FC<{t: number; showCursor?: boolean; showChips?: boo
           );
         })}
 
-      <Pill t={t} />
+      {showPill ? <Pill t={t} /> : null}
       {showCursor && t >= 150 ? <Cursor x={cur.x} y={cur.y} press={press} /> : null}
     </div>
   );

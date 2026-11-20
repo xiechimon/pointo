@@ -88,7 +88,7 @@ const Card: React.FC = () => {
           </div>
           <div style={{position: 'relative', marginTop: 50, opacity: cta, transform: `translateY(${(1 - cta) * 30}px)`}}>
             <div style={{padding: '22px 48px', borderRadius: 24, background: C.ink, color: C.text, fontFamily: UI, fontWeight: 700, fontSize: 64, letterSpacing: -0.5}}>{d.url}</div>
-            <Ink viewBox="0 0 1000 200" style={{left: -70, top: -24, width: 1180, height: 196}} d="M 930 40 C 1010 6, 480 -10, 140 20 C 0 36, -10 170, 180 186 C 470 206, 950 196, 990 140 C 1016 100, 960 56, 860 46" from={40} to={62} width={8} />
+            <Ink viewBox="0 0 1260 196" style={{left: -110, top: -24, width: 1260, height: 196}} d="M 1172 39 C 1273 6, 605 -10, 176 20 C 0 35, -13 167, 227 182 C 592 202, 1197 192, 1247 137 C 1280 98, 1210 55, 1084 45" from={40} to={62} width={8} />
           </div>
           <div style={{position: 'relative', marginTop: 44, height: 60, width: 1200, textAlign: 'center'}}>
             <div style={{position: 'absolute', inset: 0, fontFamily: MONO, fontSize: 40, color: '#3A3A3E', opacity: kf(f, [30, 42], [0, 1])}}>{d.platforms}</div>
