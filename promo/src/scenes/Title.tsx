@@ -1,76 +1,107 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
+import {CameraMotionBlur} from '@remotion/motion-blur';
+import {AbsoluteFill, Easing, interpolate, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
-import {C, clamp, Fade, Flash, H, Icon, Ink, kf, MONO, Reveal, SANS, Stage, useSpring} from '../ui';
+import {C, clamp, Fade, Flash, H, Icon, kf, MONO, Reveal, Stage, useSpring} from '../ui';
 
-// Bars 2–3. "别讲给 AI 听，/ 指给它看。" then the icon resolves out of blur.
+// Bars 2–3. Impact: one huge red pen stroke rings the screen, "指给它看。" lands inside it.
+// Then the camera flies through the ring and the icon resolves, with a light sweep.
+
+const RING =
+  'M -80 830 C 200 770, 250 300, 700 205 C 1100 115, 1630 185, 1730 470 C 1820 770, 1400 935, 960 935 C 520 935, 250 805, 262 565 C 274 380, 480 262, 780 232';
+
+const Slash: React.FC = () => {
+  const f = useCurrentFrame();
+  const p = interpolate(f, [0, 26], [0, 1], {...clamp, easing: Easing.bezier(0.2, 0.7, 0.2, 1)});
+  return (
+    <svg viewBox="0 0 1920 1080" style={{position: 'absolute', inset: 0, overflow: 'visible'}}>
+      <defs>
+        <filter id="inkglow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="18" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <path d={RING} pathLength={1} fill="none" stroke={C.red} strokeWidth={44} strokeLinecap="round" strokeDasharray="1 1" strokeDashoffset={1 - p} filter="url(#inkglow)" />
+    </svg>
+  );
+};
+
 export const Title: React.FC = () => {
   const f = useCurrentFrame();
   const t = COPY.title;
-  const icon = useSpring(124, {damping: 22, stiffness: 90});
-  const word = kf(f, [150, 186], [0, 1]);
-  const scale = kf(f, [0, 120], [1.03, 1], (x) => x);
+  const through = interpolate(f, [100, 138], [0, 1], {...clamp, easing: Easing.bezier(0.7, 0, 0.84, 0)});
+  const icon = useSpring(122, {damping: 20, stiffness: 90});
+  const sweep = kf(f, [150, 196], [-0.4, 1.4]);
+  const tilt = Math.sin(f / 50) * 4;
 
   return (
-    <Stage light={[50, 45]}>
-      <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', transform: `scale(${scale})`}}>
-        <div style={{...H, fontSize: 132, textAlign: 'center'}}>
-          <Reveal at={2} out={116}>
-            <span style={{color: C.dim}}>{t.l1}</span>
-          </Reveal>
-          <Reveal at={58} out={118}>
-            <span style={{color: C.text, position: 'relative'}}>
-              {t.l2}
-              <Ink stretch viewBox="0 0 100 100" d="M 2 96 C 25 90, 60 92, 88 95" from={72} to={98} width={7} />
-            </span>
-          </Reveal>
-        </div>
-      </AbsoluteFill>
+    <Stage light={[50, 50]}>
+      {/* red bloom behind everything right after the hit */}
+      <AbsoluteFill style={{background: 'radial-gradient(closest-side at 50% 52%, rgba(242,59,52,0.22), transparent)', opacity: kf(f, [0, 10, 120], [0, 1, 0.4]) * (1 - through)}} />
 
-      {f >= 120 ? (
-        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-          {/* soft blue bloom under the icon */}
+      {f < 140 ? (
+        <AbsoluteFill
+          style={{
+            transform: `scale(${1 + through * 7})`,
+            opacity: 1 - kf(f, [118, 138], [0, 1]),
+            filter: through > 0.02 ? `blur(${through * 30}px)` : undefined,
+          }}
+        >
+          <CameraMotionBlur samples={6} shutterAngle={200}>
+            <AbsoluteFill>
+              <Slash />
+            </AbsoluteFill>
+          </CameraMotionBlur>
+          <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
+            <div style={{...H, fontSize: 52, color: C.dim, marginBottom: 6}}>
+              <Reveal at={16}>{t.pre}</Reveal>
+            </div>
+            <div style={{...H, fontSize: 230, fontWeight: 600, letterSpacing: '-0.04em', color: C.text}}>
+              <Reveal at={4} dur={30}>{t.main}</Reveal>
+            </div>
+          </AbsoluteFill>
+        </AbsoluteFill>
+      ) : null}
+
+      {f >= 118 ? (
+        <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center', perspective: 1400}}>
+          <div style={{position: 'absolute', width: 1000, height: 600, background: 'radial-gradient(closest-side, rgba(41,102,255,0.32), transparent)', opacity: icon}} />
           <div
             style={{
-              position: 'absolute',
-              width: 900,
-              height: 500,
-              top: 250,
-              background: 'radial-gradient(closest-side, rgba(41,102,255,0.28), transparent)',
-              opacity: icon,
-            }}
-          />
-          <div
-            style={{
-              transform: `translateY(${(1 - icon) * 40 - 60}px) scale(${0.86 + icon * 0.14})`,
-              filter: icon < 0.98 ? `blur(${(1 - icon) * 24}px)` : undefined,
-              opacity: interpolate(icon, [0, 0.5], [0, 1], clamp),
+              position: 'relative',
+              marginTop: -120,
+              transform: `translateZ(${(1 - icon) * -600}px) rotateY(${tilt}deg) rotateX(${tilt * 0.4}deg)`,
+              filter: icon < 0.98 ? `blur(${(1 - icon) * 26}px)` : undefined,
+              opacity: interpolate(icon, [0, 0.4], [0, 1], clamp),
+              WebkitBoxReflect: 'below 18px linear-gradient(transparent 62%, rgba(255,255,255,0.22))',
             }}
           >
-            <Icon size={200} style={{boxShadow: '0 30px 80px rgba(0,0,0,0.5)'}} />
+            <div style={{position: 'relative', width: 240, height: 240, borderRadius: 54, overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.6)'}}>
+              <Icon size={240} style={{borderRadius: 0}} />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: `linear-gradient(105deg, transparent ${sweep * 100 - 18}%, rgba(255,255,255,0.55) ${sweep * 100}%, transparent ${sweep * 100 + 18}%)`,
+                  mixBlendMode: 'overlay',
+                }}
+              />
+            </div>
           </div>
-          <div
-            style={{
-              position: 'absolute',
-              top: 640,
-              fontFamily: SANS,
-              fontWeight: 600,
-              fontSize: 92,
-              letterSpacing: '-0.03em',
-              color: C.text,
-              opacity: word,
-              filter: word < 1 ? `blur(${(1 - word) * 12}px)` : undefined,
-              transform: `translateY(${(1 - word) * 20}px)`,
-            }}
-          >
-            Pointo
+          <div style={{position: 'absolute', top: 690, ...H, fontWeight: 600, fontSize: 110, letterSpacing: '-0.04em', color: C.text}}>
+            <Reveal at={146}>Pointo</Reveal>
           </div>
-          <Fade at={184} y={10} style={{position: 'absolute', top: 780}}>
-            <div style={{fontFamily: MONO, fontSize: 22, color: C.dim, letterSpacing: 2}}>{t.sub}</div>
+          <Fade at={178} y={10} style={{position: 'absolute', top: 840}}>
+            <div style={{fontFamily: MONO, fontSize: 22, color: C.dim, letterSpacing: 3}}>{t.sub}</div>
           </Fade>
         </AbsoluteFill>
       ) : null}
-      <Flash at={0} len={20} max={0.35} />
+      <Flash at={0} len={10} max={0.6} color="#FFE3E1" />
+      <Flash at={124} len={16} max={0.25} />
     </Stage>
   );
 };
+
