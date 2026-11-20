@@ -656,7 +656,8 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
             button.setTitle(&NSString::from_str("✎"));
         }
     }
-    let app_bytes = include_bytes!("../../assets/app-icon.png");
+    // On Apple's icon grid (padding and shadow), so the Dock shows it at the size of the others.
+    let app_bytes = include_bytes!("../../assets/app-icon-macos.png");
     let app_data = NSData::with_bytes(app_bytes);
     if let Some(app_img) = NSImage::initWithData(NSImage::alloc(), &app_data) {
         unsafe {

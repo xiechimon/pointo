@@ -1487,17 +1487,28 @@ pub fn render_synthetic_demo_frame(width: u32, height: u32, t_ms: u64, phase: u3
 
 #[cfg(test)]
 mod icon_tests {
-    /// The 32 px tray icon keeps the ghost: white in the middle, cobalt at the sides, clear corners.
-    /// `assets/app-icon.png` comes out of Icon Composer as 16-bit RGBA.
+    /// The 32 px tray icon keeps the ghost: paper-white body, lilac at the sides, clear corners.
+    /// `assets/app-icon.png` is rendered by `assets/icon-src/ghost.py`.
     #[test]
-    fn tray_icon_keeps_the_ghost_from_a_16_bit_png() {
+    fn tray_icon_keeps_the_ghost() {
         let px = super::icon_rgba(include_bytes!("../assets/app-icon.png"), 32).unwrap();
         let at = |x: usize, y: usize| &px[(y * 32 + x) * 4..][..4];
-        assert_eq!(at(0, 0)[3], 0, "corner should be transparent: {:?}", at(0, 0));
-        let body = at(16, 14);
-        assert!(body.iter().take(3).all(|&c| c > 220) && body[3] == 255, "ghost body should be white: {body:?}");
+        assert_eq!(
+            at(0, 0)[3],
+            0,
+            "corner should be transparent: {:?}",
+            at(0, 0)
+        );
+        let body = at(12, 20);
+        assert!(
+            body.iter().take(3).all(|&c| c > 220) && body[3] == 255,
+            "ghost body should be paper white: {body:?}"
+        );
         let side = at(3, 16);
-        assert!(side[2] > 200 && side[0] < 120 && side[3] == 255, "edge should be cobalt: {side:?}");
+        assert!(
+            side[2] > 240 && side[0] > 170 && side[1] < 200 && side[3] == 255,
+            "edge should be lilac: {side:?}"
+        );
     }
 }
 

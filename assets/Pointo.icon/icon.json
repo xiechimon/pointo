@@ -1,28 +1,23 @@
 {
   "color-space-for-untagged-svg-colors" : "display-p3",
-  "fill" : {
-    "linear-gradient" : [
-      "display-p3:0.16000,0.40000,1.00000,1.00000",
-      "display-p3:0.02000,0.17000,0.82000,1.00000"
-    ],
-    "orientation" : { "start" : { "x" : 0.35, "y" : 0 }, "stop" : { "x" : 0.65, "y" : 1 } }
-  },
+  "fill" : { "solid" : "display-p3:0.75868,0.71183,0.97920,1.00000" },
   "groups" : [
     {
-      "name" : "Face",
-      "layers" : [ { "image-name" : "2-face.svg", "name" : "Face", "glass" : false,
-                     "position" : { "scale" : 0.9, "translation-in-points" : [0, 10] } } ],
+      "name" : "Eyes",
+      "layers" : [ { "image-name" : "3-eyes.svg", "name" : "Eyes", "glass" : false } ],
       "shadow" : { "kind" : "none", "opacity" : 0 },
       "translucency" : { "enabled" : false, "value" : 0 }
     },
     {
       "name" : "Ghost",
-      "layers" : [ { "image-name" : "1-body.svg", "name" : "Body", "glass" : true,
-                     "position" : { "scale" : 0.9, "translation-in-points" : [0, 10] } } ],
+      "layers" : [
+        { "image-name" : "2-body.svg", "name" : "Body", "glass" : true },
+        { "image-name" : "1-outline.svg", "name" : "Outline", "glass" : false }
+      ],
       "lighting" : "combined",
       "specular" : true,
-      "shadow" : { "kind" : "layer-color", "opacity" : 0.45 },
-      "translucency" : { "enabled" : true, "value" : 0.15 }
+      "shadow" : { "kind" : "neutral", "opacity" : 0.35 },
+      "translucency" : { "enabled" : true, "value" : 0.1 }
     }
   ],
   "supported-platforms" : { "squares" : "shared" }
