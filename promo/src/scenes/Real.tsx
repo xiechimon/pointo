@@ -133,8 +133,9 @@ export const Demo: React.FC = () => {
         <Cap text={r.caps[2]} />
       </Sequence>
       <Sequence from={360} durationInFrames={90} layout="none">
-        <Shot from={25.0} rate={2} len={90} a={TEXT} b={{...TEXT, s: 1.75}} />
-        <Cap text={r.caps[3]} />
+        {/* ⌘R lands at 26.2 s of the footage and the empty form at 27.0 s; the caption waits for the reload */}
+        <Shot from={25.9} rate={2} len={90} a={TEXT} b={{...TEXT, s: 1.75}} />
+        <Cap text={r.caps[3]} at={24} />
       </Sequence>
       <Sequence from={450} durationInFrames={60} layout="none">
         <Shot from={38.3} rate={1.15} len={60} a={CAPSULE} b={{...CAPSULE, s: 2.8}} >
