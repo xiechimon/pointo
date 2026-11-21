@@ -1,0 +1,6 @@
+node_modules/
+out/
+public/music.wav
+public/sound.wav
+score/
+public/footage/

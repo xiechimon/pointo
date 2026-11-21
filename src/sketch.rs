@@ -828,6 +828,14 @@ pub fn summary_markdown_with(
         };
         (change.t, text)
     }));
+    // Shortcuts (only ⌘/⌃ chords are ever recorded, never typing) say what the images can't:
+    // ⌘V pasted into the field, ⌘R reloaded the page. `agentContext` places them itself.
+    if !agent_context && !bundle.keyframes.is_empty() {
+        app_events.extend(bundle.events.iter().filter_map(|event| match event {
+            InteractionEvent::Key { t, shortcut } => Some((*t, format!("pressed {shortcut}"))),
+            _ => None,
+        }));
+    }
     app_events.sort_by_key(|(t, _)| *t);
     if agent_context && !bundle.keyframes.is_empty() {
         let texts = crate::agent_context::keyframe_texts(bundle);
@@ -2113,6 +2121,8 @@ mod tests {
         assert!(summary.contains("Note: Simplify it."));
         assert!(summary.contains("- #1 (0:05) [tapped x 0.50, y 0.50] “This row is too dense.”"));
         assert!(!summary.contains("No transcript"));
+        // Shortcuts are listed where they happened (⌘V pasted, ⌘R reloaded); the images can't say.
+        assert!(summary.contains("  · 0:04 pressed ⌘K\n- #1 (0:05)"), "{summary}");
 
         // Every mark on a keyframe is described next to its words, with what it was drawn on.
         let mut two = bundle.clone();

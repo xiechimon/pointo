@@ -4,13 +4,14 @@ name: pages
 # download host (release-assets.githubusercontent.com) is unreachable from many networks in
 # mainland China while *.github.io is not. It redeploys from main only (the github-pages
 # environment rejects tag refs): the release script's appcast commit picks up the new macOS
-# assets, and the Windows workflow finishing picks up the installer.
+# assets, and either release workflow finishing picks up its files (the macOS one commits the
+# appcast with the workflow token, which starts no push-triggered run).
 on:
   push:
     branches: [main]
     paths: ["site/**", ".github/workflows/pages.yml"]
   workflow_run:
-    workflows: ["Release (Windows)"]
+    workflows: ["Release (Windows)", "Release (macOS)"]
     types: [completed]
   workflow_dispatch:
 
@@ -25,6 +26,8 @@ concurrency:
 
 jobs:
   build:
+    # A pull request's Mac build publishes nothing, so it doesn't redeploy the site.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

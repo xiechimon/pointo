@@ -27,6 +27,16 @@ is one Mac build (notarized DMG + Sparkle zip) and one Windows zip, built from t
    `Pointo-latest-*`), then `bun run build && bunx wrangler@latest deploy`.
 6. **Homebrew:** a PR to `kitlangton/homebrew-tap` bumping `version` and `sha256` in `Casks/pointo.rb`.
 
+## From GitHub Actions (this fork)
+
+`.github/workflows/release-macos.yml` does steps 2–5 on GitHub's macOS runner: pushing a `v<version>`
+tag (matching `Cargo.toml`) builds, signs and publishes the DMG and Sparkle zip on that release, sets the
+build number to the published feed's plus one, commits `site/public/appcast.xml` to `main`, and the
+pages workflow redeploys downloads and feed, so installed copies update. It needs the `SPARKLE_ED_KEY`
+secret (and `MACOS_CERT_P12` / `MACOS_CERT_PASSWORD` for the identity earlier releases used, or macOS
+drops the privacy grants on update). Every pull request also builds the app, without publishing, and
+keeps the DMG as the run's `pointo-macos-arm64` artifact.
+
 Keep the Sparkle tools and the updates folder under `~/.local/share/pointo-release/`, never in `target/`
 or `/tmp`: a clean or a reboot would take the tools and every earlier zip with them.
 `scripts/setup-sparkle.sh` fetches Sparkle (checksummed) into `$SCRAWL_SPARKLE_DIR`, or `target/` when

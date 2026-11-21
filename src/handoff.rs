@@ -628,9 +628,10 @@ pub fn ensure_ingest_token() -> Result<String> {
     ensure_ingest_token_in(&default_config_path())
 }
 
-/// Whether Mac captures go straight to the project they were of (`autoSend`, default on).
+/// Whether captures also go to the project they were of (`autoSend` in config.json, default
+/// off: a capture is copied and the paste shortcut hands it to the agent).
 pub fn auto_send() -> bool {
-    config().auto_send.unwrap_or(true)
+    config().auto_send.unwrap_or(false)
 }
 
 /// The folder every capture goes to, when the user pinned one (`project` in config.json, `~`
@@ -1208,7 +1209,7 @@ mod tests {
     }
 
     #[test]
-    fn auto_send_defaults_on_and_the_toggle_keeps_other_keys() {
+    fn auto_send_is_unset_by_default_and_the_toggle_keeps_other_keys() {
         let fixture = Fixture::new();
         let path = fixture.0.join("config.json");
         fs::write(

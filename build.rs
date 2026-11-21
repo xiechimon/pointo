@@ -183,11 +183,14 @@ fn compile_helper() {
     }
     let plist = helper_dir.join("Info.plist");
     println!("cargo:rerun-if-changed={}", plist.display());
-    // OUT_DIR is target/<profile>/build/pointo-<hash>/out.
+    // OUT_DIR is target/<profile>/build/pointo-<hash>/out, or with Cargo's newer build-dir layout
+    // target/<profile>/build/pointo/<hash>/out: the profile folder is the parent of the nearest
+    // `build` folder above it (as in `stage_transcribe_dlls`).
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     let profile_dir = out_dir
         .ancestors()
-        .nth(3)
+        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+        .and_then(|build| build.parent())
         .expect("Unexpected OUT_DIR layout");
     let arch = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
         Ok("aarch64") => "arm64",

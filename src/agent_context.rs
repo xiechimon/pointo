@@ -1193,7 +1193,10 @@ mod tests {
         let dir = std::path::Path::new("/b");
         let off = crate::sketch::summary_markdown_with(&b, dir, false);
         let on = crate::sketch::summary_markdown_with(&b, dir, true);
-        assert!(!off.contains("⌘K"), "{off}");
+        // Without it the shortcut is its own indented line, as an app event is; with it the
+        // shortcut sits in the keyframe's text, before the words said after it.
+        assert!(off.contains("  · 0:00 pressed ⌘K\n- #1 (0:01)"), "{off}");
+        assert!(!off.contains("pressed ⌘K “Look here.”"), "{off}");
         assert!(
             on.contains("- #1 (0:01)\n  · 0:00 pressed ⌘K “Look here.”\n"),
             "{on}"

@@ -39,5 +39,8 @@ mv "$archive.partial" "$archive"
 rm -rf "$destination.partial"
 mkdir -p "$destination.partial"
 tar -xJf "$archive" -C "$destination.partial"
+# An incomplete copy (e.g. one a CI cache pruned) failed the check above; replace it, or the
+# mv below would nest the fresh copy inside it.
+rm -rf "$destination"
 mv "$destination.partial" "$destination"
 echo "$destination"

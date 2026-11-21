@@ -1,0 +1,149 @@
+name: Release (macOS)
+
+# Builds the Mac app on GitHub's free macOS runner with scripts/release-app.sh, attaches the DMG and the
+# Sparkle zip to the tag's GitHub release, and commits the signed appcast to main, so installed
+# copies update themselves. The pages workflow then serves the new downloads and feed.
+#
+# Secrets:
+# - SPARKLE_ED_KEY (required): the contents of ~/.local/share/pointo-release/sparkle-ed25519.key,
+#   the private half of SUPublicEDKey. Without it nothing is published.
+# - MACOS_CERT_P12 + MACOS_CERT_PASSWORD (optional): the signing identity as a base64 .p12. Use the
+#   one earlier releases were signed with, or macOS forgets Screen Recording and Microphone grants
+#   on update. Without them the app is signed ad hoc.
+# - POINTO_NOTARY_KEY_P8 + POINTO_NOTARY_KEY_ID + POINTO_NOTARY_ISSUER (optional): notarize, with a
+#   Developer ID identity only.
+
+on:
+  push:
+    tags: ["v*"]
+  # A pull request only builds the app and keeps it as a workflow artifact, to try before release.
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build and publish (e.g. v0.1.7), matching Cargo.toml. Empty only builds the branch and keeps the DMG as a workflow artifact.
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-macos-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  mac:
+    name: macOS arm64
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref || inputs.tag || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+          cache-on-failure: true
+      - name: Install the Metal toolchain
+        run: xcrun --sdk macosx metal --version || xcodebuild -downloadComponent MetalToolchain
+
+      - name: The tag matches Cargo.toml
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          if [ -n "${TAG}" ]; then
+            test "v${version}" = "${TAG}" || { echo "tag ${TAG} but Cargo.toml says ${version}"; exit 1; }
+          fi
+
+      - name: Build number (the published feed's, plus one)
+        run: |
+          last=$(curl -fsSL https://xiechimon.github.io/pointo/appcast.xml | sed -n 's/.*<sparkle:version>\([0-9]*\)<.*/\1/p' | sort -n | tail -1)
+          echo "SCRAWL_BUILD_NUMBER=$(( ${last:-0} + 1 ))" >> "$GITHUB_ENV"
+
+      - name: Sparkle key
+        if: env.TAG != ''
+        env:
+          KEY: ${{ secrets.SPARKLE_ED_KEY }}
+        run: |
+          test -n "${KEY}" || { echo "SPARKLE_ED_KEY is not set; refusing to publish an update nobody can verify"; exit 1; }
+          umask 077
+          printf '%s' "${KEY}" > "${RUNNER_TEMP}/sparkle.key"
+          echo "POINTO_SPARKLE_KEY_FILE=${RUNNER_TEMP}/sparkle.key" >> "$GITHUB_ENV"
+
+      - name: Signing identity
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+          PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          if [ -z "${P12}" ]; then echo "POINTO_SIGN_ID=-" >> "$GITHUB_ENV"; exit 0; fi
+          kc="${RUNNER_TEMP}/signing.keychain-db"
+          security create-keychain -p ci "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p ci "$kc"
+          printf '%s' "${P12}" | base64 --decode > "${RUNNER_TEMP}/cert.p12"
+          security import "${RUNNER_TEMP}/cert.p12" -k "$kc" -P "${PASSWORD}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$kc"
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          id=$(security find-identity -v -p codesigning "$kc" | awk 'NR==1 {print $2}')
+          echo "POINTO_SIGN_ID=${id}" >> "$GITHUB_ENV"
+
+      - name: Notary key
+        env:
+          P8: ${{ secrets.POINTO_NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.POINTO_NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.POINTO_NOTARY_ISSUER }}
+        run: |
+          if [ -z "${P8}" ]; then exit 0; fi
+          umask 077
+          printf '%s' "${P8}" > "${RUNNER_TEMP}/notary.p8"
+          {
+            echo "POINTO_NOTARY_KEY=${RUNNER_TEMP}/notary.p8"
+            echo "POINTO_NOTARY_KEY_ID=${KEY_ID}"
+            echo "POINTO_NOTARY_ISSUER=${ISSUER}"
+          } >> "$GITHUB_ENV"
+
+      # release-app.sh builds offline, so fetch the crates first. Sparkle goes outside target/,
+      # which the Rust cache saves and prunes.
+      - run: |
+          cargo fetch --locked
+          echo "SCRAWL_SPARKLE_DIR=${RUNNER_TEMP}/sparkle-2.9.4" >> "$GITHUB_ENV"
+
+      - name: Build only (no tag)
+        if: env.TAG == ''
+        run: ./scripts/release-app.sh prepare
+
+      - name: Build, sign and publish
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            ./scripts/release-app.sh prepare
+            gh release upload "${TAG}" --clobber dist/Pointo-${VERSION}-arm64.dmg dist/Pointo-latest-arm64.dmg dist/Pointo-${VERSION}-arm64.zip
+          else
+            ./scripts/release-app.sh publish
+          fi
+
+      - name: Commit the appcast to main
+        if: env.TAG != ''
+        run: |
+          cp site/public/appcast.xml "${RUNNER_TEMP}/appcast.xml"
+          git fetch origin main
+          git checkout -B main origin/main
+          cp "${RUNNER_TEMP}/appcast.xml" site/public/appcast.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/public/appcast.xml
+          git commit -m "appcast: ${VERSION}" || exit 0
+          git push origin main
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: pointo-macos-arm64
+          path: |
+            dist/Pointo-*-arm64.dmg
+            dist/Pointo-*-arm64.zip

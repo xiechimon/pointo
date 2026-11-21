@@ -229,11 +229,11 @@ fn clock_template(clock: &str) -> String {
         .collect()
 }
 
-/// Lead text of the Completed island: local captures were copied (or sent, as `note` says);
-/// iPhone ones count the inbox.
+/// Lead text of the Completed island: local captures were copied, with the shortcut that pastes
+/// them (or sent, as `note` says); iPhone ones count the inbox.
 fn completed_label(inbox_count: usize, note: Option<&str>) -> String {
     match inbox_count {
-        0 => note.unwrap_or("已复制").to_owned(),
+        0 => note.map_or_else(copied_label, str::to_owned),
         1 => "来自 iPhone".to_owned(),
         n => format!("{n} 条来自 iPhone"),
     }
@@ -292,7 +292,20 @@ fn completed_delivery_note(delivery: &crate::delivery::Delivery, title: &str) ->
     match delivery {
         crate::delivery::Delivery::Sent { .. } => format!("已发送到 {title}"),
         crate::delivery::Delivery::Queued { .. } => format!("已复制 · 没能发送到 {title}"),
-        crate::delivery::Delivery::Saved => "已复制".to_owned(),
+        crate::delivery::Delivery::Saved => copied_label(),
+    }
+}
+
+/// "Copied · ⌥⇧V to paste" (the paste shortcut as set; just "Copied" while it's off).
+fn copied_label() -> String {
+    copied_with(&crate::settings::paste_label())
+}
+
+fn copied_with(paste: &str) -> String {
+    if paste == "粘贴快捷键" {
+        "已复制".to_owned()
+    } else {
+        format!("已复制 · {paste} 粘贴")
     }
 }
 
@@ -2060,6 +2073,7 @@ impl ScrawlCoordinator {
                 }
                 self.send_after_undo(dir, dest, cx);
             }
+            None if !crate::handoff::auto_send() => {}
             None => {
                 let chips = RouteChip::offers(&recent);
                 if showing {
@@ -5844,7 +5858,9 @@ mod tests {
     #[test]
     fn clock_template_is_width_stable() {
         assert_eq!(clock_template("12:34"), "00:00");
-        assert_eq!(completed_label(0, None), "已复制");
+        assert!(completed_label(0, None).starts_with("已复制"));
+        assert_eq!(copied_with("⌥⇧V"), "已复制 · ⌥⇧V 粘贴");
+        assert_eq!(copied_with("粘贴快捷键"), "已复制");
         assert_eq!(completed_label(0, Some("已发送到 POINTO")), "已发送到 POINTO");
         assert_eq!(completed_label(1, Some("已发送到 POINTO")), "来自 iPhone");
         assert_eq!(completed_label(3, None), "3 条来自 iPhone");

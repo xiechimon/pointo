@@ -1,0 +1,26 @@
+{
+  "name": "pointo-promo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "voice": "python3 scripts/voice.py",
+    "render:vertical": "remotion render PointoVertical out/pointo-vertical.mp4",
+    "render:wide": "remotion render PointoWide out/pointo-wide.mp4"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans-sc": "^5.3.1",
+    "@remotion/cli": "^4.0.545",
+    "@remotion/media-utils": "^4.0.545",
+    "@remotion/motion-blur": "^4.0.545",
+    "@remotion/paths": "^4.0.545",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.545"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "huashu-motion": "github:alchaincyf/huashu-motion",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,126 @@
+// Every on-screen string lives here, so the font warm-up can load the glyphs
+// for all of them before the first frame is captured (see FontWarmup).
+export const COPY = {
+  hook: {
+    beats: ['左边那个', '不对，上面那个', '就是这里', '那一块'],
+    eighths: ['这个', '那个', '这里', '那里'],
+    ai: '你到底指的是哪个？',
+  },
+  title: {
+    pre: '别讲给 AI 听，',
+    main: '指给它看。',
+    note: '就这里！',
+    keys: '一个快捷键，开始录屏',
+    sub: 'macOS · Windows · 开源免费',
+  },
+  demo: {
+    app: 'Acme 控制台',
+    url: 'localhost:3000/settings',
+    nav: ['概览', '项目', '成员', '账单', '设置'],
+    title: '账户设置',
+    subtitle: '管理你的个人资料和通知偏好',
+    rows: [
+      {k: '名称', v: 'Kit Chen'},
+      {k: '邮箱', v: 'kit@acme.dev'},
+      {k: '时区', v: '(UTC+08:00) 上海'},
+      {k: '邮件通知', v: ''},
+    ],
+    cancel: '取消',
+    save: '保存更改',
+    rec: '录制中',
+    working: '整理中',
+    done: '已复制 · 3 个关键帧',
+    hudStart: '开始录制',
+    hudStop: '结束录制',
+    captions: [
+      {from: 160, ts: '0:01', text: '这个保存按钮'},
+      {from: 255, ts: '0:02', text: '这个保存按钮，点了没反应'},
+      {from: 384, ts: '0:04', text: '也没有提示，应该在右上角弹出来'},
+    ],
+    points: [
+      {k: '说', v: '语音转成带时间的文字'},
+      {k: '点', v: '记录点击位置与界面元素'},
+      {k: '画', v: '按住 ⇧ 画红色标注'},
+    ],
+    slices: ['0:02  点击「保存更改」', '0:04  圈出按钮', '0:05  框出右上角'],
+    quote: '“这个保存按钮，点了没反应”',
+    files: [
+      {name: 'contact-sheet.png', note: '总览图'},
+      {name: 'summary.md', note: '转写 + 操作'},
+      {name: 'pointo.json', note: '清单'},
+      {name: 'frames/', note: '关键帧'},
+    ],
+    compileA: '一段录屏，',
+    compileB: '压成 AI 一眼能读懂的记录。',
+    tree: [
+      '2026-11-20-1024/',
+      '├─ contact-sheet.png',
+      '├─ frames/',
+      '├─ summary.md',
+      '├─ pointo.json',
+      '├─ recording.mp4',
+      '└─ audio.wav',
+    ],
+    summary: [
+      '## 1 · 0:02  点击「保存更改」',
+      '“这个保存按钮，点了没反应”',
+      '## 2 · 0:04  标注：圈出按钮',
+      '## 3 · 0:05  标注：右上角',
+      '“也没有提示，应该在右上角弹出来”',
+    ],
+  },
+  real: {
+    caps: ['⌥⇧S，开始录', '填好，点保存——没反应', '按住 ⇧，圈出来', '一刷新，内容没了', '再按一次，录完', 'AI 收到的', '⌥⇧V，粘贴给 AI', 'AI 接手去修', '修好了，合并', '再刷新——内容还在'],
+    copied: '已复制 · ⌥⇧V 粘贴',
+    paste: '粘贴',
+    sheetHead: '5 张关键帧 + 每一步做了什么',
+    summary: ['#2 (0:15) clicked (x 0.79, y 0.52)', '#3 (0:17) clicked (x 0.79, y 0.52)', '#4 (0:23) circled region x 0.75–0.83', '#5 (0:25) scene changed'],
+    fixed: '✓ 保存修好了',
+  },
+  deliver: {
+    headA: '自动送进',
+    headB: '你正在开发的项目。',
+    folders: ['my-app', '.pointo', 'captures', '2026-11-20-1024'],
+    latest: 'latest',
+    toast: '已发送到 my-app',
+    termTitle: 'my-app — Claude Code',
+    prompt: '看一下 .pointo/latest，修好它',
+    lines: [
+      {t: '读取 contact-sheet.png、summary.md', c: 'dim'},
+      {t: '#1  点击「保存更改」没有反应', c: 'txt'},
+      {t: '#2  圈出的按钮：onSubmit 没绑定', c: 'txt'},
+      {t: '#3  右上角缺少「已保存」提示', c: 'txt'},
+      {t: '+ 绑定 onSubmit，保存后弹出提示', c: 'add'},
+      {t: '已修复 src/settings/Form.tsx', c: 'ok'},
+    ],
+    toolsHead: '能读本地文件的 AI 编程工具，都能用',
+    tools: ['Claude Code', 'Codex', 'Cursor', 'Gemini CLI', 'Qwen Code'],
+  },
+  local: {
+    headA: '语音在本机转写。',
+    headB: '录音不上传，也不需要 API Key。',
+    spec: 'QWEN3-ASR 0.6B · ON-DEVICE',
+    heard: '这个保存按钮，点了没反应',
+    facts: [
+      {k: '01', v: '普通话、粤语、中英混说'},
+      {k: '02', v: '断网也能转写'},
+      {k: '03', v: '免账号，免费'},
+    ],
+  },
+  end: {
+    name: 'Pointo',
+    tagA: '指给 AI 看，',
+    tagB: '而不是讲给它听。',
+    mac: '下载 macOS 版',
+    win: 'Windows 预览版',
+    url: 'github.com/xiechimon/pointo',
+    keys: '⌥⇧S 开始 · 按住 ⇧ 画 · 再按 ⌥⇧S 结束',
+    platforms: 'macOS · Windows · 开源免费 · 链接在简介',
+    menubar: '它就住在你的菜单栏里',
+  },
+};
+
+const collect = (v: unknown): string =>
+  typeof v === 'string' ? v : typeof v === 'object' && v ? Object.values(v).map(collect).join('') : '';
+
+export const ALL_TEXT = Array.from(new Set(collect(COPY) + '0123456789:·…“”「」，。？')).join('');

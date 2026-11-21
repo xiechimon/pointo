@@ -1484,8 +1484,12 @@ fn ingest_recording(
     (outcome, title)
 }
 
-/// The pinned project folder, else the most recent one (the timeline's `session` is ignored).
+/// With `autoSend` on, the pinned project folder, else the most recent one (the timeline's
+/// `session` is ignored); with it off (the default) a recording is only saved.
 fn project_target() -> Option<PathBuf> {
+    if !crate::handoff::auto_send() {
+        return None;
+    }
     pick_target(
         crate::handoff::pinned_project(),
         crate::handoff::recent_projects(),
