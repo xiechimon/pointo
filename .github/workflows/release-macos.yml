@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag to build and publish (e.g. v0.1.7), matching Cargo.toml. Empty only builds the branch and keeps the DMG as a workflow artifact.
+        description: Tag to publish this branch as (e.g. v0.1.7), matching Cargo.toml; made here if it doesn't exist. Empty only builds the branch and keeps the DMG as a workflow artifact.
         required: false
         default: ""
 
@@ -42,7 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'push' && github.ref || inputs.tag || github.ref }}
+          # A manual run builds the branch it was started on; publishing makes the tag there if it
+          # doesn't exist yet (POINTO_RELEASE_TARGET), so a release needs no tag pushed by hand.
+          ref: ${{ github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -120,6 +122,7 @@ jobs:
         if: env.TAG != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          POINTO_RELEASE_TARGET: ${{ github.sha }}
         run: |
           if gh release view "${TAG}" >/dev/null 2>&1; then
             ./scripts/release-app.sh prepare
