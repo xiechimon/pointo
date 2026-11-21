@@ -584,10 +584,21 @@ pub fn select_keyframes(
     }
     // A run of changing frames is one transition. Its last changed frame is
     // the settled view, avoiding several near-identical animation keyframes.
+    // Runs less than `SETTLE_MS` apart are one transition too: a reload or a
+    // navigation passes through a blank or "Connecting…" page that holds still
+    // for a moment, and the page it lands on is the view, not the blank one.
+    const SETTLE_MS: u64 = 1_200;
     let mut transitions: Vec<(usize, (u64, u64), f32)> = Vec::new();
     let mut transition: Option<(usize, u64, f32)> = None;
     for (i, &delta) in deltas.iter().enumerate() {
         if delta > 0.08 {
+            if transition.is_none()
+                && let Some(&(last, (t0, _), max)) = transitions.last()
+                && frames[i].t_ms.saturating_sub(frames[last].t_ms) < SETTLE_MS
+            {
+                transitions.pop();
+                transition = Some((last, t0, max));
+            }
             let start_t = transition.map_or(frames[i].t_ms, |(_, t0, _)| t0);
             transition = Some((
                 i + 1,
@@ -1063,6 +1074,32 @@ mod tests {
         assert_eq!(selected[0].0.reason, KeyframeReason::SceneChange);
         assert_eq!(selected[0].0.t, 1500);
         assert_eq!(selected[0].1.rgba, frames[3].rgba);
+    }
+
+    #[test]
+    fn a_reload_through_a_blank_page_settles_on_the_page_it_lands_on() {
+        // The page, ⌘R: a blank "Connecting…" page holds for half a second, then the page loads.
+        let frames = vec![
+            frame(0, 60),
+            frame(1000, 60),
+            frame(1250, 255),
+            frame(1500, 255),
+            frame(1750, 255),
+            frame(2000, 120),
+            frame(2250, 120),
+            frame(2500, 120),
+        ];
+        let selected = select_keyframes(
+            &frames,
+            &[],
+            &mut [],
+            &[],
+            &TranscriptData::default(),
+            MAX_KEYFRAMES,
+        );
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].0.reason, KeyframeReason::SceneChange);
+        assert_eq!(selected[0].0.t, 2000);
     }
 
     #[test]

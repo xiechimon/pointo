@@ -5,7 +5,9 @@
 //!
 //! 1. Collect the activity: ink, clicks, drags, scrolls, laser, cursor dwell, and the regions that
 //!    changed since the previous keyframe, each with a weight. Cursor samples far from every
-//!    deliberate input are outliers.
+//!    deliberate input are outliers. A change counts as caused when it is near a click, drag or
+//!    scroll, or near where you clicked or rested the pointer since the previous keyframe (what
+//!    you typed or pasted there), along with changes beside it on the same line.
 //! 2. Attribute the weight to the frontmost window under each point (a menu or panel counts for
 //!    its app's window, the menu bar for the frontmost app's).
 //! 3. If one to `max_windows` windows hold `snap_threshold` of it, crop to them (plus any input
@@ -1216,26 +1218,70 @@ impl Ctx<'_> {
                 .map(|p| (p.x, p.y)),
         );
         // Changes near a click, drag or scroll are what it did: the scrolled page, a popover.
-        let pokes: Vec<(f32, f32)> = pts
+        let mut pokes: Vec<(f32, f32)> = pts
             .iter()
             .filter(|p| matches!(p.kind, Kind::Click | Kind::Drag | Kind::Scroll))
             .map(|p| (p.x, p.y))
             .collect();
+        // So are changes where you worked since the previous keyframe, before this slice: text
+        // typed or pasted into a field you clicked or rested the pointer in shows up in this
+        // keyframe's changes, though nothing in the slice touched it.
+        if let Some(k) = k {
+            let since = k.checked_sub(1).map_or(0, |p| self.input.keyframes[p]);
+            pokes.extend(
+                self.input
+                    .items
+                    .iter()
+                    .filter(|it| it.t1 > since && it.t0 < t_kf)
+                    .filter(|it| {
+                        it.kind == Kind::Click || (it.kind == Kind::Cursor && it.dwell >= 1.0)
+                    })
+                    .flat_map(|it| it.pts.iter().map(|&(x, y, _)| (x, y))),
+            );
+        }
         let (rx, ry) = (s.cause_reach / self.sw, s.cause_reach / self.sh);
-        let caused = self
+        let near = |b: &Rect, (x, y): (f32, f32)| {
+            x >= b[0] - rx && x <= b[2] + rx && y >= b[1] - ry && y <= b[3] + ry
+        };
+        // Side by side on the same line: a gap under the reach and half the shorter one's height
+        // shared, so a page that changed all over doesn't pull the whole window in.
+        let touching = |a: &Rect, b: &Rect| {
+            let shared = a[3].min(b[3]) - a[1].max(b[1]);
+            a[0] <= b[2] + rx && b[0] <= a[2] + rx && shared >= 0.5 * (a[3] - a[1]).min(b[3] - b[1])
+        };
+        let changed: Vec<Rect> = self
             .input
             .items
             .iter()
             .filter(|it| it.kind == Kind::Change && (k.is_none() || it.keyframe == k))
             .filter(|it| it.t0 >= slice[0] && it.t0 <= slice[1])
             .filter_map(|it| bbox(it.pts.iter().map(|&(x, y, _)| (x, y))))
-            .filter(|b| {
-                s.cause_reach > 0.0
-                    && pokes.iter().any(|&(x, y)| {
-                        x >= b[0] - rx && x <= b[2] + rx && y >= b[1] - ry && y <= b[3] + ry
-                    })
-            })
-            .fold(None, |r: Option<Rect>, b| Some(union_opt(r, b)));
+            .collect();
+        // A change beside a caused one on its line is part of it (a field's text beside its
+        // caret), so the crop doesn't cut through what was typed.
+        let mut hit: Vec<bool> = changed
+            .iter()
+            .map(|b| s.cause_reach > 0.0 && pokes.iter().any(|&p| near(b, p)))
+            .collect();
+        loop {
+            let grown: Vec<usize> = (0..changed.len())
+                .filter(|&i| {
+                    !hit[i]
+                        && (0..changed.len()).any(|j| hit[j] && touching(&changed[i], &changed[j]))
+                })
+                .collect();
+            if grown.is_empty() {
+                break;
+            }
+            for i in grown {
+                hit[i] = true;
+            }
+        }
+        let caused = changed
+            .iter()
+            .zip(&hit)
+            .filter(|(_, h)| **h)
+            .fold(None, |r: Option<Rect>, (b, _)| Some(union_opt(r, *b)));
         let rested = match (rested, caused) {
             (Some(a), Some(b)) => Some(union(a, b)),
             (a, b) => a.or(b),
