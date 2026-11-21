@@ -3,13 +3,13 @@
     <channel>
         <title>Pointo</title>
         <item>
-            <title>0.1.6</title>
-            <pubDate>Sun, 15 Nov 2026 16:41:34 +0800</pubDate>
-            <sparkle:version>7</sparkle:version>
-            <sparkle:shortVersionString>0.1.6</sparkle:shortVersionString>
+            <title>0.1.7</title>
+            <pubDate>Sat, 21 Nov 2026 00:57:31 +0000</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>0.1.7</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://xiechimon.github.io/pointo/releases/Pointo-0.1.6-arm64.zip" length="13886576" type="application/octet-stream" sparkle:edSignature="7sK6tFL4xlT9sTbTSQTlRGwz3c1Dqh9VXsEHbsjHMn2qfgike41j12DJ3TbEgv8+h4Y6w9xlvDIbPtQLm3xYCQ=="/>
+            <enclosure url="https://xiechimon.github.io/pointo/releases/Pointo-0.1.7-arm64.zip" length="11089350" type="application/octet-stream" sparkle:edSignature="U9X9SFoFIAIuDnpyULNplBBBpjJdRhi/BAnC1gtGJ8tjK+YSO9OFc15AnzLlaMTEQLfVHLi90uaM+Hq3rovnDA=="/>
         </item>
     </channel>
 </rss>
