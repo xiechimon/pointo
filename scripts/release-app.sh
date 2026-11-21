@@ -161,7 +161,9 @@ fi
 # publish: a GitHub release v${VERSION} with the DMG, the stable-name DMG and the update zip.
 # Commit and push site/public/appcast.xml afterwards so the Pages deploy serves the new feed.
 if [[ "${MODE}" == "publish" ]]; then
+  # POINTO_RELEASE_TARGET (a commit) makes the tag there when it doesn't exist yet.
   gh release create "v${VERSION}" --repo "${REPO_SLUG}" --title "Pointo ${VERSION}" \
+    ${POINTO_RELEASE_TARGET:+--target "${POINTO_RELEASE_TARGET}"} \
     --notes-file "${POINTO_RELEASE_NOTES:-/dev/null}" \
     "${DIST_DIR}/${DMG_NAME}" "${DIST_DIR}/${LATEST_DMG}" "${DIST_DIR}/${ZIP_NAME}"
 fi
