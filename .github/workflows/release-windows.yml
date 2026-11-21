@@ -60,9 +60,19 @@ jobs:
         env:
           SCRAWL_SHOW_OWN_WINDOWS: "1"
         run: |
-          $app = Start-Process -FilePath $env:EXE -ArgumentList "app" -PassThru
+          $err = Join-Path $env:RUNNER_TEMP "pointo-stderr.txt"
+          $out = Join-Path $env:RUNNER_TEMP "pointo-stdout.txt"
+          $env:RUST_BACKTRACE = "1"
+          $app = Start-Process -FilePath $env:EXE -ArgumentList "app" -PassThru -RedirectStandardError $err -RedirectStandardOutput $out
           Start-Sleep -Seconds 12
-          if ($app.HasExited) { throw "Pointo exited with code $($app.ExitCode)" }
+          if ($app.HasExited) {
+            # Say why: the panic is on stderr, the rest in Pointo's log.
+            Get-Content $err -ErrorAction SilentlyContinue
+            Get-Content $out -Tail 40 -ErrorAction SilentlyContinue
+            $log = Join-Path $env:LOCALAPPDATA "Pointo\Logs\pointo.log"
+            if (Test-Path $log) { Get-Content $log -Tail 60 }
+            throw "Pointo exited with code $($app.ExitCode)"
+          }
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
           $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
