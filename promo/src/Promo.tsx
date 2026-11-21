@@ -7,7 +7,7 @@ import {BAR, SCENES} from './timing';
 import {FontFaces, FontWarmup} from './ui';
 import {Hook} from './scenes/Hook';
 import {Title} from './scenes/Title';
-import {Demo} from './scenes/Demo';
+import {Demo} from './scenes/Real';
 import {Deliver} from './scenes/Deliver';
 import {Local} from './scenes/Local';
 import {End} from './scenes/End';

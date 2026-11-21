@@ -215,33 +215,28 @@ SFX = [
     ('glitch', 3.5, {'gain': 0.5}),
     ('chime', 6.1, {'gain': 0.5}),
     ('pop', 7.08, {'note': 1, 'gain': 0.6}), ('pop', 7.17, {'note': 3, 'gain': 0.6}), ('pop', 7.25, {'note': 5, 'gain': 0.6}),
-    # recording starts: the three keys, the pill
-    ('click', 8.0, {'pan': -0.3}), ('click', 8.5, {'pan': 0}), ('click', 9.0, {'pan': 0.3}),
-    ('pop', 9.27, {'gain': 0.5, 'note': 3}),
-    # click, ink, markers
-    ('click', 13.0, {'gain': 0.9}),
-    ('tick', 13.07, {}),
-    ('draw', 14.4, {'dur': 0.95, 'gain': 0.7}),
-    ('tick', 15.37, {}),
-    ('whip', 15.6, {'gain': 0.7}),
-    ('draw', 15.75, {'dur': 0.45, 'gain': 0.7}),
-    ('tick', 16.23, {}),
-    # stop: keys, then the keyframes peel off on the beat
-    ('click', 16.5, {'pan': -0.3}), ('click', 17.0, {'pan': 0}), ('click', 17.5, {'pan': 0.3}),
-    ('ding', 17.95, {'note': 5}),
-    ('shutter', 18.0, {}), ('shutter', 18.27, {}), ('shutter', 18.53, {}),
-    ('whoosh', 18.4, {'gain': 0.7}),
-    ('slide', 19.5, {'gain': 0.6}),
-    # the bundle: sheet, push into keyframe 2, summary.md, fold
-    ('slide', 21.33, {'gain': 0.6}),
-    ('whoosh', 21.75, {'gain': 0.6}),
-    # delivered, read, fixed, and the app works
-    ('type', 22.0, {'dur': 0.27}),
-    ('tick', 22.3, {}), ('tick', 22.42, {}), ('tick', 22.53, {}), ('tick', 22.65, {}),
-    ('chime', 22.77, {'gain': 0.5}),
-    ('ding', 22.88, {'note': 1}),
-    ('click', 23.5, {'gain': 0.9}),
-    ('ding', 23.6, {'note': 5}),
+    # the real capture (src/scenes/Real.tsx): ⌥⇧S, the capsule
+    ('click', 8.03, {'pan': -0.3}), ('click', 8.1, {'pan': 0}), ('click', 8.17, {'pan': 0.3}),
+    ('pop', 8.3, {'gain': 0.5, 'note': 3}),
+    # paste the text, Save twice: nothing
+    ('type', 9.48, {'dur': 0.2}),
+    ('click', 10.7, {'gain': 0.9}), ('click', 11.41, {'gain': 0.9}),
+    # hold ⇧ and circle Save
+    ('draw', 11.76, {'dur': 1.9, 'gain': 0.7}),
+    # ⌘R: the text is gone
+    ('whoosh', 14.16, {'gain': 0.6}), ('glitch', 14.4, {'gain': 0.35}),
+    # stop; the capsule says copied
+    ('click', 15.84, {'gain': 0.9}), ('ding', 16.07, {'note': 5}),
+    # what the agent gets: the contact sheet, the summary lines
+    ('slide', 16.55, {'gain': 0.6}),
+    ('tick', 17.0, {}), ('tick', 17.25, {}), ('tick', 17.5, {}), ('tick', 17.75, {}),
+    # ⌥⇧V into the chat; sent
+    ('click', 19.0, {'pan': -0.3}), ('click', 19.07, {'pan': 0}), ('click', 19.13, {'pan': 0.3}),
+    ('whoosh', 20.55, {'gain': 0.6}),
+    ('chime', 21.0, {'gain': 0.4}),
+    # merged; reload, and the text stays
+    ('chime', 22.89, {'gain': 0.5}),
+    ('whoosh', 23.4, {'gain': 0.5}), ('ding', 23.6, {'note': 5}),
     ('hit', 24.0, {}), ('hit', 24.25, {'gain': 0.8}), ('hit', 24.5, {'gain': 0.8}), ('hit', 24.75, {'gain': 0.8}), ('hit', 25.0, {'gain': 0.8}),
     ('whoosh', 25.3, {'gain': 0.6}),
     ('stamp', 28.0, {}), ('stamp', 28.5, {}), ('stamp', 29.0, {}),

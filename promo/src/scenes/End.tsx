@@ -1,6 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
 import {COPY} from '../copy';
+import {Shot} from './Real';
 import {C, clamp, DISPLAY, ease, Flash, H, HAND, Icon, Ink, kf, MONO, SANS, Stage, UI, useSpring} from '../ui';
 
 // Bars 15–17, the musical peak. The mark lands on the hit (30.0 s); the one call to action, the
@@ -16,14 +17,7 @@ const Montage: React.FC = () => {
   const k = interpolate(t, [0, 8], [0, 1], {...clamp, easing: ease});
   const zoom = 1.12 - 0.12 * k + t * 0.002;
   if (shot === 0) {
-    return (
-      <AbsoluteFill style={{background: C.paper, alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{position: 'relative', transform: `scale(${zoom})`}}>
-          <div style={{padding: '40px 90px', borderRadius: 36, background: C.ink, color: '#fff', fontFamily: SANS, fontWeight: 900, fontSize: 120}}>{COPY.demo.save}</div>
-          <Ink viewBox="0 0 700 300" style={{left: -120, top: -70, width: 940, height: 400}} d="M 640 70 C 700 20, 300 -10, 120 40 C 0 80, 10 250, 260 270 C 500 290, 700 240, 680 140 C 670 90, 610 60, 520 56" from={2} to={20} width={14} />
-        </div>
-      </AbsoluteFill>
-    );
+    return <Shot from={22.85} rate={1} len={30} a={{x: 1480, y: 645, s: 2.6}} b={{x: 1480, y: 645, s: 2.9}} freezeAt={0} />;
   }
   if (shot === 1) {
     return (
@@ -44,7 +38,7 @@ const Montage: React.FC = () => {
   if (shot === 2) {
     return (
       <AbsoluteFill style={{background: C.ink, alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{fontFamily: MONO, fontSize: 84, fontWeight: 700, color: '#7CE3A4', transform: `scale(${zoom})`, whiteSpace: 'nowrap'}}>✓ 已修复 Form.tsx</div>
+        <div style={{fontFamily: MONO, fontSize: 84, fontWeight: 700, color: '#7CE3A4', transform: `scale(${zoom})`, whiteSpace: 'nowrap'}}>{COPY.real.fixed}</div>
       </AbsoluteFill>
     );
   }
